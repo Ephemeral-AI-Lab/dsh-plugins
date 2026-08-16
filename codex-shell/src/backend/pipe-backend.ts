@@ -56,7 +56,7 @@ class PipeBackend implements SessionBackend {
   async write(data: Uint8Array): Promise<void> {
     if (this.stdinClosed || this.child.stdin.destroyed) throw new Error('session stdin is closed')
     await new Promise<void>((resolve, reject) => {
-      this.child.stdin.write(Buffer.from(data), error => error === undefined ? resolve() : reject(error))
+      this.child.stdin.write(Buffer.from(data), error => error == null ? resolve() : reject(error))
     })
   }
 

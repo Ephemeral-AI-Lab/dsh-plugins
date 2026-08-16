@@ -60,7 +60,7 @@ export class ExecSessionService {
 
   async exec(request: ExecRequest): Promise<ExecResult> {
     throwIfAborted(request.signal)
-    if (this.disposed) throw new Error('bash-codex session service is disposed')
+    if (this.disposed) throw new Error('codex-shell session service is disposed')
     if (this.registry.size >= this.config.maxSessions) throw new MaxSessionsError(this.config.maxSessions)
 
     const id = this.registry.reserve()
@@ -268,7 +268,7 @@ export class ExecSessionService {
     const maybeContext = (owner as { ctx?: { effect: (body: () => () => Promise<void>, label?: string) => unknown } }).ctx
     if (maybeContext === undefined) return
     try {
-      maybeContext.effect(() => async () => { await this.closeOwner(owner) }, 'bash-codex owner session cleanup')
+      maybeContext.effect(() => async () => { await this.closeOwner(owner) }, 'codex-shell owner session cleanup')
     } catch {
       // A synthetic or already-disposing owner has no effect scope; global
       // plugin disposal still owns the session and remains fail-safe.

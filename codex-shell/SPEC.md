@@ -1,15 +1,15 @@
-# bash-codex
+# dsh-codex-shell
 
 Status: Draft implementation specification
 
 ## 1. Purpose
 
-bash-codex is a DeepSeek Harness plugin that exposes two Codex-style model tools:
+dsh-codex-shell is a DeepSeek Harness plugin that exposes two Codex-style model tools:
 
 - exec_command: start a shell command and collect its initial output.
 - write_stdin: send input to, or poll, a previously started command session.
 
-The implementation is TypeScript-first, Windows-first, and structured so that the process backend can support Windows, macOS, and Linux without changing the model-facing tool contract.
+The implementation is TypeScript-first and structured so that the process backend supports Windows, macOS, and Linux without changing the model-facing tool contract.
 
 The plugin is intentionally independent of DHS's current terminal-bash PTY path. That path currently depends on terminal inspection that is unavailable on Windows. The plugin must instead use an internal backend abstraction, with a PTY implementation based on a cross-platform PTY library and a pipe implementation as a fallback.
 
@@ -131,7 +131,7 @@ Rules:
 The plugin entry point must follow the DHS Cordis plugin shape:
 
 ~~~ts
-export const name = 'bash-codex'
+export const name = 'codex-shell'
 export const inject = ['tools', 'systemPrompt']
 
 export function apply(ctx: Context): void {
@@ -153,14 +153,14 @@ The plugin must be loadable from a compiled absolute module path in a Cordis con
 
 ~~~yaml
 - insert:
-    - id: bash-codex
-      name: 'C:\path\to\dsh-plugins\bash-codex\lib\index.js'
+    - id: codex-shell
+      name: '/absolute/path/to/dsh-plugins/codex-shell/lib/index.js'
 ~~~
 
 ## 5. Package layout
 
 ~~~text
-bash-codex/
+dsh-codex-shell/
 ├── package.json
 ├── tsconfig.json
 ├── README.md
@@ -448,7 +448,7 @@ Load the compiled plugin in a minimal DHS profile and verify:
 
 The first implementation is complete when:
 
-1. bash-codex builds from TypeScript to lib/.
+1. dsh-codex-shell builds from TypeScript to lib/.
 2. DHS can load the compiled plugin through an absolute Cordis entry.
 3. Windows supports the complete exec_command to write_stdin lifecycle.
 4. PTY is the default transport and pipe fallback is configurable.

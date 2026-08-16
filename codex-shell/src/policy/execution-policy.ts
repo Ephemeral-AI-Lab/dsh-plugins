@@ -9,7 +9,7 @@ export interface ExecutionPolicy {
 /** Trusted development policy. Host-policy is deliberately not implemented yet. */
 export function createExecutionPolicy(mode: ExecutionMode): ExecutionPolicy {
   if (mode === 'host-policy') {
-    throw new Error('bash-codex: executionMode "host-policy" is unsupported until an explicit DHS policy adapter is supplied')
+    throw new Error('codex-shell: executionMode "host-policy" is unsupported until an explicit DHS policy adapter is supplied')
   }
   return {
     mode,

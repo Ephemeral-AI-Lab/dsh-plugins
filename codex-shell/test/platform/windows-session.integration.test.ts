@@ -2,10 +2,10 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createPtyFirstFactory } from '../src/backend/pty-backend.js'
-import { ExecSessionService } from '../src/session/exec-session-service.js'
-import { WindowsPowerShellAdapter } from '../src/shell/windows-powershell.js'
-import type { ResolvedConfig } from '../src/types.js'
+import { createPtyFirstFactory } from '../../src/backend/pty-backend.js'
+import { ExecSessionService } from '../../src/session/exec-session-service.js'
+import { WindowsPowerShellAdapter } from '../../src/shell/windows-powershell.js'
+import type { ResolvedConfig } from '../../src/types.js'
 
 const config: ResolvedConfig = {
   executionMode: 'trusted',
@@ -22,7 +22,7 @@ const config: ResolvedConfig = {
 
 describe('Windows service lifecycle', () => {
   it.runIf(process.platform === 'win32')('starts a PTY session, writes stdin, and preserves Unicode/workdir', async () => {
-    const workdir = await mkdtemp(join(tmpdir(), 'bash-codex-\u6D4B\u8BD5-'))
+    const workdir = await mkdtemp(join(tmpdir(), 'codex-shell-\u6D4B\u8BD5-'))
     const service = new ExecSessionService(
       config,
       new WindowsPowerShellAdapter(),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OutputLog } from '../src/session/output-log.js'
+import { OutputLog } from '../../src/session/output-log.js'
 
 describe('OutputLog', () => {
   it('preserves split UTF-8 sequences and does not invent token counts', () => {

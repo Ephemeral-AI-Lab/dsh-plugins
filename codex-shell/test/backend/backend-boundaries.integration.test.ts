@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createPipeBackend } from '../src/backend/pipe-backend.js'
-import { createNodePtyBackend } from '../src/backend/node-pty-backend.js'
-import { createPtyFirstFactory } from '../src/backend/pty-backend.js'
-import type { BackendSpawnRequest, ExitStatus, SessionBackend } from '../src/types.js'
-import { WindowsPowerShellAdapter } from '../src/shell/windows-powershell.js'
+import { createPipeBackend } from '../../src/backend/pipe-backend.js'
+import { createNodePtyBackend } from '../../src/backend/node-pty-backend.js'
+import { createPtyFirstFactory } from '../../src/backend/pty-backend.js'
+import type { BackendSpawnRequest, ExitStatus, SessionBackend } from '../../src/types.js'
+import { WindowsPowerShellAdapter } from '../../src/shell/windows-powershell.js'
 
 const nodeRequest: BackendSpawnRequest = {
   executable: process.execPath,

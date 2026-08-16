@@ -7,7 +7,7 @@ import { ExecSessionService } from './session/exec-session-service.js'
 import { createShellAdapter } from './shell/index.js'
 import type { Config, ResolvedConfig } from './types.js'
 
-export const name = 'bash-codex'
+export const name = 'codex-shell'
 export const inject = ['tools', 'systemPrompt']
 
 const DEFAULTS: Required<Pick<ResolvedConfig,
@@ -38,12 +38,12 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.effect(() => async () => {
     await service.dispose()
-  }, 'bash-codex session cleanup')
+  }, 'codex-shell session cleanup')
 
   ctx.systemPrompt.section({
-    name: 'tool:bash-codex',
+    name: 'tool:codex-shell',
     order: 105,
-    text: 'The bash-codex command tools use the host-resolved shell; use `workdir` for the command directory. Long-running commands return an opaque session id for `write_stdin`.',
+    text: 'The codex-shell command tools use the host-resolved shell; use `workdir` for the command directory. Long-running commands return an opaque session id for `write_stdin`.',
   })
 
   registerExecCommandTool(ctx, service)

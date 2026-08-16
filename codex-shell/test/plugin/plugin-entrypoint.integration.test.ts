@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apply } from '../src/index.js'
+import { apply } from '../../src/index.js'
 
 describe('DHS plugin entry point', () => {
   it('registers both tools and owns a disposal effect', async () => {

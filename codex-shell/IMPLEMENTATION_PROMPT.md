@@ -1,12 +1,12 @@
-# Implementation Prompt: bash-codex
+# Implementation Prompt: dsh-codex-shell
 
 You are implementing the DeepSeek Harness plugin located at:
 
-C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\bash-codex
+C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\codex-shell
 
 ## Mission
 
-Implement bash-codex according to SPEC.md.
+Implement dsh-codex-shell according to SPEC.md.
 
 The plugin must provide Codex-style:
 
@@ -19,7 +19,7 @@ It must be TypeScript-first, Windows-first, compatible with macOS/Linux through 
 
 Read these files completely before editing:
 
-1. C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\bash-codex\SPEC.md
+1. C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\codex-shell\SPEC.md
 2. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\docs\architecture.md
 3. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\docs\cookbook\adding-a-tool.md
 4. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\packages\subprocess\subprocess\src\types.ts
@@ -103,7 +103,7 @@ Rules:
 Implement the standard Cordis plugin entry point:
 
 ~~~ts
-export const name = 'bash-codex'
+export const name = 'codex-shell'
 export const inject = ['tools', 'systemPrompt']
 
 export function apply(ctx: Context): void

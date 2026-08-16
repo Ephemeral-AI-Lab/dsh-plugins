@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { BackendFactory, ExitStatus, ResolvedConfig, SessionBackend, SessionOwner, ShellAdapter } from '../src/types.js'
-import { ExecSessionService, SessionOwnershipError, UnknownSessionError } from '../src/session/exec-session-service.js'
-import { delay } from '../src/session/lifecycle.js'
+import type { BackendFactory, ExitStatus, ResolvedConfig, SessionBackend, SessionOwner, ShellAdapter } from '../../src/types.js'
+import { ExecSessionService, SessionOwnershipError, UnknownSessionError } from '../../src/session/exec-session-service.js'
+import { createPipeBackend } from '../../src/backend/pipe-backend.js'
+import { delay } from '../../src/session/lifecycle.js'
 
 const config: ResolvedConfig = {
   executionMode: 'trusted',
@@ -63,6 +64,36 @@ describe('ExecSessionService', () => {
     const started = await live.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: new AbortController().signal })
     await expect(live.write({ owner: other, sessionId: started.session_id!, chars: '', signal: new AbortController().signal }))
       .rejects.toBeInstanceOf(SessionOwnershipError)
+  })
+
+  it('returns output and the nonzero exit code after a pipe stdin write', async () => {
+    const actualShell: ShellAdapter = {
+      async resolve() {
+        return { executable: '/bin/sh', oneShotArgs: command => ['-c', command], interactiveArgs: () => [] }
+      },
+      oneShotArgs: command => ['-c', command],
+      interactiveArgs: () => [],
+    }
+    const service = new ExecSessionService(config, actualShell, createPipeBackend)
+    services.push(service)
+
+    const owner = ownerWithCleanup()
+    const started = await service.exec({
+      owner,
+      cmd: "read answer; echo 'FAIL: incorrect number'; exit 1",
+      yieldTimeMs: 0,
+      signal: new AbortController().signal,
+    })
+    const result = await service.write({
+      owner,
+      sessionId: started.session_id!,
+      chars: '000000\n',
+      yieldTimeMs: 1_000,
+      signal: new AbortController().signal,
+    })
+
+    expect(result.output).toContain('FAIL: incorrect number')
+    expect(result.exit_code).toBe(1)
   })
 
   it('closes sessions through the actual owner context effect and plugin disposal', async () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { registerExecCommandTool } from '../src/tools/exec-command.js'
-import { registerWriteStdinTool } from '../src/tools/write-stdin.js'
+import { registerExecCommandTool } from '../../src/tools/exec-command.js'
+import { registerWriteStdinTool } from '../../src/tools/write-stdin.js'
 
-describe('bash-codex tool contract', () => {
+describe('codex-shell tool contract', () => {
   it('exposes only the approved exec_command parameters', () => {
     const registered: any[] = []
     registerExecCommandTool({ tools: { register: (tool: unknown) => registered.push(tool) } } as any, {} as any)
