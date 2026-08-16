@@ -181,10 +181,10 @@ export class ExecSessionService {
 
   private async collect(record: SessionRecord, yieldTimeMs: number, signal: AbortSignal): Promise<void> {
     const waitMs = clampWait(yieldTimeMs)
-    if (waitMs === 0 || record.exit !== undefined || record.failure !== undefined) return
+    if (waitMs === 0 || record.exit !== undefined || record.failure !== undefined || isClosing(record)) return
     const deadline = Date.now() + waitMs
     let observedCursor = record.output.size
-    while (record.exit === undefined && record.failure === undefined) {
+    while (record.exit === undefined && record.failure === undefined && !isClosing(record)) {
       throwIfAborted(signal)
       const remaining = deadline - Date.now()
       if (remaining <= 0) return
@@ -199,6 +199,7 @@ export class ExecSessionService {
 
   private async finishOperation(record: SessionRecord, startedAt: number, requestedTokens: number | undefined): Promise<ExecResult> {
     if (record.failure !== undefined) throw record.failure
+    if (record.exit === undefined && isClosing(record)) throw new UnknownSessionError(record.id)
     if (record.exit !== undefined) await record.backend.waitForQuiescence()
     const limit = normalizeOutputLimit(
       { maxOutputTokens: requestedTokens ?? this.config.defaultMaxOutputTokens },
@@ -274,6 +275,10 @@ export class ExecSessionService {
       // plugin disposal still owns the session and remains fail-safe.
     }
   }
+}
+
+function isClosing(record: SessionRecord): boolean {
+  return record.state === 'terminating' || record.state === 'closed'
 }
 
 function clampWait(value: number): number {

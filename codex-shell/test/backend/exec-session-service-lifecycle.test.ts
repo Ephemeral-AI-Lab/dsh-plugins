@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { BackendFactory, ExitStatus, ResolvedConfig, SessionBackend, SessionOwner, ShellAdapter } from '../../src/types.js'
 import { ExecSessionService, SessionOwnershipError, UnknownSessionError } from '../../src/session/exec-session-service.js'
 import { createPipeBackend } from '../../src/backend/pipe-backend.js'
+import { createShellAdapter } from '../../src/shell/index.js'
 import { delay } from '../../src/session/lifecycle.js'
 
 const config: ResolvedConfig = {
@@ -67,20 +68,21 @@ describe('ExecSessionService', () => {
   })
 
   it('returns output and the nonzero exit code after a pipe stdin write', async () => {
-    const actualShell: ShellAdapter = {
-      async resolve() {
-        return { executable: '/bin/sh', oneShotArgs: command => ['-c', command], interactiveArgs: () => [] }
-      },
-      oneShotArgs: command => ['-c', command],
-      interactiveArgs: () => [],
-    }
+    const actualShell = createShellAdapter({ windowsShell: process.platform === 'win32' ? process.env.ComSpec : undefined })
+    const resolved = await actualShell.resolve()
+    const executable = resolved.executable.toLowerCase().replaceAll('\\', '/').split('/').at(-1) ?? resolved.executable
+    const command = executable === 'cmd.exe' || executable === 'cmd'
+      ? 'set /p answer=& echo FAIL: incorrect number& exit /b 1'
+      : process.platform === 'win32'
+        ? "$answer = [Console]::In.ReadLine(); Write-Output 'FAIL: incorrect number'; exit 1"
+        : "read answer; echo 'FAIL: incorrect number'; exit 1"
     const service = new ExecSessionService(config, actualShell, createPipeBackend)
     services.push(service)
 
     const owner = ownerWithCleanup()
     const started = await service.exec({
       owner,
-      cmd: "read answer; echo 'FAIL: incorrect number'; exit 1",
+      cmd: command,
       yieldTimeMs: 0,
       signal: new AbortController().signal,
     })

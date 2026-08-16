@@ -1,171 +1,162 @@
-# dsh-codex-shell
+# dsh-codex-shell 🐋
 
-`dsh-codex-shell` is a DeepSeek Harness npm bundle that provides the
-Codex-compatible `exec_command` and `write_stdin` tools.
+Adds Codex-style `exec_command` and `write_stdin` tools to DeepSeek
+Harness.
 
-The plugin starts a fresh shell process for every `exec_command` call and keeps
-that process available for later `write_stdin` calls while it is running. PTY
-transport is the default. If PTY allocation fails, the configured `ptyFallback`
-policy can use an explicit-argv pipe backend or fail the call.
+## 🎯 Why do we need it?
 
-## Install and load
+Most Bash or Shell tools use a one-shot model: run a command, read its output,
+and return. That works for `ls`, `git status`, builds, and ordinary tests, but
+not for a CLI that waits for input while it is still running.
 
-DSH plugins are installed into one named profile at a time. Always include
-`--profile`; there is no profile-less global install command.
+For example, an interactive `rng` program requires the agent to:
 
-From the published DSH CLI, install it into the web profile:
+1. Start the process.
+2. Read the generated number.
+3. Send the answer to the same process.
+4. Read `PASS` or `FAIL`.
+5. Confirm the final exit code.
 
-```bash
-npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-shell
+The same pattern is needed for device-code login, OAuth flows, REPLs, SSH
+sessions, database prompts, and end-to-end CLI tests. Background execution
+alone is not enough if the agent cannot write to the original process.
+
+See the full motivation in [Why Claude Code, Pi, and DSH cannot complete
+interactive CLIs](https://x.com/yifanxu_ephai/status/2088905874232459741).
+
+## ⭐ Why Codex-style tools?
+
+The two-tool design is a good fit for coding agents because it connects the
+complete interactive flow:
+
+- **Start** - `exec_command` launches the process and returns early when it is
+  still running.
+- **Continue** - `write_stdin` sends input to that same session.
+- **Observe** - `write_stdin` can poll for more output without sending input.
+- **Verify** - the agent can wait for the final output and exit code.
+- **Reuse** - the same small interface works across Windows, macOS, and Linux.
+
+## 🧰 Tools
+
+### `exec_command`
+
+`exec_command(cmd: string, workdir?: string, yield_time_ms?: number, max_output_tokens?: number)` - Runs one command in the host shell. Short commands return output; long-running commands return a `session_id` for `write_stdin`.
+
+- `cmd` (`string`, required) - Command to run.
+- `workdir` (`string`, optional) - Working directory for the command.
+- `yield_time_ms` (`number`, optional) - Wait time before returning; default `10000` ms.
+- `max_output_tokens` (`number`, optional) - Maximum output token budget; default configured limit (`10000` by default).
+
+### `write_stdin`
+
+`write_stdin(session_id: number, chars?: string, yield_time_ms?: number, max_output_tokens?: number)` - Writes input to an existing session or polls for more output.
+
+- `session_id` (`number`, required) - Positive session ID returned by `exec_command`.
+- `chars` (`string`, optional) - Characters to send; omit or use an empty string to poll.
+- `yield_time_ms` (`number`, optional) - Wait time for output; default `250` ms.
+- `max_output_tokens` (`number`, optional) - Maximum output token budget; default configured limit (`10000` by default).
+
+Typical flow: call `exec_command`; if it returns a `session_id`, call
+`write_stdin` with that ID to send input or poll until `exit_code` is returned.
+
+## 🚀 1. Install the plugin
+
+Install it into the DSH profile you use:
+
+```powershell
+dsh plugin --profile web add dsh-codex-shell@0.1.1
 ```
 
-If `dsh` is already available as a command, the shorter form is:
+From a DeepSeek Harness source checkout:
 
-```bash
-dsh plugin --profile web add dsh-codex-shell
+```powershell
+cd C:/path/to/deepseek-harness
+pnpm dsh plugin --profile web add dsh-codex-shell@0.1.1
 ```
 
-The package contains a DSH bundle patch that registers this plugin as
-`codex-shell`. The current Web bundle supplies the agent-preset roster and
-selects `codex-whale`; restart the profile after installation.
+> ⚠️ `npm install dsh-codex-shell` alone does not install the plugin into
+> DSH.
 
-For a local checkout:
+## 🐋 2. Create the Codex Whale preset
+
+In the DSH web UI, open **Settings -> Agent presets** and choose **Draft a
+custom preset with Creator mode**.
+
+Paste this prompt:
+
+```text
+Create a user preset named "Codex Whale" with ID `codex-whale`.
+
+Duplicate the Standard preset and configure it as follows:
+
+- Add exactly one row:
+  - id: codex-shell
+    name: dsh-codex-shell
+- Disable `tool-bash`, `tool-pwsh`, and `tool-jobs`.
+- Disable any other persistent or alternate terminal tools.
+- Keep all non-shell coding tools.
+- Do not modify shipped presets.
+- Do not add duplicate `codex-shell` rows.
+
+Validate the result before finishing.
+```
+
+### 💡 Remember
+
+- Installing the npm plugin enables it in the **DSH profile**.
+- Adding the `codex-shell` row enables its tools in the **agent preset**.
+- The preset disables the native shell tools.
+
+## ✅ 3. Select and restart
+
+1. Set **Codex Whale** as the default preset.
+2. Restart DSH.
+3. Create a new session.
+
+Existing sessions keep their old tools.
+
+## 🔍 4. Verify
+
+Check the profile:
+
+```powershell
+dsh --profile web --dump-config
+```
+
+It should contain exactly one:
+
+```text
+- id: codex-shell
+  name: dsh-codex-shell
+```
+
+In a new Codex Whale session, confirm that:
+
+- ✅ `exec_command` is available
+- ✅ `write_stdin` is available
+- 🚫 native Bash/PowerShell tools are unavailable
+
+## 🛠️ Troubleshooting
+
+### `dsh` is not found
+
+Run the command from a DeepSeek Harness checkout with `pnpm dsh`, or install
+the published DSH CLI.
+
+### `node-pty` build is blocked
+
+Add this to the target profile's `pnpm-workspace.yaml`:
 
 ```yaml
-- insert:
-    - id: codex-shell
-      name: '/absolute/path/to/dsh-plugins/codex-shell/lib/index.js'
+allowBuilds:
+  node-pty: true
 ```
 
-The npm bundle follows the same `dsh.bundle.patch` pattern used by the
-[dsh-web-ui plugin](https://github.com/zhu1090093659/dsh-web-ui): the package
-ships a `cordis.patch.yml` and declares it in `package.json`.
+Then install the plugin again.
 
-### Source checkout
+### The profile has version 0.1.0
 
-From a DSH source checkout:
-
-```bash
-cd /path/to/deepseek-harness
-pnpm install
-pnpm dsh plugin --profile web add dsh-codex-shell
+```powershell
+dsh plugin --profile web remove dsh-codex-shell
+dsh plugin --profile web add dsh-codex-shell@0.1.1
 ```
-
-On macOS, a source checkout does not automatically create a global `dsh`
-executable. To use `dsh ...` directly, add this wrapper to `~/.zshrc` and
-replace the path with your checkout path:
-
-```zsh
-dsh() {
-  (
-    cd /path/to/deepseek-harness &&
-      pnpm dsh "$@"
-  )
-}
-```
-
-Then reload the shell with `source ~/.zshrc`.
-
-### Profile scope
-
-Installing the plugin into `web` does not change `tui`, `headless`, or any
-other profile. Install it once for each profile that should use the exclusive
-Codex shell. For example, in zsh:
-
-```zsh
-for dir in /path/to/.dsh/profiles/*(/); do
-  dsh plugin --profile "${dir:t}" add dsh-codex-shell
-done
-```
-
-### Verify the installation
-
-Dump the composed profile configuration:
-
-```bash
-dsh --profile web --dump-config
-```
-
-The output should show `codex-shell` enabled and `codex-whale` selected as the
-default agent preset when the preset is available in the DSH application.
-
-## DSH Plugin Market
-
-DSH also has a community plugin market. Install it into the profile you want
-to use:
-
-```bash
-dsh plugin --profile web add dshmarket
-```
-
-Restart DSH, then open **Settings → Plugin Market** in the web UI. The market
-is a third-party DSH plugin and uses the curated
-[`awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
-registry. Publishing this package to npm does not automatically list it in the
-market; listing requires submitting an entry to that registry.
-
-## Codex Whale preset
-
-The DSH checkout in this repository includes the `Codex Whale` preset with ID
-`codex-whale`. It is the recommended preset for this plugin and exposes the
-Codex shell exclusively. The preset must be shipped by the DSH application
-under `apps/cli/config/agent-presets/codex-whale`; the current stock CLI does
-not discover preset directories from an npm bundle.
-
-The preset is intentionally separate from the legacy `standard`, `code`, and
-`minimal` presets so installing this bundle does not silently break existing
-profiles. Selecting one of those legacy presets can still expose its original
-shell tools.
-
-## macOS and Linux
-
-On POSIX hosts, commands run through the resolved POSIX shell (`$SHELL`, then
-`/bin/sh`). On Windows, the adapter uses PowerShell. `exec_command` starts a
-fresh shell process; a running process returns an opaque session ID for
-`write_stdin`.
-
-The model-visible schemas intentionally contain only `cmd`, `workdir`,
-`yield_time_ms`, `max_output_tokens`, `session_id`, and `chars`. Shell choice,
-PTY selection, execution policy, and process cleanup are deployment-level
-configuration.
-
-When `exec_command` leaves a process running, its rendered text includes a
-`[session_id: N]` marker so the model can pass that ID to `write_stdin`.
-
-PTY output is also normalized for model visibility: ANSI/VT control sequences
-such as Windows ConPTY startup and terminal-title codes are removed while
-printable text, line endings, Unicode, and interactive input remain intact.
-
-On Windows, `windowsPtyStartupGraceMs` controls the startup grace before the
-first PTY input; it defaults to `2000` and may be set to `0` when the host does
-not need the PowerShell/ConPTY startup guard. This is deployment configuration,
-not part of either model-visible tool schema.
-
-The default configuration is trusted execution with a pipe fallback.
-`executionMode: host-policy` is intentionally fail-closed and currently
-unsupported until this plugin is given an explicit DHS policy adapter; it does
-not silently grant host access or claim to provide confinement.
-
-## Troubleshooting
-
-### `zsh: command not found: dsh`
-
-The DSH CLI is not on `PATH`. Use the source-checkout form above or run the
-published CLI through `npx`.
-
-### `ERR_PNPM_IGNORED_BUILDS`
-
-The `node-pty` dependency may require explicit pnpm build approval. Run
-`pnpm approve-builds --all` in the target profile directory, then repeat the
-plugin installation.
-
-### The plugin is installed but legacy shell tools remain
-
-Check the profile that was modified:
-
-```bash
-dsh --profile web --dump-config
-```
-
-The bundle patch is applied per profile. Install the plugin into every profile
-that should use the exclusive Codex shell.
