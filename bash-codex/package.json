@@ -1,0 +1,42 @@
+{
+  "name": "bash-codex",
+  "version": "0.1.0",
+  "description": "Windows-first Codex-style exec_command and write_stdin tools for DeepSeek Harness",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "SPEC.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('lib', { recursive: true, force: true }))\""
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.5",
+    "@deepseek-ai/schemastery": ">=3.18.0"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@standard-schema/spec": "^1.1.0",
+    "@types/node": "^22.20.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
