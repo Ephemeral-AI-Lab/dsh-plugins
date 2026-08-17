@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { apply, inject } from '../src/ui/index.js'
 
 describe('client plugin entry', () => {
-  it('registers the session-scoped Loops view and routes commands through the host', async () => {
+  it('registers the session-scoped loop dock and routes commands through the host', async () => {
     const execute = vi.fn(async () => ({ ok: true, value: { commandId: 'cmd-1', result: { kind: 'success', text: 'ok' } } }))
     const register = vi.fn()
     const injectSlot = vi.fn((name: string, factory: () => unknown) => {
-      expect(name).toBe('conversation.view')
+      expect(name).toBe('conversation.input.dock')
       factory()
     })
     const ctx = {
@@ -19,8 +19,7 @@ describe('client plugin entry', () => {
     expect(inject).toEqual(['slots', 'remote', 'remote.commands'])
     expect(register).toHaveBeenCalledOnce()
     const definition = register.mock.calls[0]?.[0]
-    expect(definition).toMatchObject({ name: 'conversation.view', id: 'loops', order: 20 })
-    expect(definition.label()).toBe('Loops')
+    expect(definition).toMatchObject({ name: 'conversation.input.dock', id: 'loops', order: 30 })
     await definition.inject('session-1').execute('/loop list')
     expect(execute).toHaveBeenCalledWith('session-1', '/loop list')
   })

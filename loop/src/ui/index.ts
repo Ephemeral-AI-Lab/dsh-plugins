@@ -6,11 +6,10 @@ import { LoopsView, type LoopsViewInjected } from './LoopsView.js'
 export const inject = ['slots', 'remote', 'remote.commands']
 
 export function apply(ctx: ClientContext): void {
-  ctx.slots.inject('conversation.view', () => ctx.slots.register({
-    name: 'conversation.view',
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+    name: 'conversation.input.dock',
     id: 'loops',
-    order: 20,
-    label: () => 'Loops',
+    order: 30,
     inject: (sessionId: SessionId): LoopsViewInjected => ({
       execute: line => ctx.remote.commands.execute(sessionId, line),
     }),

@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { LoopProjection, LoopRecord } from '../types.js'
 import css from './LoopsView.module.css'
 
@@ -10,30 +9,60 @@ export interface LoopsViewInjected {
 
 type AwaitingProjection = { id: string }
 
-type LoopsViewProps = ConvViewProps & InjectFace<LoopsViewInjected>
+type LoopsViewProps = PropsRuntime<'conversation.input.dock'> & LoopsViewInjected
 
 export function LoopsView({ useProjection, execute }: LoopsViewProps) {
   const projection = useProjection('loop') as LoopProjection | undefined
-  const loops = useMemo(() => [...(projection?.loops ?? [])].sort((a, b) => a.next_at - b.next_at), [projection])
+  const loops = useMemo(() => [...(projection?.loops ?? [])].sort((a, b) => a.next_at - b.next_at), [projection?.loops])
   const [now, setNow] = useState(() => Date.now())
+  const [expanded, setExpanded] = useState(false)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [awaiting, setAwaiting] = useState<AwaitingProjection | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const rootRef = useRef<HTMLElement | null>(null)
+  const listId = useId()
 
   useEffect(() => {
+    if (loops.length === 0) return
     const timer = setInterval(() => setNow(Date.now()), 1_000)
     return () => clearInterval(timer)
-  }, [])
+  }, [loops.length])
 
   useEffect(() => {
-    if (awaiting === null) return
-    if (!loops.some(loop => loop.id === awaiting.id)) {
+    setNow(Date.now())
+  }, [projection?.loops])
+
+  useEffect(() => {
+    if (loops.length < 3 && expanded) setExpanded(false)
+  }, [expanded, loops.length])
+
+  useEffect(() => {
+    if (!expanded || loops.length < 3) return
+    const onPointerDown = (event: PointerEvent): void => {
+      if (event.target instanceof Node && rootRef.current?.contains(event.target) === true) return
+      setExpanded(false)
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setExpanded(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [expanded, loops.length])
+
+  useEffect(() => {
+    const watchedId = awaiting?.id ?? pending ?? confirmingId
+    if (watchedId !== null && !loops.some(loop => loop.id === watchedId)) {
       setAwaiting(null)
       setPending(null)
       setConfirmingId(null)
+      setError(null)
     }
-  }, [awaiting, loops])
+  }, [awaiting, confirmingId, loops, pending])
 
   const remove = async (id: string): Promise<void> => {
     setPending(id)
@@ -47,27 +76,35 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
     }
   }
 
+  if (loops.length === 0) return null
+
+  const collapsed = loops.length >= 3 && !expanded
+  const showList = loops.length < 3 || expanded
+  const nearest = loops[0]!
+
   return (
-    <main className={css.root} aria-labelledby="loop-title">
-      <header className={css.header}>
-        <div>
-          <p className={css.eyebrow}>Session scoped</p>
-          <h1 id="loop-title">Loops</h1>
-          <p className={css.description}>Loops created with <code>/loop</code> appear here.</p>
+    <section ref={rootRef} className={css.root} data-testid="loop-dock" data-loop-dock="" aria-label="Active loops">
+      {loops.length >= 3 && (
+        <div className={css.summary}>
+          <span className={css.glyph} aria-hidden>↻</span>
+          <span className={css.summaryText}>{loops.length} active loops · {formatNext(nearest.next_at, now)}</span>
+          <button
+            type="button"
+            className={css.button}
+            aria-controls={listId}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand loops' : 'Collapse loops'}
+            onClick={() => setExpanded(value => !value)}
+          >
+            {collapsed ? 'Expand' : 'Collapse'}
+          </button>
         </div>
-      </header>
+      )}
 
-      {error !== null && <p className={css.error} role="alert">{error}</p>}
-
-      {loops.length === 0 ? (
-        <section className={css.empty} aria-live="polite">
-          <h2>No loops yet</h2>
-          <p>Use <code>/loop 60 check the build</code> in Chat to create one.</p>
-        </section>
-      ) : (
-        <section className={css.grid} aria-label="Active loops">
+      {showList && (
+        <ul id={listId} className={css.list} aria-label="Loop list">
           {loops.map(loop => (
-            <LoopCard
+            <LoopRow
               key={loop.id}
               loop={loop}
               now={now}
@@ -81,14 +118,15 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
               onDelete={() => void remove(loop.id)}
             />
           ))}
-        </section>
+        </ul>
       )}
 
-    </main>
+      {error !== null && <p className={css.error} role="alert">{error}</p>}
+    </section>
   )
 }
 
-function LoopCard({ loop, now, busy, confirming, onAskDelete, onCancelDelete, onDelete }: {
+function LoopRow({ loop, now, busy, confirming, onAskDelete, onCancelDelete, onDelete }: {
   loop: LoopRecord
   now: number
   busy: boolean
@@ -97,53 +135,48 @@ function LoopCard({ loop, now, busy, confirming, onAskDelete, onCancelDelete, on
   onCancelDelete: () => void
   onDelete: () => void
 }) {
-  const overdue = loop.next_at < now
-  const due = loop.next_at === now
+  const overdue = loop.next_at <= now
   return (
-    <article className={css.card}>
-      <div className={css.cardHeader}>
-        <div>
-          <h2>{promptHeading(loop.prompt)}</h2>
-          <span className={overdue || due ? css.statusDue : css.status}>
-            {overdue ? 'Overdue' : due ? 'Due now' : formatNext(loop.next_at, now)}
-          </span>
-        </div>
-        <div className={css.cardActions}>
-          {confirming ? (
-            <>
-              <button type="button" className={css.ghostButton} onClick={onCancelDelete} disabled={busy}>Cancel</button>
-              <button type="button" className={css.dangerButton} onClick={onDelete} disabled={busy}>{busy ? 'Deleting…' : 'Delete loop'}</button>
-            </>
-          ) : (
-            <button type="button" className={css.dangerButton} onClick={onAskDelete} disabled={busy}>Delete</button>
-          )}
-        </div>
+    <li className={css.row} data-loop-id={loop.id}>
+      <span className={css.glyph} aria-hidden>↻</span>
+      <span className={css.interval}>every {formatInterval(loop.time_in_seconds)}</span>
+      <span
+        className={overdue ? css.statusDue : css.status}
+        aria-label={overdue ? 'overdue' : formatNext(loop.next_at, now)}
+      >
+        {overdue ? 'overdue' : formatNext(loop.next_at, now)}
+      </span>
+      <span className={css.prompt} title={loop.prompt}>{loop.prompt}</span>
+      <div className={css.actions}>
+        {confirming ? (
+          <>
+            <button type="button" className={css.button} onClick={onCancelDelete} disabled={busy}>Cancel</button>
+            <button type="button" className={css.dangerButton} onClick={onDelete} disabled={busy}>{busy ? 'Deleting…' : 'Delete loop'}</button>
+          </>
+        ) : (
+          <button type="button" className={css.dangerButton} onClick={onAskDelete} disabled={busy}>Delete</button>
+        )}
       </div>
-      {confirming && <p className={css.confirmation} role="alert">Delete this loop? Future deliveries will stop.</p>}
-      <p className={css.prompt}>{loop.prompt}</p>
-      <footer className={css.meta}>
-        <span>{formatInterval(loop.time_in_seconds)}</span>
-        <span>Message inbox</span>
-      </footer>
-    </article>
+      {confirming && (
+        <div className={css.confirmation} role="group" aria-label="Delete confirmation">
+          <p role="alert">Delete this loop? Future deliveries will stop.</p>
+        </div>
+      )}
+    </li>
   )
 }
 
 function formatInterval(seconds: number): string {
-  if (seconds < 60) return `Every ${seconds}s`
-  if (seconds % 60 === 0 && seconds < 3_600) return `Every ${seconds / 60}m`
-  if (seconds % 3_600 === 0) return `Every ${seconds / 3_600}h`
-  return `Every ${seconds}s`
-}
-
-function promptHeading(prompt: string): string {
-  const firstLine = prompt.trim().split(/\r?\n/u)[0]!
-  return firstLine.length <= 80 ? firstLine : `${firstLine.slice(0, 77).trimEnd()}…`
+  if (seconds < 60) return `${seconds}s`
+  if (seconds % 60 === 0 && seconds < 3_600) return `${seconds / 60}m`
+  if (seconds % 3_600 === 0) return `${seconds / 3_600}h`
+  return `${seconds}s`
 }
 
 function formatNext(nextAt: number, now: number): string {
+  if (nextAt <= now) return 'overdue'
   const seconds = Math.max(1, Math.ceil((nextAt - now) / 1_000))
-  return `Next in ${formatRemaining(seconds)}`
+  return `next in ${formatRemaining(seconds)}`
 }
 
 function formatRemaining(seconds: number): string {
