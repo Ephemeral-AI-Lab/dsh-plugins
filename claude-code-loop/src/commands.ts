@@ -12,13 +12,13 @@ export type LoopCommand =
 
 const USAGE = 'Usage: /loop <seconds> <prompt> | /loop list | /loop create <json> | /loop update <id> <json> | /loop delete <id>'
 
-export function registerLoopCommand(rootCtx: Context, commandCtx: Context, agent: Agent): () => void {
+export function registerLoopCommand(rootCtx: Context, commandCtx: Context): () => void {
   return commandCtx.commands.register({
     name: 'loop',
     description: 'Create, list, update, or delete a recurring prompt loop.',
     input: { hint: '<seconds> <prompt> | list | create <json> | update <id> <json> | delete <id>' },
     recordInput: false,
-    handler: ({ commandId, rawInput, signal }) => {
+    handler: ({ agent, commandId, rawInput, signal }) => {
       const command = parseLoopCommand(rawInput)
       if (command === undefined) return Promise.resolve({ kind: 'error', text: USAGE } satisfies CommandResult)
       return executeLoopTool(rootCtx, agent, commandId, command, signal)

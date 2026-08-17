@@ -311,9 +311,15 @@ function assertCommandSucceeded(result: unknown): void {
     const error = isRecord(result.error) ? result.error.message : undefined
     throw new Error(typeof error === 'string' ? error : 'The loop command failed.')
   }
-  if (result.ok !== true || !isRecord(result.value) || result.value.matched !== true) {
+  if (result.ok !== true || result.value === undefined) {
     throw new Error('The loop command was not recognized.')
   }
+  if (!isRecord(result.value) || !isRecord(result.value.result)) throw new Error('The loop command failed.')
+  if (result.value.result.kind === 'error') {
+    const text = result.value.result.text
+    throw new Error(typeof text === 'string' ? text : 'The loop command failed.')
+  }
+  if (result.value.result.kind !== 'success') throw new Error('The loop command failed.')
 }
 
 function errorText(reason: unknown): string {

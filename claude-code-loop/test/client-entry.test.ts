@@ -3,7 +3,7 @@ import { apply, inject } from '../src/client/index.js'
 
 describe('client plugin entry', () => {
   it('registers the session-scoped Loops view and routes commands through the host', async () => {
-    const execute = vi.fn(async () => ({ ok: true, value: { matched: true } }))
+    const execute = vi.fn(async () => ({ ok: true, value: { commandId: 'cmd-1', result: { kind: 'success', text: 'ok' } } }))
     const register = vi.fn()
     const injectSlot = vi.fn((name: string, factory: () => unknown) => {
       expect(name).toBe('conversation.view')

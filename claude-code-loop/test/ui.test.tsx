@@ -15,7 +15,9 @@ const record = (overrides: Partial<LoopRecord> = {}): LoopRecord => ({
   ...overrides,
 })
 
-function renderLoops(projection: LoopProjection | undefined, execute = vi.fn(async () => ({ ok: true, value: { matched: true } }))) {
+const commandSuccess = { ok: true, value: { commandId: 'cmd-1', result: { kind: 'success', text: 'ok' } } }
+
+function renderLoops(projection: LoopProjection | undefined, execute = vi.fn(async () => commandSuccess)) {
   const view = render(<LoopsView useProjection={() => projection} execute={execute} /> as never)
   return { ...view, execute }
 }
@@ -119,7 +121,7 @@ describe('Loops GUI', () => {
     let projection: LoopProjection = { loops: [record()] }
     const execute = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: { message: 'persistence failed' } })
-      .mockResolvedValueOnce({ ok: true, value: { matched: true } })
+      .mockResolvedValueOnce(commandSuccess)
     const { rerender } = renderLoops(projection, execute)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(execute).not.toHaveBeenCalled()
@@ -140,7 +142,7 @@ describe('Loops GUI', () => {
   })
 
   it('keeps the editor open when the remote command is not recognized', async () => {
-    const execute = vi.fn(async () => ({ ok: true, value: { matched: false } }))
+    const execute = vi.fn(async () => ({ ok: true, value: undefined }))
     renderLoops({ loops: [] }, execute)
     fireEvent.click(screen.getByRole('button', { name: 'New loop' }))
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Health check' } })
@@ -154,6 +156,10 @@ describe('Loops GUI', () => {
     const execute = vi.fn()
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({ ok: false, error: 'backend failed' })
+      .mockResolvedValueOnce({ ok: true, value: null })
+      .mockResolvedValueOnce({ ok: true, value: { commandId: 'cmd-2', result: { kind: 'error' } } })
+      .mockResolvedValueOnce({ ok: true, value: { commandId: 'cmd-2', result: { kind: 'error', text: 'handler failed' } } })
+      .mockResolvedValueOnce({ ok: true, value: { commandId: 'cmd-3', result: { kind: 'unknown' } } })
       .mockRejectedValueOnce('network failed')
     renderLoops({ loops: [] }, execute)
     fireEvent.click(screen.getByRole('button', { name: 'New loop' }))
@@ -162,6 +168,14 @@ describe('Loops GUI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('did not return'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('command failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('command failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('command failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('handler failed'))
     fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('command failed'))
     fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))

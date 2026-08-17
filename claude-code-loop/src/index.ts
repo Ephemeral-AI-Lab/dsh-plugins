@@ -1,7 +1,9 @@
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-projection'
-import { KNOWN_SESSION_EVENT_TYPES } from '@deepseek-ai/dsh-session'
+import type { KNOWN_SESSION_EVENT_TYPES as SessionEventTypes } from '@deepseek-ai/dsh-session'
 import { LoopRuntime } from './loop.js'
 import { registerLoopCommand } from './commands.js'
 import { registerLoopTools } from './tools.js'
@@ -10,14 +12,19 @@ import { loopProjectionDefinition } from './projection.js'
 export const name = 'claude-code-loop'
 export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersistence', 'sessionProjections']
 
-// dsh-session exposes no public external event registration API; register the
-// plugin-owned durable event in the installed runtime catalog for persistence.
+// Resolve from the running DSH entry point so linked plugins mutate the host's
+// event catalog rather than a duplicate dependency under the plugin checkout.
+const sessionModulePath = createRequire(pathToFileURL(process.argv[1]!)).resolve('@deepseek-ai/dsh-session')
+const { KNOWN_SESSION_EVENT_TYPES } = await import(pathToFileURL(sessionModulePath).href) as {
+  KNOWN_SESSION_EVENT_TYPES: typeof SessionEventTypes
+}
 ;(KNOWN_SESSION_EVENT_TYPES as Set<string>).add('loop/change')
 
 type OwnerCleanup = () => void | Promise<void>
 
 export function apply(ctx: Context): void {
   ctx.sessionProjections.register(loopProjectionDefinition as never)
+  registerLoopCommand(ctx, ctx)
   const runtimes = new Map<Agent, OwnerCleanup>()
   let stopping = false
 
@@ -29,10 +36,8 @@ export function apply(ctx: Context): void {
       const runtime = new LoopRuntime({ ctx, agent: attachedAgent })
       const cleanup = attachedAgent.ctx.effect(() => {
         const disposeTools = registerLoopTools(ctx, attachedAgent.ctx, attachedAgent, runtime)
-        const disposeCommand = registerLoopCommand(ctx, attachedAgent.ctx, attachedAgent)
         runtime.start()
         return async () => {
-          disposeCommand()
           disposeTools()
           try {
             await runtime.dispose()

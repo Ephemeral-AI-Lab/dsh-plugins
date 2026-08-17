@@ -20,6 +20,15 @@ async function createHarness() {
   const fibers = []
   for (const plugin of [SessionStore, SessionProjection, AgentRegistry, SystemPrompt, ToolRuntime, CommandRuntime]) fibers.push(await ctx.plugin(plugin))
 
+  let agentOwnerCtx!: Context
+  fibers.push(await ctx.plugin({
+    name: 'test-agent-owner',
+    inject: ['tools'],
+    apply(ownerCtx) {
+      agentOwnerCtx = ownerCtx
+    },
+  }))
+
   const flushes: string[] = []
   let failFlush = false
   const host = await ctx.plugin({
@@ -46,7 +55,8 @@ async function createHarness() {
       followup: vi.fn(),
       steer: vi.fn(),
     } as unknown as TestAgent
-    const scope = createScope(host.ctx, agent)
+    // Match dsh-agent-loop: real agent scopes inject tools, but not commands.
+    const scope = createScope(agentOwnerCtx, agent)
     agent.ctx = scope.ctx
     const detach = ctx.agents.register(agent)
     return { agent, session, detach, disposeScope: scope.dispose }
@@ -336,7 +346,7 @@ describe('claude-code-loop host integration', () => {
   })
 
   it('falls back to the tool value when a command result has no text block', async () => {
-    let handler!: (input: { commandId: string; rawInput: string; signal: AbortSignal }) => Promise<unknown>
+    let handler!: (input: { agent: Agent; commandId: string; rawInput: string; signal: AbortSignal }) => Promise<unknown>
     const commandCtx = {
       commands: {
         register(definition: { handler: typeof handler }) {
@@ -350,9 +360,10 @@ describe('claude-code-loop host integration', () => {
         execute: vi.fn(async () => ({ isError: false, content: [], value: { fallback: true } })),
       },
     } as never
-    const dispose = registerLoopCommand(rootCtx, commandCtx, {} as never)
+    const agent = {} as Agent
+    const dispose = registerLoopCommand(rootCtx, commandCtx)
 
-    await expect(handler({ commandId: 'fallback', rawInput: 'list', signal: new AbortController().signal })).resolves.toEqual({
+    await expect(handler({ agent, commandId: 'fallback', rawInput: 'list', signal: new AbortController().signal })).resolves.toEqual({
       kind: 'success',
       text: JSON.stringify({ fallback: true }),
     })
@@ -494,8 +505,8 @@ describe('claude-code-loop host integration', () => {
     } as unknown as TestAgent
     const childScope = createScope(root.agent.ctx, childAgent)
     childAgent.ctx = childScope.ctx
-    const detachChild = root.agent.ctx.agents.enter(childAgent, root.agent)
-    root.agent.ctx.agents.announce(childAgent)
+    const detachChild = harness.ctx.agents.enter(childAgent, root.agent)
+    harness.ctx.agents.announce(childAgent)
     try {
       expect(root.agent.ctx.tools.get('loop_create', root.agent)).toBeDefined()
       expect(childAgent.ctx.tools.get('loop_create', childAgent)).toBeUndefined()
