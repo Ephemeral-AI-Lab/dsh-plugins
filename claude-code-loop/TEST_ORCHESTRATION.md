@@ -601,7 +601,7 @@ If `fake-loop.ts` becomes the only shared fixture, do not add both
 small and composable. We do not need a framework for generating arbitrary DSH
 graphs.
 
-UI tests should be added separately when `src/ui/` exists:
+UI tests should be added separately when `src/client/` exists:
 
 ```text
 test/ui.test.tsx

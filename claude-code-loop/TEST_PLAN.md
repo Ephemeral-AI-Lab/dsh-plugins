@@ -390,10 +390,10 @@ cover the intended contract more clearly.
 
 ## 6. P1 UI tests
 
-Add these only when `src/ui/` exists. The UI must consume a projection; it
+Add these when `src/client/` exists. The UI must consume a projection; it
 must not own timers, append session events, or call Agent delivery methods.
 
-File: `test/ui.test.tsx`
+File: `test/ui.test.tsx` (or the repository's configured browser test entry)
 
 1. The Loops tab renders without repeating the owning session ID.
 2. No active loop renders no compact summary; the page shows its empty state.

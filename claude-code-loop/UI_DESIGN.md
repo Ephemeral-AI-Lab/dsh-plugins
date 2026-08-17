@@ -1,6 +1,7 @@
 # `/loop` GUI design draft
 
-Status: design only. This file does not add browser code or change DSH.
+Status: implementation contract. The browser surface follows this design and
+does not change DSH core or the DSH web application.
 
 ## Direction
 
@@ -224,17 +225,12 @@ Loops page + composer summary
 
 ```ts
 interface LoopProjection {
-  loops: Array<{
-    id: string
-    title: string
-    prompt_preview: string
-    time_in_seconds: number
-    next_at: number
-    allow_steer: boolean
-    state: 'scheduled' | 'overdue'
-  }>
+  loops: LoopRecord[]
 }
 ```
+
+The page derives countdown and overdue presentation from `next_at`; the
+projection keeps the complete prompt and does not store UI-only state.
 
 The UI should invoke the existing DSH session command channel for mutations,
 then wait for the projection to reflect the result. It must not write events,
@@ -295,11 +291,9 @@ Implement the browser surface with existing DSH primitives and no new UI
 dependency:
 
 ```text
-src/ui/index.ts                 browser plugin entry and slot registration
-src/ui/LoopPage.tsx             list, empty state, and page actions
-src/ui/LoopForm.tsx             shared create/edit form
-src/ui/LoopIndicator.tsx        compact Chat summary
-src/ui/Loop.module.css          cards, dialog, and responsive layout
+src/client/index.ts             browser plugin entry and slot registration
+src/client/LoopsView.tsx         list, empty state, and CRUD form
+src/client/LoopsView.module.css  cards, form, and responsive layout
 ```
 
 The host entry adds `sessionProjections` registration. The existing loop

@@ -196,8 +196,9 @@ stops accepting new agents and awaits all existing runtime disposers.
 
 ## 6. UI contract
 
-The UI is in `src/ui/`, but DSH still discovers it through the package's public
-client-plugin metadata.
+The browser half is in `src/client/`. DSH discovers it through the package's
+public `./client` export and client-plugin metadata; the host half remains
+browser-free.
 
 The host half exposes a session projection named:
 
@@ -207,17 +208,12 @@ claude-code-loop
 
 ```ts
 interface LoopProjection {
-  loops: Array<{
-    id: string
-    title: string
-    prompt_preview: string
-    time_in_seconds: number
-    next_at: number
-    allow_steer: boolean
-    state: 'scheduled' | 'overdue'
-  }>
+  loops: LoopRecord[]
 }
 ```
+
+The browser derives countdown and overdue labels from `next_at`; the projection
+does not duplicate presentation state or truncate the prompt.
 
 The projection is current state for the UI, not a model-visible tool. The host
 updates it after create, update, delete, dispatch, and resume folding. The UI
@@ -266,15 +262,17 @@ claude-code-loop/
 │   │   └── runtime, folding, scheduling, and projection snapshot
 │   ├── tools.ts
 │   │   └── loop_create, loop_list, loop_update, loop_delete
+│   ├── projection.ts
+│   │   └── current session projection registration and reducer
 │   ├── types.ts
 │   │   └── shared loop/event/projection types
-│   └── ui/
+│   └── client/
 │       ├── index.ts
 │       │   └── browser plugin entry and slot injection
-│       ├── LoopIndicator.tsx
-│       │   └── current-session indicator and details
-│       └── LoopIndicator.module.css
-│           └── minimal styles
+│       ├── LoopsView.tsx
+│       │   └── current-session GUI page and CRUD form
+│       └── LoopsView.module.css
+│           └── responsive GUI styles
 └── test/
     ├── loop.test.ts
     ├── tools.test.ts
@@ -286,10 +284,6 @@ claude-code-loop/
         └── fake-agent.ts
 ```
 
-There is deliberately no separate `projection.ts` in v1. Projection behavior
-belongs with the loop runtime in `loop.ts` until it is large enough to justify
-another module.
-
 `lib/` and `node_modules/` are generated/dependency directories and must not
 be hand-edited.
 
@@ -299,17 +293,16 @@ The host entry remains a normal external Cordis plugin:
 
 ```ts
 export const name = 'claude-code-loop'
-export const inject = ['tools', 'agents', 'sessions', 'sessionPersistence']
+export const inject = ['tools', 'agents', 'sessions', 'sessionPersistence', 'sessionProjections']
 
 export function apply(ctx: Context): void {
   // register agent-scoped runtimes and tools
 }
 ```
 
-The host entry must not import React or browser globals. The UI source lives
-under `src/ui/`, but the package-facing export remains `./client` to follow
-DSH's existing client-plugin convention. The directory name and the loader
-entry name do not need to be identical.
+The host entry must not import React or browser globals. The browser source
+lives under `src/client/`, and the package-facing export is `./client` to
+follow DSH's existing client-plugin convention.
 
 Conceptually:
 
@@ -321,8 +314,8 @@ Conceptually:
       "default": "./lib/index.js"
     },
     "./client": {
-      "types": "./lib/types/ui/index.d.ts",
-      "default": "./lib/ui.js"
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
     }
   },
   "dsh": {
