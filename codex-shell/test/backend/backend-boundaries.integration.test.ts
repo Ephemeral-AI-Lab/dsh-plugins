@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createPipeBackend } from '../../src/backend/pipe-backend.js'
-import { createNodePtyBackend } from '../../src/backend/node-pty-backend.js'
-import { createPtyFirstFactory } from '../../src/backend/pty-backend.js'
-import type { BackendSpawnRequest, ExitStatus, SessionBackend } from '../../src/types.js'
-import { WindowsPowerShellAdapter } from '../../src/shell/windows-powershell.js'
+import type { BackendSpawnRequest } from '../../src/types.js'
 
 const nodeRequest: BackendSpawnRequest = {
   executable: process.execPath,
@@ -14,42 +11,52 @@ const nodeRequest: BackendSpawnRequest = {
   windowsPtyStartupGraceMs: 2_000,
 }
 
-describe('backend boundaries', () => {
+describe('pipe backend boundaries', () => {
   it('runs an explicit-argv pipe process and preserves Unicode output', async () => {
     const backend = await createPipeBackend(nodeRequest)
     const chunks: Uint8Array[] = []
     backend.onData((_stream, bytes) => chunks.push(bytes))
     const exit = await backend.waitForExit()
     await backend.waitForQuiescence()
+    expect(backend.transport).toBe('pipe')
     expect(exit.exitCode).toBe(0)
     expect(new TextDecoder().decode(concat(chunks))).toContain('pipe-\u2713')
   })
 
-  it('uses the configured pipe fallback when PTY creation fails', async () => {
-    const fake = new NoopBackend()
-    const factory = createPtyFirstFactory(
-      'pipe',
-      async () => { throw new Error('simulated PTY failure') },
-      async () => fake,
-    )
-    await expect(factory(nodeRequest)).resolves.toBe(fake)
-  })
-
-  it.runIf(process.platform === 'win32')('allocates the default Windows PTY backend', async () => {
-    const shell = await new WindowsPowerShellAdapter().resolve()
-    const backend = await createNodePtyBackend({
-      executable: shell.executable,
-      argv: shell.oneShotArgs("[Console]::WriteLine('pty-\u2713')"),
-      cwd: process.cwd(),
-      rows: 24,
-      cols: 80,
-      windowsPtyStartupGraceMs: 2_000,
+  it('keeps stdin writable for a persistent pipe session', async () => {
+    const backend = await createPipeBackend({
+      ...nodeRequest,
+      argv: ['-e', "let input=''; process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write('echo:' + input))"],
     })
     const chunks: Uint8Array[] = []
     backend.onData((_stream, bytes) => chunks.push(bytes))
+
+    await backend.write(new TextEncoder().encode('hello from pipe'))
+    await backend.closeStdin()
     const exit = await backend.waitForExit()
+    await backend.waitForQuiescence()
+
     expect(exit.exitCode).toBe(0)
-    expect(new TextDecoder().decode(concat(chunks))).toContain('pty-\u2713')
+    expect(new TextDecoder().decode(concat(chunks))).toContain('echo:hello from pipe')
+  })
+
+  it('preserves separate stdout and stderr streams', async () => {
+    const backend = await createPipeBackend({
+      ...nodeRequest,
+      argv: ['-e', "process.stdout.write('stdout'); process.stderr.write('stderr')"],
+    })
+    const outputs: Partial<Record<'stdout' | 'stderr', string>> = {}
+    backend.onData((stream, bytes) => {
+      if (stream === 'stdout' || stream === 'stderr') {
+        outputs[stream] = (outputs[stream] ?? '') + new TextDecoder().decode(bytes)
+      }
+    })
+    const exit = await backend.waitForExit()
+    await backend.waitForQuiescence()
+
+    expect(exit.exitCode).toBe(0)
+    expect(outputs.stdout).toContain('stdout')
+    expect(outputs.stderr).toContain('stderr')
   })
 })
 
@@ -62,18 +69,4 @@ function concat(chunks: Uint8Array[]): Uint8Array {
     offset += chunk.byteLength
   }
   return result
-}
-
-class NoopBackend implements SessionBackend {
-  readonly transport = 'pipe' as const
-  readonly pid = undefined
-  private readonly exitResult: Promise<ExitStatus> = Promise.resolve({ exitCode: 0, signal: null })
-
-  onData(_listener: (stream: 'stdout' | 'stderr' | 'pty', data: Uint8Array) => void): () => void { return () => {} }
-  async write(_data: Uint8Array): Promise<void> {}
-  async closeStdin(): Promise<void> {}
-  async interrupt(): Promise<void> {}
-  async terminate(): Promise<void> {}
-  waitForExit(): Promise<ExitStatus> { return this.exitResult }
-  async waitForQuiescence(): Promise<void> {}
 }

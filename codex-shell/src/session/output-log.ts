@@ -66,6 +66,7 @@ export class OutputLog {
         text: this.decode(bytes),
         nextCursor: from + bytes.byteLength,
         truncated: capped,
+        hasMore: from + bytes.byteLength < this.full.byteLength,
       }
     }
 
@@ -79,6 +80,7 @@ export class OutputLog {
         text: this.decode(bytes),
         nextCursor: safeCursor + bytes.byteLength,
         truncated: true,
+        hasMore: safeCursor + bytes.byteLength < this.totalBytes,
       }
     }
 
@@ -86,10 +88,15 @@ export class OutputLog {
       const tailBytes = Buffer.concat([Buffer.from(TRUNCATION_MARKER), this.tail])
       const capped = tailBytes.byteLength > maxOutputBytes
       const bytes = capped ? tailBytes.subarray(0, maxOutputBytes) : tailBytes
+      const markerBytes = Buffer.byteLength(TRUNCATION_MARKER, 'utf8')
+      const nextCursor = capped
+        ? tailStart + Math.max(0, bytes.byteLength - markerBytes)
+        : this.totalBytes
       return {
         text: this.decode(bytes),
-        nextCursor: capped ? safeCursor : this.totalBytes,
+        nextCursor,
         truncated: true,
+        hasMore: nextCursor < this.totalBytes,
       }
     }
 
@@ -101,6 +108,7 @@ export class OutputLog {
       text: this.decode(bytes),
       nextCursor: tailStart + tailOffset + bytes.byteLength,
       truncated: true,
+      hasMore: tailStart + tailOffset + bytes.byteLength < this.totalBytes,
     }
   }
 

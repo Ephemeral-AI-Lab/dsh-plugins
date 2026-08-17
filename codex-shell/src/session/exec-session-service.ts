@@ -16,6 +16,7 @@ import type { ExecutionPolicy } from '../policy/execution-policy.js'
 import { normalizeOutputLimit } from '../output/output-limiter.js'
 import { delay, terminateAndJoin, throwIfAborted } from './lifecycle.js'
 import { OutputLog } from './output-log.js'
+import { createSessionExitNotification } from './owner-notification.js'
 import { SessionRegistry } from './session-registry.js'
 
 const encoder = new TextEncoder()
@@ -55,7 +56,7 @@ export class ExecSessionService {
   ) {}
 
   ownerFor(owner: object | undefined): SessionOwner {
-    return owner ?? this.anonymousOwner
+    return owner === undefined ? this.anonymousOwner : owner as SessionOwner
   }
 
   async exec(request: ExecRequest): Promise<ExecResult> {
@@ -74,10 +75,14 @@ export class ExecSessionService {
         executable: shell.executable,
         argv: shell.oneShotArgs(request.cmd),
         cwd,
+        maxOutputBytes: this.config.maxOutputBytes,
         rows: this.config.rows,
         cols: this.config.cols,
         windowsPtyStartupGraceMs: this.config.windowsPtyStartupGraceMs,
       })
+      // dispose() can run while backend startup is awaiting. Never publish a
+      // backend after disposal has taken its registry snapshot.
+      if (this.disposed) throw new Error('codex-shell session service is disposed')
       const record = this.publish(id, request.owner, backend, startedAt)
       this.installOwnerCleanup(request.owner)
       await this.collect(record, request.yieldTimeMs ?? this.config.defaultYieldTimeMs, request.signal)
@@ -111,14 +116,14 @@ export class ExecSessionService {
 
   async closeOwner(owner: SessionOwner): Promise<void> {
     const records = this.registry.values().filter(record => record.owner === owner)
-    await Promise.all(records.map(record => this.terminateRecord(record)))
+    await Promise.all(records.map(record => this.terminateRecord(record, 'owner_disposed')))
   }
 
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
     const records = this.registry.values()
-    await Promise.all(records.map(record => this.terminateRecord(record)))
+    await Promise.all(records.map(record => this.terminateRecord(record, 'service_disposed')))
     for (const record of this.registry.values()) this.registry.remove(record.id)
   }
 
@@ -129,10 +134,13 @@ export class ExecSessionService {
   private publish(id: number, owner: SessionOwner, backend: SessionBackend, startedAt: number): SessionRecord {
     const output = new OutputLog(this.config.maxOutputBytes)
     let record!: SessionRecord
-    const exitPromise = backend.waitForExit().then((exit: ExitStatus) => {
+    const exitPromise = backend.waitForExit().then(async (exit: ExitStatus) => {
       record.exit = exit
       record.state = 'exited'
+      // Wait for the backend's stream-drain boundary before closing the log.
+      await backend.waitForQuiescence()
       output.finish()
+      this.notifyNaturalExit(record)
       return exit
     }).catch((error: unknown) => {
       record.failure = error
@@ -150,9 +158,12 @@ export class ExecSessionService {
       startedAt,
       cursor: 0,
       outputSequence: 0,
+      notificationAttempted: false,
+      exposedToCaller: false,
+      outputUnsubscribe: () => undefined,
       exitPromise,
     }
-    backend.onData((stream, bytes) => output.append(stream, bytes))
+    record.outputUnsubscribe = backend.onData((stream, bytes) => output.append(stream, bytes))
     this.registry.publish(record)
     record.state = 'running'
     void exitPromise.catch(() => undefined)
@@ -164,6 +175,10 @@ export class ExecSessionService {
     try {
       throwIfAborted(request.signal)
       if (record.state === 'closed' || record.state === 'terminating') throw new UnknownSessionError(record.id)
+      if (record.exit !== undefined || record.failure !== undefined || record.state === 'exited') {
+        if (record.exit !== undefined && request.chars.length > 0) throw new StdinClosedError(record.id)
+        return await this.finishOperation(record, startedAt, request.maxOutputTokens)
+      }
       if (request.chars.length > 0) {
         if (record.backend.transport === 'pipe' && request.chars === '\u0003') {
           await record.backend.interrupt()
@@ -171,20 +186,37 @@ export class ExecSessionService {
           await record.backend.write(encoder.encode(request.chars))
         }
       }
-      await this.collect(record, request.yieldTimeMs ?? (request.chars.length > 0 ? this.config.pollYieldTimeMs : this.config.pollYieldTimeMs), request.signal)
+      await this.collect(
+        record,
+        request.yieldTimeMs ?? this.config.pollYieldTimeMs,
+        request.signal,
+        request.chars.length === 0,
+      )
       return await this.finishOperation(record, startedAt, request.maxOutputTokens)
     } catch (error: unknown) {
-      if (this.registry.get(record.id) !== undefined) await this.abortSession(record.id, error)
+      // A closed stdin is a normal post-exit condition. Preserve the record so
+      // an empty poll can still deliver its unread output.
+      if (this.registry.get(record.id) !== undefined && !hasTerminalResult(record)) {
+        await this.abortSession(record.id, error)
+      }
       throw error
     }
   }
 
-  private async collect(record: SessionRecord, yieldTimeMs: number, signal: AbortSignal): Promise<void> {
+  private async collect(
+    record: SessionRecord,
+    yieldTimeMs: number,
+    signal: AbortSignal,
+    returnBufferedImmediately = false,
+  ): Promise<void> {
     const waitMs = clampWait(yieldTimeMs)
-    if (waitMs === 0 || record.exit !== undefined || record.failure !== undefined) return
+    if (waitMs === 0 || record.exit !== undefined || record.failure !== undefined || isClosing(record)) return
+    // Output already buffered since the previous result must be returned
+    // immediately, including bytes produced between tool calls.
+    if (returnBufferedImmediately && record.output.size > record.cursor) return
     const deadline = Date.now() + waitMs
     let observedCursor = record.output.size
-    while (record.exit === undefined && record.failure === undefined) {
+    while (record.exit === undefined && record.failure === undefined && !isClosing(record)) {
       throwIfAborted(signal)
       const remaining = deadline - Date.now()
       if (remaining <= 0) return
@@ -198,7 +230,9 @@ export class ExecSessionService {
   }
 
   private async finishOperation(record: SessionRecord, startedAt: number, requestedTokens: number | undefined): Promise<ExecResult> {
+    if (record.exit !== undefined) await record.exitPromise.catch(() => undefined)
     if (record.failure !== undefined) throw record.failure
+    if (record.exit === undefined && isClosing(record)) throw new UnknownSessionError(record.id)
     if (record.exit !== undefined) await record.backend.waitForQuiescence()
     const limit = normalizeOutputLimit(
       { maxOutputTokens: requestedTokens ?? this.config.defaultMaxOutputTokens },
@@ -215,8 +249,14 @@ export class ExecSessionService {
     }
     if (record.exit !== undefined) {
       result.exit_code = record.exit.exitCode ?? -1
-      this.removeCompleted(record)
+      if (read.hasMore) {
+        result.session_id = record.id
+      } else {
+        this.removeCompleted(record)
+      }
     } else {
+      record.exposedToCaller = true
+      this.notifyNaturalExit(record)
       result.session_id = record.id
     }
     return result
@@ -230,36 +270,64 @@ export class ExecSessionService {
   }
 
   private removeCompleted(record: SessionRecord): void {
-    record.state = 'closed'
-    this.registry.remove(record.id)
+    this.releaseRecord(record, 'collected')
   }
 
   private async abortSession(id: number, originalError: unknown): Promise<void> {
     const record = this.registry.get(id)
     if (record === undefined) return
+    if (record.exit !== undefined) return
     record.state = 'terminating'
     try {
       await terminateAndJoin(record.backend)
     } finally {
-      record.state = 'closed'
-      this.registry.remove(id)
+      this.releaseRecord(record, 'backend_failure')
     }
     void originalError
   }
 
-  private async terminateRecord(record: SessionRecord): Promise<void> {
+  private async terminateRecord(
+    record: SessionRecord,
+    reason: 'owner_disposed' | 'service_disposed',
+  ): Promise<void> {
     if (this.registry.get(record.id) === undefined) return
     record.state = 'terminating'
     try {
       await terminateAndJoin(record.backend)
     } finally {
-      record.state = 'closed'
-      this.registry.remove(record.id)
+      this.releaseRecord(record, reason)
     }
+  }
+
+  private releaseRecord(
+    record: SessionRecord,
+    reason: 'collected' | 'owner_disposed' | 'service_disposed' | 'expired' | 'backend_failure',
+  ): void {
+    if (this.registry.get(record.id) === undefined) return
+    record.outputUnsubscribe()
+    record.outputUnsubscribe = () => undefined
+    record.cleanupReason = reason
+    record.state = 'closed'
+    this.registry.remove(record.id)
   }
 
   private async cleanupUnpublished(backend: SessionBackend): Promise<void> {
     await terminateAndJoin(backend).catch(() => undefined)
+  }
+
+  private notifyNaturalExit(record: SessionRecord): void {
+    if (!record.exposedToCaller || record.notificationAttempted || record.exit === undefined) return
+    const owner = record.owner
+    const deliver = owner.status === 'idle'
+      ? owner.followup ?? owner.inject
+      : owner.inject ?? owner.followup
+    if (deliver === undefined) return
+    record.notificationAttempted = true
+    try {
+      deliver.call(owner, createSessionExitNotification(record.id, record.exit))
+    } catch {
+      // Notification is advisory; the session remains pollable.
+    }
   }
 
   private installOwnerCleanup(owner: SessionOwner): void {
@@ -274,6 +342,21 @@ export class ExecSessionService {
       // plugin disposal still owns the session and remains fail-safe.
     }
   }
+}
+
+export class StdinClosedError extends Error {
+  constructor(sessionId: number) {
+    super(`exec session ${sessionId} stdin is closed; poll with empty chars to collect its result`)
+    this.name = 'StdinClosedError'
+  }
+}
+
+function isClosing(record: SessionRecord): boolean {
+  return record.state === 'terminating' || record.state === 'closed'
+}
+
+function hasTerminalResult(record: SessionRecord): boolean {
+  return record.exit !== undefined
 }
 
 function clampWait(value: number): number {

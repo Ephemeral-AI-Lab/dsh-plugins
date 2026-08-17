@@ -11,7 +11,7 @@ dsh-codex-shell is a DeepSeek Harness plugin that exposes two Codex-style model 
 
 The implementation is TypeScript-first and structured so that the process backend supports Windows, macOS, and Linux without changing the model-facing tool contract.
 
-The plugin is intentionally independent of DHS's current terminal-bash PTY path. That path currently depends on terminal inspection that is unavailable on Windows. The plugin must instead use an internal backend abstraction, with a PTY implementation based on a cross-platform PTY library and a pipe implementation as a fallback.
+The plugin is intentionally independent of DHS's current terminal-bash PTY path. The default runtime uses an internal pipe backend so ordinary commands and persistent stdin are fast on Windows, macOS, and Linux. A PTY implementation remains behind the backend boundary for lower-level compatibility and focused backend tests.
 
 ## 2. Goals
 
@@ -20,12 +20,15 @@ The plugin is intentionally independent of DHS's current terminal-bash PTY path.
 1. Provide Codex-compatible exec_command and write_stdin names and lifecycle semantics.
 2. Use TypeScript and publish a normal ESM DHS plugin package.
 3. Run on Windows first, with a backend boundary for macOS and Linux.
-4. Use a PTY by default for interactive behavior.
+4. Use regular pipes by default for command execution and interactive stdin.
 5. Preserve long-running processes between tool calls.
 6. Prevent sessions from being accessed by another agent owner.
 7. Bound output memory and report truncation instead of silently losing output.
 8. Clean up all live processes when the plugin, owner, or DHS context is disposed.
 9. Keep shell selection and security policy out of the model-visible schema.
+10. Keep process output bounded in memory and avoid a disk-backed shell log by default.
+11. Preserve unread terminal output after natural process exit until the terminal result is delivered.
+12. Notify the owning agent when a session returned by exec_command exits naturally.
 
 ### Non-goals for v1
 
@@ -59,7 +62,7 @@ cmd is required. The following are deliberately not model-visible:
 - prefix_rule
 - tty
 
-PTY is the default transport in v1. The backend may internally fall back to pipes when PTY creation is unavailable or when the configured policy requires it.
+Pipes are the default transport in v1. The model-facing contract does not expose a transport switch; the plugin runtime does not allocate a PTY for ordinary commands.
 
 Defaults:
 
@@ -89,11 +92,19 @@ Defaults and behavior:
 
 - chars defaults to an empty string.
 - Empty chars means poll; it does not write an empty payload.
-- Non-empty chars is written as UTF-8 data to the PTY or pipe.
+- Non-empty chars is written as UTF-8 data to the session's stdin pipe.
 - yield_time_ms defaults to 250 for an interactive write.
 - Polls must use a bounded wait and wake on output or process exit.
-- Control-C, represented by U+0003, is passed through for PTY sessions.
-- A completed or unknown session returns a structured tool error.
+- Control-C, represented by U+0003, uses the backend interrupt operation for pipe sessions.
+- Output already produced between exec_command and write_stdin is included in the next poll.
+- An empty poll reads buffered output immediately; it must not wait merely because the output
+  arrived before the poll started.
+- A completed session remains readable through an empty poll. A non-empty write after exit
+  returns a structured stdin-closed error without deleting the session or its unread output.
+- The first successful terminal poll returns the remaining output and exit_code, then releases
+  the session record.
+- An unknown, expired, or explicitly discarded session returns a structured error that identifies
+  the reason; it must not be reported as an indistinguishable generic unknown session.
 
 The implementation must serialize writes and polls for an individual session. Different sessions may be serviced concurrently.
 
@@ -116,12 +127,18 @@ interface ExecCommandResult {
 Rules:
 
 - output is always present and may be empty.
-- session_id is present only while the process is still running.
+- session_id is present while the process is running or while an exited session still has
+  unread output after a token-capped result.
 - exit_code is present once the process has exited.
+- session_id and exit_code may both be present while a completed session's output is being
+  paginated. The session is removed only when the terminal result has no unread output left.
 - wall_time_seconds measures the current tool operation, not the full lifetime of a session.
 - chunk_id is optional and may identify an output segment.
 - original_token_count is emitted only when an exact token counter is available.
 - truncated must be true when returned output is incomplete because of a configured limit.
+- Each result contains the unread output delta since the previous successful result for that
+  session. It includes output that arrived while no tool call was active and output that arrives
+  while the current write_stdin operation is waiting.
 - Model-visible output strips ANSI/VT terminal control sequences, including CSI
   and terminal-title controls, while preserving printable text, line endings,
   Unicode, and interactive PTY input behavior.
@@ -225,6 +242,10 @@ interface SessionRecord {
   activeOperation?: Promise<unknown>
   exit?: ExitStatus
   startedAt: number
+  outputDelivered: boolean
+  completionNotified: boolean
+  exitObservedAt?: number
+  cleanupReason?: 'collected' | 'owner_disposed' | 'service_disposed' | 'expired' | 'backend_failure'
 }
 ~~~
 
@@ -235,9 +256,65 @@ Session rules:
 3. Roll back the record if spawning fails.
 4. Validate owner identity on every write operation.
 5. Serialize operations for one session.
-6. Keep completed output available long enough to return the final result, then remove the session.
+6. Keep an exited session and its unread output available until a successful terminal poll,
+   explicit lifecycle cleanup, or an explicitly configured expiry.
 7. Terminate all live sessions during plugin disposal.
 8. Limit active sessions through configuration; the default target is 64.
+9. Do not silently evict an exited session whose terminal result has not been delivered. If the
+   retention budget is full, reject a new exec_command with an explicit capacity error.
+10. Remove all backend listeners, timers, process references, and registry references exactly once
+    during finalization. Cleanup must be idempotent and must not depend on JavaScript garbage
+    collection running at a particular time.
+
+### 6.1 Session lifecycle and retention
+
+The lifecycle has two independent milestones:
+
+1. Process exit: the root process has exited and stdin is closed.
+2. Output closure: stdout/stderr have been drained and the output log has been finalized.
+
+The service must not treat process exit alone as permission to discard output. A session may be
+in `state: 'exited'` while it is still holding unread output for a later empty write_stdin poll.
+
+For the initial exec_command operation:
+
+- If the process exits before the initial result is returned, return the terminal output and
+  exit_code directly and do not return a session_id.
+- If the initial operation returns a session_id, retain that session even if the process exits
+  immediately afterward.
+
+For a later natural exit:
+
+- Drain stdout/stderr before marking the output log complete.
+- Retain the record until the first successful terminal poll returns the unread output and
+  exit_code.
+- Remove the record only after the result has been constructed and the output cursor advanced.
+
+There is no implicit process-session disk persistence in v1. A session_id is valid only while its
+owning ExecSessionService is alive. Plugin disposal, owner disposal, or process failure may make a
+session unavailable, but each such removal must have an explicit cleanup reason and diagnostic
+path. Restart recovery is a separate, opt-in feature and must not be simulated by writing full
+shell output into the main DSH conversation log.
+
+### 6.2 Natural-exit notification
+
+When exec_command has already returned a live session_id and the process later exits naturally,
+the service emits at most one owner-scoped completion notification. The notification is not a
+second tool/result and must not fabricate a historical tool call.
+
+The notification is compact and instructs the agent to retrieve the result:
+
+~~~text
+exec session 12 exited with code 0.
+Call write_stdin with session_id=12 and chars="" to collect the remaining output.
+~~~
+
+The notification must not contain the full output. The full unread output remains available from
+write_stdin, which is the single terminal-result path. The notification should use the DSH owner
+lifecycle: inject while the owner is busy, or followup when the owner is idle and should wake.
+
+The notification is sent only after output closure is complete and only once. If notification
+delivery fails, the session remains pollable; notification failure must never delete output.
 
 The public session ID is an opaque plugin identifier. It must not be treated as an operating-system PID, even if the backend also exposes a PID internally.
 
@@ -258,19 +335,19 @@ interface SessionBackend {
 }
 ~~~
 
-### PTY backend
+### PTY backend (optional)
 
-The PTY backend is the default:
+The PTY backend is retained as an isolated backend:
 
 - Windows: ConPTY through the selected PTY library.
 - macOS/Linux: native POSIX PTY through the same adapter.
 - PTY output is a single merged stream.
 - Default size is 80 columns by 24 rows.
-- PTY creation failure may use the configured pipe fallback.
+- It is not selected by the plugin's default runtime path.
 
-### Pipe backend
+### Pipe backend (primary)
 
-The pipe backend is an internal fallback:
+The pipe backend is the runtime backend:
 
 - Use child_process.spawn() with explicit argv.
 - Do not use Node exec() or implicit shell interpolation.
@@ -333,10 +410,26 @@ Requirements:
 - Preserve output across multiple polls.
 - Return explicit truncation metadata.
 - Enforce a hard byte ceiling in addition to max_output_tokens.
-- Drain output briefly after root process exit.
+- Drain output after root process exit before finalizing the log. Prefer stream-close/output-change
+  events over unconditional sleeping; a bounded trailing-output grace period may be used only as
+  a safety fallback.
 - Distinguish root exit, process-tree termination, and output drain completion.
+- Maintain an unread cursor per session. A poll must first return already-buffered unread output,
+  then wait only if the cursor is at the current end of the log.
+- If max_output_tokens limits one result, advance the cursor only through the returned bytes.
+  The next poll must return the remaining buffered bytes immediately.
+- Output arriving between exec_command and the next write_stdin is recorded by the session's
+  data handlers even when no tool operation is active. The next poll reads that data from the
+  unread cursor; it is not lost merely because it arrived between calls.
+- Output arriving while write_stdin is waiting is appended before the operation completes and is
+  included in that operation's result.
+- The pre-publication backend queue and the OutputLog together must obey the configured aggregate
+  output budget. A fast producer must not bypass the memory limit before the session is published.
 
-The initial implementation may use a bounded in-memory head/tail buffer. A spill-to-disk implementation is optional and must not be required for the first Windows release.
+The initial implementation uses a bounded in-memory head/tail buffer. A spill-to-disk
+implementation is not required for v1 and must not be enabled implicitly. If a future durable
+spool is added, it must have independent byte and age quotas, explicit cleanup, and a shutdown
+flush barrier; it must not duplicate every terminal chunk into the DSH conversation log.
 
 ## 10. Cancellation and termination
 
@@ -350,7 +443,10 @@ The backend must distinguish:
 
 Windows v1 may use taskkill /PID <pid> /T /F as the process-tree fallback. The backend interface must leave room for a stronger Windows Job Object implementation later. POSIX implementations should use detached process groups and group-level termination.
 
-Termination must be idempotent and safe when the process has already exited.
+Termination must be idempotent and safe when the process has already exited. Process-tree cleanup
+must have a bounded timeout. If a backend does not acknowledge termination in time, release all
+JS-side listeners/timers/registry references, record a cleanup failure, and surface that reason;
+never leave a permanently retained `terminating` record waiting for an unbounded promise.
 
 ## 11. Security policy
 
@@ -382,6 +478,9 @@ interface Config {
   pollYieldTimeMs: number
   maxOutputBytes: number
   defaultMaxOutputTokens: number
+  maxRetainedOutputBytes: number
+  terminationTimeoutMs: number
+  completedSessionTtlMs?: number
   rows: number
   cols: number
   windowsPtyStartupGraceMs?: number
@@ -401,6 +500,11 @@ Suggested development defaults:
   pollYieldTimeMs: 250,
   maxOutputBytes: 1_048_576,
   defaultMaxOutputTokens: 10_000,
+  maxRetainedOutputBytes: 67_108_864,
+  terminationTimeoutMs: 5_000,
+  // 0 or omitted means no automatic expiry in v1. If enabled later, expiry must
+  // produce an explicit tombstone/error rather than an unknown-session result.
+  completedSessionTtlMs: 0,
   rows: 24,
   cols: 80,
   windowsPtyStartupGraceMs: 2_000
@@ -418,8 +522,18 @@ Suggested development defaults:
 - A different owner cannot write to a session.
 - Concurrent operations on one session are serialized.
 - Output truncation is reported.
+- Output produced between exec_command and write_stdin is returned by the next poll.
+- A poll with existing unread output returns immediately rather than waiting for new output.
+- Output remaining after max_output_tokens is returned by the next poll.
+- Natural process exit retains output until an empty write_stdin returns the terminal result.
+- A non-empty write after natural exit cannot delete the session; an empty poll still succeeds.
+- Exit is not finalized until stdout/stderr drain is complete.
+- Completion notification is sent once and does not contain duplicate full output.
+- Notification failure does not affect session pollability.
+- Aggregate output and pre-publication buffers stay within the configured memory budget.
 - Cancellation is propagated.
-- Disposal terminates all live sessions.
+- Disposal terminates all live sessions and releases listeners, timers, and registry references.
+- Cleanup timeout produces an explicit diagnostic rather than a permanently retained session.
 
 ### Windows integration tests
 
@@ -427,11 +541,13 @@ Suggested development defaults:
 - Run a long-lived Node or PowerShell process and return session_id.
 - Send input through write_stdin.
 - Poll with empty chars.
-- Send Control-C to a PTY process.
+- Interrupt a live pipe process.
 - Use a custom workdir.
 - Preserve Unicode output.
-- Exercise PTY failure and pipe fallback.
+- Verify ordinary commands and stdin use pipes without PTY startup delay.
 - Verify process-tree cleanup after termination.
+- Verify a completed-but-unpolled session is retained until its terminal poll.
+- Verify capacity pressure rejects new sessions instead of silently evicting unread output.
 
 Tests should use Node-based fixtures where possible so they are not coupled to Unix commands such as ls, bash, or sleep.
 
@@ -451,7 +567,11 @@ The first implementation is complete when:
 1. dsh-codex-shell builds from TypeScript to lib/.
 2. DHS can load the compiled plugin through an absolute Cordis entry.
 3. Windows supports the complete exec_command to write_stdin lifecycle.
-4. PTY is the default transport and pipe fallback is configurable.
+4. Pipe transport is the default and supports the complete exec_command to write_stdin lifecycle.
 5. Session ownership, output limits, cancellation, and cleanup are tested.
 6. macOS/Linux backend boundaries compile cleanly, even if their integration tests run later.
 7. No model-visible parameter implements shell selection or approval bypass.
+8. Natural exits are observable through a compact owner notification and remain pollable through
+   write_stdin until the terminal result is delivered.
+9. Memory cleanup is bounded and reasoned: no unbounded output queue, no unbounded termination
+   wait, no duplicate durable shell transcript, and no silent session deletion.

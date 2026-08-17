@@ -66,6 +66,7 @@ export interface OutputRead {
   nextCursor: number
   originalTokenCount?: number
   truncated: boolean
+  hasMore: boolean
 }
 
 export interface ExitStatus {
@@ -89,6 +90,7 @@ export interface BackendSpawnRequest {
   executable: string
   argv: readonly string[]
   cwd: string
+  maxOutputBytes?: number
   rows: number
   cols: number
   windowsPtyStartupGraceMs: number
@@ -96,8 +98,23 @@ export interface BackendSpawnRequest {
 
 export type BackendFactory = (request: BackendSpawnRequest) => Promise<SessionBackend>
 
+export interface SessionNotification {
+  readonly id: string
+  readonly role: 'user'
+  readonly content: readonly [{ readonly type: 'text'; readonly text: string }]
+  readonly source: {
+    readonly kind: 'plugin'
+    readonly plugin: 'codex-shell'
+    readonly form: 'notice'
+    readonly summary: string
+  }
+}
+
 export interface SessionOwner {
   readonly ownerId?: string
+  readonly status?: 'idle' | 'running' | 'maintenance'
+  readonly inject?: (message: SessionNotification) => void
+  readonly followup?: (message: SessionNotification) => void
 }
 
 export interface ExecRequest {
@@ -130,6 +147,10 @@ export interface SessionRecord {
   readonly startedAt: number
   cursor: number
   outputSequence: number
+  notificationAttempted: boolean
+  exposedToCaller: boolean
+  outputUnsubscribe: () => void
+  cleanupReason?: 'collected' | 'owner_disposed' | 'service_disposed' | 'expired' | 'backend_failure'
   readonly exitPromise: Promise<ExitStatus>
 }
 
