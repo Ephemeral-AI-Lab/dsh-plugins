@@ -3,12 +3,24 @@
 Adds Codex-style `exec_command` and `write_stdin` tools to DeepSeek
 Harness.
 
+## Current release: 0.1.2
+
+This release makes pipe transport the default on Windows, macOS, and Linux.
+Completed sessions retain unread output for subsequent `write_stdin` polls,
+including token-capped pagination and natural-exit notifications. The release
+also includes eight reusable E2E prompts covering basic commands, nonzero
+exits, stdin, delayed output, natural exits, pagination, interactive sessions,
+and concurrent-session cleanup.
+
+The package was verified with the full unit suite and build. See the [E2E test
+prompts](e2e-test-prompt.md) and [0.1.2 changelog](changelog/0.1.2.md).
+
 ## 🚀 1. Install the plugin
 
 Install it into the DSH profile you use:
 
 ```powershell
-dsh plugin --profile web add dsh-codex-shell@0.1.1
+dsh plugin --profile web add dsh-codex-shell@0.1.2
 ```
 
 From a DeepSeek Harness source checkout:
@@ -16,7 +28,7 @@ From a DeepSeek Harness source checkout:
 ```powershell
 cd C:/path/to/deepseek-harness
 pnpm install
-pnpm dsh plugin --profile web add dsh-codex-shell@0.1.1
+pnpm dsh plugin --profile web add dsh-codex-shell@0.1.2
 ```
 
 > ⚠️ Do not run `npm install dsh-codex-shell` as a separate setup step. The
@@ -178,7 +190,7 @@ Then install the plugin again.
 
 ```powershell
 dsh plugin --profile web remove dsh-codex-shell
-dsh plugin --profile web add dsh-codex-shell@0.1.1
+dsh plugin --profile web add dsh-codex-shell@0.1.2
 ```
 
 ## 📚 Documentation
