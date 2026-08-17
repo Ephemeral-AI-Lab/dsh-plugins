@@ -1,0 +1,3 @@
+- insert:
+    - id: claude-code-loop
+      name: 'claude-code-loop'
