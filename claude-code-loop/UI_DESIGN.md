@@ -104,8 +104,9 @@ nothing when the session has no loops.
 
 ## Create and edit flow
 
-Use one native DSH modal or side drawer for both operations. Reuse the same
-controlled form; only the title and submit label change.
+Use one controlled page form for both operations. It can become a native DSH
+modal or side drawer later without changing the command or projection path;
+v1 keeps the editor in the Loops page so it needs no new UI dependency.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -147,10 +148,11 @@ Form rules:
 - interval is a positive safe integer, in seconds;
 - delivery is a two-option control mapped to `allow_steer`;
 - create and save buttons disable while the operation is pending;
-- validation errors appear beside the field and do not close the dialog;
+- validation errors appear beside the field and do not close the editor;
 - a persistence or command error appears as an inline alert with a retryable
   action where appropriate;
-- successful save closes the dialog and leaves the user on the Loops page.
+- successful save closes the editor after the projection reflects the result and
+  leaves the user on the Loops page.
 
 Schedule semantics for the first implementation:
 
@@ -161,7 +163,8 @@ Schedule semantics for the first implementation:
 
 ## Delete flow
 
-`Delete` opens a small confirmation dialog instead of deleting immediately:
+`Delete` first reveals an inline confirmation action instead of deleting
+immediately:
 
 ```text
 Delete loop?
@@ -176,7 +179,8 @@ This stops future deliveries for this loop.
 
 The destructive button must be visually distinct, keyboard reachable, and
 disabled while deletion is pending. On success, remove the card from the
-projection-driven list. On failure, keep the dialog open and show the error.
+projection-driven list. On failure, keep the confirmation action open and
+show the error.
 
 ## Compact Chat summary
 
@@ -271,15 +275,15 @@ The page must handle these states explicitly:
 - overdue loop: show an `Overdue` badge and explanatory text;
 - create/edit/delete pending: disable the relevant controls;
 - mutation failure: keep user-entered form values and show an inline alert;
-- projection update after mutation: close the dialog only after success is
-  confirmed by the command/projection path.
+- projection update after mutation: close the editor or confirmation action only
+  after success is confirmed by the command/projection path.
 
 Required interaction details:
 
 - use real buttons and labeled form controls;
 - provide visible keyboard focus and a 44px minimum action target;
-- trap focus in the modal and return it to the opening control on close;
-- make the dialog title and errors available to assistive technology;
+- keep the inline editor and confirmation actions keyboard reachable;
+- make form headings and errors available to assistive technology;
 - do not rely on color alone for Active, Overdue, or destructive states;
 - do not steal focus when countdown text or projection data changes;
 - use a polite live region only for meaningful mutation results, not every
@@ -319,7 +323,7 @@ browser tests should cover:
 10. `Delete` requires confirmation, then removes the card after success;
 11. create/edit/delete failures keep the user in context and show an error;
 12. pending actions prevent duplicate submissions;
-13. keyboard navigation, modal focus return, and screen-reader labels work;
+13. keyboard navigation, confirmation actions, and screen-reader labels work;
 14. countdown repaint does not invoke any scheduler or dispatch a prompt;
 15. the compact summary selects the Loops view and does not duplicate the
     management controls.
