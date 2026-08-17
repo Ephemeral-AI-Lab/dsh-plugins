@@ -8,10 +8,8 @@
 }
 
 .header,
-.formHeader,
 .cardHeader,
-.meta,
-.formActions {
+.meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -62,7 +60,6 @@ h2 {
 }
 
 .grid,
-.form,
 .empty,
 .error {
   max-width: 960px;
@@ -77,7 +74,6 @@ h2 {
 }
 
 .card,
-.form,
 .empty {
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
@@ -143,9 +139,7 @@ button {
   cursor: pointer;
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
 }
@@ -153,15 +147,6 @@ textarea:focus-visible {
 button:disabled {
   cursor: wait;
   opacity: .55;
-}
-
-.primaryButton {
-  color: var(--dsw-alias-label-primary-foreground);
-  background: var(--dsw-alias-button-primary-fill);
-}
-
-.primaryButton:hover:not(:disabled) {
-  background: var(--dsw-alias-button-primary-hover);
 }
 
 .ghostButton {
@@ -202,80 +187,6 @@ button:disabled {
   font-size: 14px;
 }
 
-.form {
-  display: grid;
-  gap: 16px;
-  margin-top: 20px;
-  padding: 20px;
-}
-
-.formHeader {
-  align-items: flex-start;
-  padding-bottom: 4px;
-}
-
-.formHeader h2 {
-  margin-bottom: 0;
-  font-size: 20px;
-}
-
-label {
-  display: grid;
-  gap: 7px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-}
-
-input,
-textarea {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 7px;
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-bg-layer-1);
-  font: inherit;
-}
-
-textarea {
-  resize: vertical;
-}
-
-.formRow {
-  display: grid;
-  grid-template-columns: minmax(180px, 280px) 1fr;
-  align-items: end;
-  gap: 20px;
-}
-
-.inputWithSuffix {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.inputWithSuffix span {
-  flex: none;
-  color: var(--dsw-alias-label-caption);
-}
-
-.checkRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-}
-
-.checkRow input {
-  width: auto;
-}
-
-.formActions {
-  justify-content: flex-end;
-  padding-top: 4px;
-}
-
 .error {
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-state-error-primary);
@@ -297,15 +208,9 @@ code {
     padding: 20px 16px 96px;
   }
 
-  .header,
-  .formHeader {
+  .header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .formRow {
-    grid-template-columns: 1fr;
-    gap: 14px;
   }
 }
 

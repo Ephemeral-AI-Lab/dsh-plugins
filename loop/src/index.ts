@@ -9,7 +9,7 @@ import { registerLoopCommand } from './commands.js'
 import { registerLoopTools } from './tools.js'
 import { loopProjectionDefinition } from './projection.js'
 
-export const name = 'claude-code-loop'
+export const name = 'loop'
 export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersistence', 'sessionProjections']
 
 // Resolve from the running DSH entry point so linked plugins mutate the host's
@@ -45,7 +45,7 @@ export function apply(ctx: Context): void {
             if (runtimes.get(attachedAgent) === cleanup) runtimes.delete(attachedAgent)
           }
         }
-      }, 'claude-code-loop.runtime()')
+      }, 'loop.runtime()')
       runtimes.set(attachedAgent, cleanup)
     })
 
@@ -56,7 +56,7 @@ export function apply(ctx: Context): void {
       runtimes.clear()
       await Promise.allSettled(cleanups.map(cleanup => Promise.resolve(cleanup())))
     }
-  }, 'claude-code-loop.lifecycle()')
+  }, 'loop.lifecycle()')
 }
 
 export { LoopRuntime } from './loop.js'

@@ -31,68 +31,30 @@ export interface FoldedLoops {
   readonly seenIds: readonly string[]
 }
 
-export interface LoopUpdatePatch {
-  readonly title?: string
-  readonly prompt?: string
-  readonly time_in_seconds?: number
-  readonly allow_steer?: boolean
-}
-
 export function createLoopRecord(
   prompt: string,
   timeInSeconds: number,
-  allowSteer = true,
   now = Date.now(),
   id = `loop_${randomUUID()}`,
-  title?: string,
 ): LoopRecord {
   validatePrompt(prompt)
   validateTime(timeInSeconds)
-  if (typeof allowSteer !== 'boolean') throw new LoopInputError('allow_steer must be a boolean')
   if (!Number.isSafeInteger(now) || now < 0) throw new LoopInputError('now must be a non-negative safe integer')
-  const normalizedTitle = title === undefined ? deriveLoopTitle(prompt) : title.trim()
-  validateTitle(normalizedTitle)
   return {
     id,
-    title: normalizedTitle,
     prompt: prompt.trim(),
     time_in_seconds: timeInSeconds,
-    allow_steer: allowSteer,
     next_at: addSeconds(now, timeInSeconds),
   }
 }
 
-export function deriveLoopTitle(prompt: string): string {
-  const firstLine = prompt.trim().split(/\r?\n/u)[0]!.trim()
-  const compact = firstLine.replace(/\s+/gu, ' ')
-  if (compact.length <= 80) return compact || 'Recurring prompt'
-  return `${compact.slice(0, 77).trimEnd()}…`
-}
-
-export function updateLoopRecord(record: LoopRecord, patch: LoopUpdatePatch, now = Date.now()): LoopRecord {
-  if (!Number.isSafeInteger(now) || now < 0) throw new LoopInputError('now must be a non-negative safe integer')
-  if (patch.title === undefined && patch.prompt === undefined
-    && patch.time_in_seconds === undefined && patch.allow_steer === undefined) {
-    throw new LoopInputError('at least one loop setting must be provided')
-  }
-
-  const title = patch.title === undefined ? record.title : patch.title.trim()
-  const prompt = patch.prompt === undefined ? record.prompt : patch.prompt
-  const timeInSeconds = patch.time_in_seconds === undefined ? record.time_in_seconds : patch.time_in_seconds
-  const allowSteer = patch.allow_steer === undefined ? record.allow_steer : patch.allow_steer
-  validateTitle(title)
-  validatePrompt(prompt)
-  validateTime(timeInSeconds)
-  if (typeof allowSteer !== 'boolean') throw new LoopInputError('allow_steer must be a boolean')
-
-  return {
-    ...record,
-    title,
-    prompt: prompt.trim(),
-    time_in_seconds: timeInSeconds,
-    allow_steer: allowSteer,
-    next_at: patch.time_in_seconds === undefined ? record.next_at : addSeconds(now, timeInSeconds),
-  }
+export function renderLoopMessage(id: string, prompt: string): string {
+  return [
+    '<heartbeat>',
+    `  <loop_id>${escapeXml(id)}</loop_id>`,
+    `  <prompt>${escapeXml(prompt)}</prompt>`,
+    '</heartbeat>',
+  ].join('\n')
 }
 
 export function foldLoopEvents(events: readonly SessionEvent[], seedLength = 0): FoldedLoops {
@@ -121,10 +83,6 @@ export function nextOccurrence(record: LoopRecord, now: number): number {
   if (!Number.isSafeInteger(now) || now < record.next_at) return record.next_at
   const skipped = Math.floor((now - record.next_at) / interval) + 1
   return addMilliseconds(record.next_at, skipped * interval)
-}
-
-export function chooseDelivery(agent: Pick<Agent, 'status'>, allowSteer: boolean): 'steer' | 'followup' {
-  return allowSteer && agent.status === 'running' ? 'steer' : 'followup'
 }
 
 export interface LoopRuntimeOptions {
@@ -210,12 +168,11 @@ export class LoopRuntime {
     }
 
     const message = createUserMessage({
-      content: [{ type: 'text', text: due.prompt }],
-      source: { kind: 'plugin', plugin: 'claude-code-loop' },
+      content: [{ type: 'text', text: renderLoopMessage(due.id, due.prompt) }],
+      source: { kind: 'plugin', plugin: 'loop' },
     })
-    const delivery = chooseDelivery(this.options.agent, due.allow_steer)
-    if (delivery === 'steer') this.options.agent.steer(message)
-    else this.options.agent.followup(message)
+    const target = this.options.agent.status === 'running' ? 'next-step' : 'next-turn'
+    this.options.agent.send(message, target, true)
 
     this.options.agent.session.append('loop/change', {
       version: LOOP_CHANGE_VERSION,
@@ -282,9 +239,8 @@ function applyChange(active: Map<string, LoopRecord>, seenIds: string[], change:
 }
 
 function normalizeRecord(record: LoopRecord): LoopRecord {
-  const legacy = record as LoopRecord & { readonly title?: unknown }
-  const title = typeof legacy.title === 'string' ? legacy.title : deriveLoopTitle(record.prompt)
-  const normalized = { ...record, title }
+  const legacy = record as LoopRecord & { readonly title?: unknown; readonly allow_steer?: unknown }
+  const { title: _title, allow_steer: _allowSteer, ...normalized } = legacy
   validateRecord(normalized)
   return normalized
 }
@@ -296,20 +252,12 @@ function validateRecord(record: LoopRecord): void {
   if (typeof record.prompt !== 'string' || record.prompt.trim().length === 0) {
     throw new LoopLogError('loop prompt must be non-empty')
   }
-  if (typeof record.title !== 'string' || record.title.trim() !== record.title || record.title.length === 0) {
-    throw new LoopLogError('loop title must be a non-empty string without surrounding whitespace')
-  }
   validateLogTime(record.time_in_seconds)
-  if (typeof record.allow_steer !== 'boolean') throw new LoopLogError('allow_steer must be boolean')
   if (!Number.isSafeInteger(record.next_at) || record.next_at < 0) throw new LoopLogError('loop next_at must be a non-negative safe integer')
 }
 
 function validatePrompt(prompt: string): void {
   if (typeof prompt !== 'string' || prompt.trim().length === 0) throw new LoopInputError('prompt must be non-empty')
-}
-
-function validateTitle(title: string): void {
-  if (typeof title !== 'string' || title.trim().length === 0) throw new LoopInputError('title must be non-empty')
 }
 
 function validateTime(seconds: number): void {
@@ -328,4 +276,13 @@ function addMilliseconds(now: number, milliseconds: number): number {
   const result = now + milliseconds
   if (!Number.isSafeInteger(result)) throw new LoopInputError('loop time is outside the safe date range')
   return result
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;')
+    .replace(/"/gu, '&quot;')
+    .replace(/'/gu, '&apos;')
 }

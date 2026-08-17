@@ -3,59 +3,43 @@ import {
   LoopInputError,
   LoopLogError,
   LoopRuntime,
-  chooseDelivery,
   createLoopRecord,
-  deriveLoopTitle,
   foldLoopEvents,
   loopView,
   nextOccurrence,
+  renderLoopMessage,
   flushPersistence,
-  updateLoopRecord,
 } from '../src/loop.js'
 function event(data: unknown, seq = 0) {
   return { type: 'loop/change', seq, time: 0, data } as never
 }
 
-describe('claude-code-loop domain', () => {
-  it('defaults allow_steer to true and uses seconds-only input', () => {
-    const record = createLoopRecord('check status', 5, undefined, 1000, 'loop_1')
+describe('loop domain', () => {
+  it('uses prompt and seconds-only input', () => {
+    const record = createLoopRecord('check status', 5, 1000, 'loop_1')
     expect(record).toEqual({
       id: 'loop_1',
-      title: 'check status',
       prompt: 'check status',
       time_in_seconds: 5,
-      allow_steer: true,
       next_at: 6000,
     })
   })
 
-  it('trims prompts, preserves explicit false, and generates a non-empty id', () => {
-    const record = createLoopRecord('  check status  ', 5, false, 1000)
+  it('trims prompts and generates a non-empty id', () => {
+    const record = createLoopRecord('  check status  ', 5, 1000)
 
     expect(record.prompt).toBe('check status')
-    expect(record.allow_steer).toBe(false)
     expect(record.id.startsWith('loop_')).toBe(true)
     expect(record.id.length).toBeGreaterThan(5)
   })
 
-  it('derives compact titles and updates interval scheduling only when needed', () => {
-    const record = createLoopRecord('  first line\nsecond line  ', 5, true, 1_000, 'loop_1')
-    expect(record.title).toBe('first line')
-    expect(updateLoopRecord(record, { prompt: 'new prompt' }, 2_000)).toMatchObject({
-      title: 'first line', prompt: 'new prompt', next_at: 6_000,
-    })
-    expect(updateLoopRecord(record, { time_in_seconds: 10 }, 2_000)).toMatchObject({
-      title: 'first line', prompt: 'first line\nsecond line', next_at: 12_000,
-    })
-    expect(updateLoopRecord(record, { title: 'New title', allow_steer: false }, 2_000)).toMatchObject({
-      title: 'New title', allow_steer: false, next_at: 6_000,
-    })
-    expect(() => updateLoopRecord(record, {})).toThrow('at least one')
-    expect(() => updateLoopRecord(record, { title: ' ' })).toThrow('title')
-    expect(() => updateLoopRecord(record, {}, Number.NaN)).toThrow('now')
-    expect(() => updateLoopRecord(record, { allow_steer: 'yes' as never })).toThrow('allow_steer')
-    expect(deriveLoopTitle('   ')).toBe('Recurring prompt')
-    expect(deriveLoopTitle('x'.repeat(100))).toHaveLength(78)
+  it('renders an escaped heartbeat message', () => {
+    expect(renderLoopMessage('loop_1', 'check <build> & deploy')).toBe([
+      '<heartbeat>',
+      '  <loop_id>loop_1</loop_id>',
+      '  <prompt>check &lt;build&gt; &amp; deploy</prompt>',
+      '</heartbeat>',
+    ].join('\n'))
   })
 
   it.each([
@@ -67,18 +51,17 @@ describe('claude-code-loop domain', () => {
     ['unsafe seconds', ['check', Number.MAX_SAFE_INTEGER + 1]],
     ['infinite seconds', ['check', Number.POSITIVE_INFINITY]],
   ])('rejects %s before creating a record', (_name, [prompt, seconds]) => {
-    expect(() => createLoopRecord(prompt as string, seconds as number, true, 0, 'loop_1')).toThrow(LoopInputError)
+    expect(() => createLoopRecord(prompt as string, seconds as number, 0, 'loop_1')).toThrow(LoopInputError)
   })
 
-  it('rejects invalid booleans, clocks, and date overflow', () => {
-    expect(() => createLoopRecord('check', 1, 'yes' as never, 0, 'loop_1')).toThrow('allow_steer')
-    expect(() => createLoopRecord('check', 1, true, -1, 'loop_1')).toThrow('now')
-    expect(() => createLoopRecord('check', 1, true, Number.MAX_SAFE_INTEGER + 1, 'loop_1')).toThrow('now')
-    expect(() => createLoopRecord('check', 9_007_199_254_741, true, 0, 'loop_1')).toThrow('safe date range')
+  it('rejects invalid clocks and date overflow', () => {
+    expect(() => createLoopRecord('check', 1, -1, 'loop_1')).toThrow('now')
+    expect(() => createLoopRecord('check', 1, Number.MAX_SAFE_INTEGER + 1, 'loop_1')).toThrow('now')
+    expect(() => createLoopRecord('check', 9_007_199_254_741, 0, 'loop_1')).toThrow('safe date range')
   })
 
   it('folds create, dispatch, and delete events', () => {
-    const record = createLoopRecord('check', 5, true, 0, 'loop_1')
+    const record = createLoopRecord('check', 5, 0, 'loop_1')
     const folded = foldLoopEvents([
       event({ version: 1, operation: 'create', loop: record }),
       event({ version: 1, operation: 'dispatch', id: 'loop_1', next_at: 10_000 }, 1),
@@ -88,14 +71,20 @@ describe('claude-code-loop domain', () => {
       event({ version: 1, operation: 'create', loop: record }),
       event({ version: 1, operation: 'delete', id: 'loop_1' }, 1),
     ]).active).toEqual([])
+
+    const updated = { ...record, next_at: 8_000 }
+    expect(foldLoopEvents([
+      event({ version: 1, operation: 'create', loop: record }),
+      event({ version: 1, operation: 'update', loop: updated }, 1),
+    ]).active).toEqual([updated])
   })
 
   it('ignores unrelated events and skips the configured seed prefix', () => {
-    const record = createLoopRecord('check', 5, true, 0, 'loop_1')
+    const record = createLoopRecord('check', 5, 0, 'loop_1')
     const folded = foldLoopEvents([
       event({ version: 1, operation: 'create', loop: record }, 0),
       { type: 'message', seq: 1, time: 0, data: {} } as never,
-      event({ version: 1, operation: 'create', loop: createLoopRecord('later', 5, true, 0, 'loop_2') }, 2),
+      event({ version: 1, operation: 'create', loop: createLoopRecord('later', 5, 0, 'loop_2') }, 2),
     ], 2)
 
     expect(folded.active.map(loop => loop.id)).toEqual(['loop_2'])
@@ -104,18 +93,16 @@ describe('claude-code-loop domain', () => {
 
   it.each([
     ['unsupported version', { version: 2, operation: 'delete', id: 'loop_1' }],
-    ['invalid record id', { version: 1, operation: 'create', loop: { id: ' ', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
-    ['invalid record prompt', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: ' ', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
-    ['invalid record title', { version: 1, operation: 'create', loop: { id: 'loop_1', title: ' ', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
-    ['invalid record interval', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 0, allow_steer: true, next_at: 1000 } }],
-    ['invalid record boolean', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, allow_steer: 'yes', next_at: 1000 } }],
-    ['invalid record next_at', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: -1 } }],
+    ['invalid record id', { version: 1, operation: 'create', loop: { id: ' ', prompt: 'check', time_in_seconds: 1, next_at: 1000 } }],
+    ['invalid record prompt', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: ' ', time_in_seconds: 1, next_at: 1000 } }],
+    ['invalid record interval', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 0, next_at: 1000 } }],
+    ['invalid record next_at', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, next_at: -1 } }],
   ])('fails closed for %s persisted data', (_name, data) => {
     expect(() => foldLoopEvents([event(data)])).toThrow(LoopLogError)
   })
 
   it('rejects duplicate ids, inactive deletes, and inactive dispatches', () => {
-    const record = createLoopRecord('check', 5, true, 0, 'loop_1')
+    const record = createLoopRecord('check', 5, 0, 'loop_1')
     expect(() => foldLoopEvents([
       event({ version: 1, operation: 'create', loop: record }),
       event({ version: 1, operation: 'delete', id: 'loop_1' }, 1),
@@ -132,7 +119,7 @@ describe('claude-code-loop domain', () => {
   })
 
   it('skips missed intervals instead of replaying a burst', () => {
-    const record = createLoopRecord('check', 5, true, 0, 'loop_1')
+    const record = createLoopRecord('check', 5, 0, 'loop_1')
     expect(nextOccurrence(record, 16_000)).toBe(20_000)
     expect(loopView(record, 500).state).toBe('scheduled')
     expect(loopView(record, 5000).state).toBe('overdue')
@@ -140,16 +127,8 @@ describe('claude-code-loop domain', () => {
     expect(nextOccurrence(record, Number.NaN)).toBe(5000)
   })
 
-  it('steers only a running agent when allowed', () => {
-    expect(chooseDelivery({ status: 'running' }, true)).toBe('steer')
-    expect(chooseDelivery({ status: 'idle' }, true)).toBe('followup')
-    expect(chooseDelivery({ status: 'running' }, false)).toBe('followup')
-    expect(chooseDelivery({ status: 'error' }, true)).toBe('followup')
-    expect(chooseDelivery({ status: 'stopped' }, true)).toBe('followup')
-  })
-
   it('supports large safe intervals and rejects arithmetic overflow', () => {
-    const record = createLoopRecord('check', 9_000_000_000_000, true, 0, 'loop_1')
+    const record = createLoopRecord('check', 9_000_000_000_000, 0, 'loop_1')
     expect(record.next_at).toBe(9_000_000_000_000_000)
     expect(() => nextOccurrence(record, Number.MAX_SAFE_INTEGER)).toThrow(LoopInputError)
   })
@@ -174,7 +153,7 @@ describe('claude-code-loop domain', () => {
   })
 
   it('stops before folding when the agent disappears during persistence', async () => {
-    const agent = { id: 'runtime', session: { events: [], header: {} }, followup: vi.fn(), steer: vi.fn() } as never
+    const agent = { id: 'runtime', session: { events: [], header: {} }, send: vi.fn() } as never
     let release!: () => void
     let started!: () => void
     const gate = new Promise<void>(resolve => { release = resolve })
@@ -194,7 +173,7 @@ describe('claude-code-loop domain', () => {
     release()
     await runtime.transact(async () => undefined)
 
-    expect(agent.followup).not.toHaveBeenCalled()
+    expect(agent.send).not.toHaveBeenCalled()
   })
 
   it('restarts after a drive failure when another drive was requested', async () => {

@@ -1,7 +1,8 @@
-# `/loop` GUI design draft
+# Deprecated `/loop` GUI design draft
 
-Status: implementation contract. The browser surface follows this design and
-does not change DSH core or the DSH web application.
+The current design is [ui.md](./ui.md). This file is retained only as a
+historical page-based draft; do not use its separate Loops-page layout or GUI
+create flow for implementation. Create loops with `/loop <seconds> <prompt>`.
 
 ## Direction
 
@@ -14,7 +15,6 @@ The page has one job: let a user see and manage recurring prompts for the
 currently selected session.
 
 - `New loop` creates a loop.
-- `Edit` changes its prompt, interval, or delivery setting.
 - `Delete` removes it after confirmation.
 - The page remains quiet while the user is in Chat; a small summary chip can
   show that loops are active and open the page.
@@ -49,38 +49,32 @@ Trajectory state.
 │                                                                      │
 │ ┌──────────────────────────────────────────────────────────────────┐ │
 │ │ Check build health                              Active            │ │
-│ │ Every 1 second · Next run in 8s · Steer when running              │ │
+│ │ Every 1 second · Next run in 8s · Message inbox                  │ │
 │ │ Check whether the build is still healthy.                         │ │
-│ │                                                   [Edit] [Delete] │ │
+│ │                                                        [Delete] │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
 │                                                                      │
 │ ┌──────────────────────────────────────────────────────────────────┐ │
 │ │ Failure summary                                  Active            │ │
-│ │ Every 30 seconds · Next run in 24s · Follow-up                    │ │
+│ │ Every 30 seconds · Next run in 24s · Message inbox                │ │
 │ │ Summarize any new failures.                                        │ │
-│ │                                                   [Edit] [Delete] │ │
+│ │                                                        [Delete] │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Every loop should have a short title separate from its delivery prompt. The
-title is the card heading; the full prompt is shown below it, truncated
-visually but not removed from the accessible text. Loop IDs can remain
-secondary metadata inside the edit/delete flow, but they should not dominate
+There is no separate title field. The prompt is the only user-authored loop
+content; the card may use its first line as a display-only heading. Loop IDs can
+remain secondary metadata inside the delete flow, but they should not dominate
 the page.
-
-The GUI makes `title` required because it is a management surface. The public
-tool keeps `title` optional for compatibility with the existing
-`/loop <seconds> <prompt>` command; when omitted, the host derives a compact
-title from the first non-empty prompt line and persists it on the next update.
 
 Each card contains only the information needed to make a decision:
 
 - status badge: `Active` or `Overdue`;
-- prompt title and preview;
+- prompt preview;
 - interval and next-run text;
-- delivery mode: `Steer when running` or `Follow-up`;
-- `Edit` and `Delete` actions.
+- delivery mode: `Message inbox`;
+- `Delete` action.
 
 Do not display the owning session number in a card. This page is already
 inside that session.
@@ -102,11 +96,11 @@ The empty state has one clear action. The page tab can remain visible because
 it is a session feature, but the compact composer summary should render
 nothing when the session has no loops.
 
-## Create and edit flow
+## Create flow
 
-Use one controlled page form for both operations. It can become a native DSH
-modal or side drawer later without changing the command or projection path;
-v1 keeps the editor in the Loops page so it needs no new UI dependency.
+Use one controlled page form for creation. It can become a native DSH modal or
+side drawer later without changing the command or projection path; v1 keeps
+the form in the Loops page so it needs no new UI dependency.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -117,49 +111,23 @@ v1 keeps the editor in the Loops page so it needs no new UI dependency.
 │ │ Check whether the build is still healthy                 │ │
 │ └──────────────────────────────────────────────────────────┘ │
 │                                                              │
-│ Title                                                        │
-│ [ Build health check                                      ]  │
-│                                                              │
 │ Run every                                                    │
 │ [ 1 ] seconds                                               │
-│                                                              │
-│ Delivery                                                     │
-│ [ Steer when running                              v ]        │
 │                                                              │
 │                                      [Cancel] [Create loop]  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Edit uses the same form:
-
-```text
-Edit loop
-Title                  [existing title]
-Prompt                 [existing prompt]
-Run every              [existing interval] seconds
-Delivery               [Steer when running / Follow-up]
-                                      [Cancel] [Save changes]
-```
-
 Form rules:
 
-- title is required in the GUI and trimmed;
 - prompt is required and trimmed;
 - interval is a positive safe integer, in seconds;
-- delivery is a two-option control mapped to `allow_steer`;
-- create and save buttons disable while the operation is pending;
-- validation errors appear beside the field and do not close the editor;
+- create buttons disable while the operation is pending;
+- validation errors appear beside the field and do not close the form;
 - a persistence or command error appears as an inline alert with a retryable
   action where appropriate;
-- successful save closes the editor after the projection reflects the result and
+- successful create closes the form after the projection reflects the result and
   leaves the user on the Loops page.
-
-Schedule semantics for the first implementation:
-
-- changing only the prompt or delivery mode preserves the current `next_at`;
-- changing the interval schedules the next run at `now + new interval`;
-- the page must show the resulting next-run text after the projection update,
-  rather than guessing that the command succeeded.
 
 ## Delete flow
 
@@ -170,7 +138,7 @@ immediately:
 Delete loop?
 
 “Check whether the build is still healthy”
-Every 1 second · Steer when running
+Every 1 second · Message inbox wakes the agent
 
 This stops future deliveries for this loop.
 
@@ -192,7 +160,7 @@ visible above the composer:
 ```
 
 It is a real button, not a TUI status line. Clicking it selects the `Loops`
-view. It should not expose edit controls, duplicate the loop list, or reserve
+view. It should not duplicate the loop list or reserve
 space when there are no loops. A warning variant can say `1 loop overdue` but
 must use text as well as color.
 
@@ -218,10 +186,10 @@ The browser consumes a current session projection, not raw event history:
 loop/change events
         │
         ▼
-host session projection: claude-code-loop
+host session projection: loop
         │
         ▼
-useProjection('claude-code-loop')
+useProjection('loop')
         │
         ▼
 Loops page + composer summary
@@ -242,27 +210,8 @@ maintain a second loop map, or run its own scheduler. This keeps GUI actions
 consistent with `/loop` commands and avoids adding a new RPC for a small
 feature.
 
-The backend contract must persist an optional `title` on create and expose it
-through `LoopRecord`, `LoopView`, and the projection. It must also expose GUI
-editing:
-
-```ts
-loop_update({
-  id: string,
-  title?: string,
-  prompt?: string,
-  time_in_seconds?: number,
-  allow_steer?: boolean,
-}) -> LoopView
-```
-
-The corresponding durable event should carry the complete post-update record:
-
-```ts
-{ version: 1, operation: 'update', loop: LoopRecord }
-```
-
-That event must flush before the command reports success. No pause, resume,
+The backend contract persists only the prompt, interval, next delivery time,
+and generated loop ID. No update operation is needed. No pause, resume,
 run-now, global scheduling, or new persistence store is required for this GUI.
 
 ## UI states and accessibility
@@ -273,16 +222,16 @@ The page must handle these states explicitly:
 - zero loops: show the empty state;
 - active loops: show cards ordered by `next_at`;
 - overdue loop: show an `Overdue` badge and explanatory text;
-- create/edit/delete pending: disable the relevant controls;
+- create/delete pending: disable the relevant controls;
 - mutation failure: keep user-entered form values and show an inline alert;
-- projection update after mutation: close the editor or confirmation action only
+- projection update after mutation: close the form or confirmation action only
   after success is confirmed by the command/projection path.
 
 Required interaction details:
 
 - use real buttons and labeled form controls;
 - provide visible keyboard focus and a 44px minimum action target;
-- keep the inline editor and confirmation actions keyboard reachable;
+- keep the inline form and confirmation actions keyboard reachable;
 - make form headings and errors available to assistive technology;
 - do not rely on color alone for Active, Overdue, or destructive states;
 - do not steal focus when countdown text or projection data changes;
@@ -295,9 +244,9 @@ Implement the browser surface with existing DSH primitives and no new UI
 dependency:
 
 ```text
-src/client/index.ts             browser plugin entry and slot registration
-src/client/LoopsView.tsx         list, empty state, and CRUD form
-src/client/LoopsView.module.css  cards, form, and responsive layout
+src/ui/index.ts                 browser plugin entry and slot registration
+src/ui/LoopsView.tsx             list, empty state, and create/delete form
+src/ui/LoopsView.module.css      cards, form, and responsive layout
 ```
 
 The host entry adds `sessionProjections` registration. The existing loop
@@ -315,15 +264,12 @@ browser tests should cover:
 2. zero loops show the empty state and no compact summary;
 3. one and multiple loops render cards ordered by `next_at`;
 4. overdue loops have visible text and accessible status, not color alone;
-5. `New loop` opens an empty form and validates title, prompt, and interval;
+5. `New loop` opens an empty form and validates prompt and interval;
 6. a valid create submits the session command and renders the new projection;
-7. legacy command-created loops get a deterministic derived title;
-8. `Edit` opens prefilled values and submits only the changed settings;
-9. changing interval displays the projection-provided next run;
-10. `Delete` requires confirmation, then removes the card after success;
-11. create/edit/delete failures keep the user in context and show an error;
-12. pending actions prevent duplicate submissions;
-13. keyboard navigation, confirmation actions, and screen-reader labels work;
-14. countdown repaint does not invoke any scheduler or dispatch a prompt;
-15. the compact summary selects the Loops view and does not duplicate the
+8. `Delete` requires confirmation, then removes the card after success;
+9. create/delete failures keep the user in context and show an error;
+10. pending actions prevent duplicate submissions;
+11. keyboard navigation, confirmation actions, and screen-reader labels work;
+12. countdown repaint does not invoke any scheduler or dispatch a prompt;
+13. the compact summary selects the Loops view and does not duplicate the
     management controls.

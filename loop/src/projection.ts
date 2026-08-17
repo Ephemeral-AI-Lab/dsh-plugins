@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import type { LoopChange, LoopProjection } from './types.js'
+import type { LoopChange, LoopProjection, LoopRecord } from './types.js'
 import type {} from '@deepseek-ai/dsh-session/types'
 
 interface LoopProjectionDefinition {
-  readonly key: 'claude-code-loop'
+  readonly key: 'loop'
   readonly schema: { parse(value: unknown): LoopProjection }
   readonly stateVersion: number
   readonly init: () => LoopProjection
@@ -14,12 +14,14 @@ interface LoopProjectionDefinition {
 
 const loopRecordSchema = z.object({
   id: z.string(),
-  title: z.string(),
   prompt: z.string(),
   time_in_seconds: z.number().int().positive(),
-  allow_steer: z.boolean(),
   next_at: z.number().int().nonnegative(),
-}).strict()
+  // Accept records written by the previous plugin build, then hide its
+  // removed fields from the current projection.
+  title: z.string().optional(),
+  allow_steer: z.boolean().optional(),
+}).strict().transform(({ title: _title, allow_steer: _allowSteer, ...record }) => record)
 
 const loopProjectionSchema = z.object({
   loops: z.array(loopRecordSchema),
@@ -30,7 +32,7 @@ const applyProjectionEvent = (state: LoopProjection, event: SessionEvent): LoopP
 )
 
 export const loopProjectionDefinition: LoopProjectionDefinition = {
-  key: 'claude-code-loop',
+  key: 'loop',
   schema: loopProjectionSchema,
   stateVersion: 1,
   init: () => ({ loops: [] }),
@@ -45,12 +47,18 @@ export function applyLoopProjection(state: LoopProjection, event: SessionEvent):
 function applyLoopChange(state: LoopProjection, change: LoopChange): LoopProjection {
   switch (change.operation) {
     case 'create':
-      return { loops: [...state.loops.filter(loop => loop.id !== change.loop.id), change.loop] }
+      return { loops: [...state.loops.filter(loop => loop.id !== change.loop.id), normalizeRecord(change.loop)] }
     case 'update':
-      return { loops: state.loops.map(loop => loop.id === change.loop.id ? change.loop : loop) }
+      return { loops: state.loops.map(loop => loop.id === change.loop.id ? normalizeRecord(change.loop) : loop) }
     case 'delete':
       return { loops: state.loops.filter(loop => loop.id !== change.id) }
     case 'dispatch':
       return { loops: state.loops.map(loop => loop.id === change.id ? { ...loop, next_at: change.next_at } : loop) }
   }
+}
+
+function normalizeRecord(record: LoopRecord): LoopRecord {
+  const legacy = record as typeof record & { readonly title?: unknown; readonly allow_steer?: unknown }
+  const { title: _title, allow_steer: _allowSteer, ...current } = legacy
+  return current
 }

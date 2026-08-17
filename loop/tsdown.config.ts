@@ -3,13 +3,13 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import { transform } from 'lightningcss'
 
-const packageId = 'claude-code-loop'
-const cssPrefix = '\0claude-code-loop-css:'
+const packageId = 'loop'
+const cssPrefix = '\0loop-css:'
 const cssSuffix = '.mjs'
 const externals = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client']
 
 export default {
-  entry: { client: 'src/client/index.ts' },
+  entry: { client: 'src/ui/index.ts' },
   outDir: 'lib',
   format: 'cjs',
   platform: 'browser',
@@ -19,7 +19,7 @@ export default {
   external: externals,
   noExternal: (id: string) => externals.includes(id) ? undefined : true,
   plugins: [{
-    name: 'claude-code-loop-css-modules',
+    name: 'loop-css-modules',
     resolveId(source: string, importer?: string) {
       if (!source.endsWith('.module.css') || importer === undefined) return null
       const file = resolve(dirname(importer), source)

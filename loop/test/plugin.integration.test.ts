@@ -52,6 +52,7 @@ async function createHarness() {
       session,
       status,
       ctx: undefined,
+      send: vi.fn(),
       followup: vi.fn(),
       steer: vi.fn(),
     } as unknown as TestAgent
@@ -113,7 +114,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('claude-code-loop host integration', () => {
+describe('loop host integration', () => {
   it('registers real scoped tools and keeps loop state session-local', async () => {
     const harness = await createHarness()
     const first = harness.makeAgent('session-a', 'idle')
@@ -125,7 +126,8 @@ describe('claude-code-loop host integration', () => {
       })
       expect(created.isError).toBe(false)
       expect(created.value.prompt).toBe('check status')
-      expect(created.value.allow_steer).toBe(true)
+      expect(created.value).not.toHaveProperty('title')
+      expect(created.value).not.toHaveProperty('allow_steer')
       expect(harness.ctx.tools.get('loop_create')).toBeUndefined()
       expect(first.agent.ctx.tools.get('loop_create', first.agent)).toBeDefined()
       expect(second.agent.ctx.tools.get('loop_create', second.agent)).toBeDefined()
@@ -146,60 +148,38 @@ describe('claude-code-loop host integration', () => {
     }
   })
 
-  it('updates a loop through the real tool boundary and publishes the session projection', async () => {
-    vi.useFakeTimers({ now: 1_000 })
-    const harness = await createHarness()
-    const agent = harness.makeAgent('update', 'idle')
-    try {
-      const created = await callTool(harness.ctx, agent.agent, 'loop_create', {
-        title: 'Build', prompt: 'check the build', time_in_seconds: 5,
-      })
-      expect(created).toMatchObject({ isError: false, value: { title: 'Build', next_at: 6_000 } })
-      expect(harness.ctx.sessionProjections.snapshot(agent.session).values['claude-code-loop']).toEqual({
-        loops: [expect.objectContaining({ id: created.value.id, title: 'Build' })],
-      })
-
-      const updated = await callTool(harness.ctx, agent.agent, 'loop_update', {
-        id: created.value.id, title: 'Deploy', prompt: 'check deploy', time_in_seconds: 10,
-      })
-      expect(updated).toMatchObject({ isError: false, value: {
-        id: created.value.id, title: 'Deploy', prompt: 'check deploy', next_at: 11_000,
-      } })
-      expect(harness.ctx.sessionProjections.snapshot(agent.session).values['claude-code-loop']).toEqual({
-        loops: [expect.objectContaining({ id: created.value.id, title: 'Deploy', next_at: 11_000 })],
-      })
-    } finally {
-      await disposeAgent(agent)
-      await harness.dispose()
-    }
-  })
-
-  it('uses fake timers to deliver steer/followup and skips missed intervals', async () => {
+  it('uses fake timers to queue inbox heartbeats and skips missed intervals', async () => {
     vi.useFakeTimers({ now: 0 })
     const harness = await createHarness()
     const running = harness.makeAgent('running', 'running')
     const idle = harness.makeAgent('idle', 'idle')
     try {
-      const steerLoop = await callTool(harness.ctx, running.agent, 'loop_create', { prompt: 'tick', time_in_seconds: 1 })
-      const followupLoop = await callTool(harness.ctx, idle.agent, 'loop_create', { prompt: 'idle tick', time_in_seconds: 1 })
-      expect(steerLoop.isError).toBe(false)
-      expect(followupLoop.isError).toBe(false)
+      const runningLoop = await callTool(harness.ctx, running.agent, 'loop_create', { prompt: 'tick', time_in_seconds: 1 })
+      const idleLoop = await callTool(harness.ctx, idle.agent, 'loop_create', { prompt: 'idle tick', time_in_seconds: 1 })
+      expect(runningLoop.isError).toBe(false)
+      expect(idleLoop.isError).toBe(false)
 
       await vi.advanceTimersByTimeAsync(999)
-      expect(running.agent.steer).not.toHaveBeenCalled()
+      expect(running.agent.send).not.toHaveBeenCalled()
       expect(idle.agent.followup).not.toHaveBeenCalled()
 
       await vi.advanceTimersByTimeAsync(1)
-      expect(running.agent.steer).toHaveBeenCalledTimes(1)
-      expect(idle.agent.followup).toHaveBeenCalledTimes(1)
-      expect(running.agent.steer.mock.calls[0]?.[0]).toMatchObject({
-        content: [{ type: 'text', text: 'tick' }],
-        source: { kind: 'plugin', plugin: 'claude-code-loop' },
+      expect(running.agent.send).toHaveBeenCalledTimes(1)
+      expect(idle.agent.send).toHaveBeenCalledTimes(1)
+      expect(running.agent.steer).not.toHaveBeenCalled()
+      expect(running.agent.followup).not.toHaveBeenCalled()
+      expect(idle.agent.steer).not.toHaveBeenCalled()
+      expect(idle.agent.followup).not.toHaveBeenCalled()
+      expect(running.agent.send.mock.calls[0]).toMatchObject([{
+        content: [{ type: 'text', text: expect.stringContaining('<heartbeat>\n  <loop_id>loop_') }]
+      }, 'next-step', true])
+      expect(running.agent.send.mock.calls[0]?.[0]).toMatchObject({
+        source: { kind: 'plugin', plugin: 'loop' },
       })
 
       await vi.advanceTimersByTimeAsync(2_500)
-      expect(running.agent.steer).toHaveBeenCalledTimes(3)
-      expect(idle.agent.followup).toHaveBeenCalledTimes(3)
+      expect(running.agent.send).toHaveBeenCalledTimes(3)
+      expect(idle.agent.send).toHaveBeenCalledTimes(3)
     } finally {
       await disposeAgent(idle)
       await disposeAgent(running)
@@ -219,7 +199,11 @@ describe('claude-code-loop host integration', () => {
 
       await vi.advanceTimersByTimeAsync(1_000)
 
-      expect(agent.agent.followup.mock.calls.map(([message]) => message.content[0]?.text)).toEqual(['first', 'second'])
+      expect(agent.agent.send.mock.calls.map(([message]) => message.content[0]?.text)).toEqual([
+        expect.stringContaining('<prompt>first</prompt>'),
+        expect.stringContaining('<prompt>second</prompt>'),
+      ])
+      expect(agent.agent.send.mock.calls.every(([, target, wakeup]) => target === 'next-turn' && wakeup === true)).toBe(true)
     } finally {
       await disposeAgent(agent)
       await harness.dispose()
@@ -239,8 +223,8 @@ describe('claude-code-loop host integration', () => {
       const resumed = harness.makeAgent('resume', 'idle', session)
       try {
         await vi.advanceTimersByTimeAsync(1_000)
-        expect(resumed.agent.followup).toHaveBeenCalledTimes(1)
-        expect(first.agent.followup).not.toHaveBeenCalled()
+        expect(resumed.agent.send).toHaveBeenCalledTimes(1)
+        expect(first.agent.send).not.toHaveBeenCalled()
         expect(session.events.filter(event => event.type === 'loop/change')).toHaveLength(2)
       } finally {
         await disposeAgent(resumed)
@@ -298,6 +282,22 @@ describe('claude-code-loop host integration', () => {
     }
   })
 
+  it('keeps command content simple and treats separators as prompt text', async () => {
+    const harness = await createHarness()
+    const agent = harness.makeAgent('command-prompt', 'idle')
+    try {
+      const created = await callCommand(harness.ctx, agent.agent, '/loop 5 Build health :: check the build')
+      expect(created?.result.kind).toBe('success')
+      expect(JSON.parse(created?.result.kind === 'success' ? created.result.text ?? '' : '')).toMatchObject({
+        prompt: 'Build health :: check the build',
+        time_in_seconds: 5,
+      })
+    } finally {
+      await disposeAgent(agent)
+      await harness.dispose()
+    }
+  })
+
   it('delivers a command-created loop through the normal fake-timer runtime', async () => {
     vi.useFakeTimers({ now: 0 })
     const harness = await createHarness()
@@ -307,11 +307,12 @@ describe('claude-code-loop host integration', () => {
       expect(created?.result.kind).toBe('success')
 
       await vi.advanceTimersByTimeAsync(1_000)
-      expect(agent.agent.followup).toHaveBeenCalledTimes(1)
-      expect(agent.agent.followup.mock.calls[0]?.[0]).toMatchObject({
-        content: [{ type: 'text', text: 'remind me' }],
-        source: { kind: 'plugin', plugin: 'claude-code-loop' },
+      expect(agent.agent.send).toHaveBeenCalledTimes(1)
+      expect(agent.agent.send.mock.calls[0]?.[0]).toMatchObject({
+        content: [{ type: 'text', text: expect.stringContaining('<prompt>remind me</prompt>') }],
+        source: { kind: 'plugin', plugin: 'loop' },
       })
+      expect(agent.agent.send.mock.calls[0]?.slice(1)).toEqual(['next-turn', true])
     } finally {
       await disposeAgent(agent)
       await harness.dispose()
@@ -325,14 +326,14 @@ describe('claude-code-loop host integration', () => {
       const invalid = await callCommand(harness.ctx, agent.agent, '/loop list extra')
       expect(invalid?.result).toEqual({
         kind: 'error',
-        text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop create <json> | /loop update <id> <json> | /loop delete <id>',
+        text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop delete <id>',
       })
       expect(agent.session.events.some(event => event.type === 'loop/change')).toBe(false)
 
-      for (const line of ['/loop', '/loop delete', '/loop delete ', '/loop 1', '/loop nonsense']) {
+      for (const line of ['/loop', '/loop delete', '/loop delete ', '/loop 1', '/loop nonsense', '/loop create {"prompt":"check","time_in_seconds":1}']) {
         expect((await callCommand(harness.ctx, agent.agent, line))?.result).toEqual({
           kind: 'error',
-          text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop create <json> | /loop update <id> <json> | /loop delete <id>',
+          text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop delete <id>',
         })
       }
 
@@ -376,26 +377,20 @@ describe('claude-code-loop host integration', () => {
     try {
       const create = agent.agent.ctx.tools.get('loop_create', agent.agent)
       const list = agent.agent.ctx.tools.get('loop_list', agent.agent)
-      const update = agent.agent.ctx.tools.get('loop_update', agent.agent)
       const del = agent.agent.ctx.tools.get('loop_delete', agent.agent)
 
-      expect([create?.name, list?.name, update?.name, del?.name]).toEqual(['loop_create', 'loop_list', 'loop_update', 'loop_delete'])
-      expect(create?.description).toContain('time_in_seconds is the only time unit')
+      expect([create?.name, list?.name, del?.name]).toEqual(['loop_create', 'loop_list', 'loop_delete'])
+      expect(create?.description).toContain('message inbox')
       expect(create?.parameters).toMatchObject({
         properties: {
           prompt: { type: 'string' },
           time_in_seconds: { type: 'integer' },
-          allow_steer: { type: 'boolean' },
         },
         required: ['prompt', 'time_in_seconds'],
       })
       expect(create?.parameters.properties).not.toHaveProperty('minutes')
       expect(create?.parameters.properties).not.toHaveProperty('session_id')
       expect(list?.parameters).toMatchObject({ type: 'object', properties: {} })
-      expect(update?.parameters).toMatchObject({
-        properties: { id: { type: 'string' }, title: { type: 'string' }, time_in_seconds: { type: 'integer' } },
-        required: ['id'],
-      })
       expect(del?.parameters).toMatchObject({
         properties: { id: { type: 'string' } },
         required: ['id'],
@@ -405,7 +400,6 @@ describe('claude-code-loop host integration', () => {
           id: { type: 'string' },
           prompt: { type: 'string' },
           time_in_seconds: { type: 'integer' },
-          allow_steer: { type: 'boolean' },
           next_at: { type: 'integer' },
           state: { enum: ['scheduled', 'overdue'] },
           delivery_mode: { enum: ['session-local'] },
@@ -430,7 +424,6 @@ describe('claude-code-loop host integration', () => {
       { prompt: 'check', time_in_seconds: Number.NaN },
       { prompt: 'check', time_in_seconds: Number.POSITIVE_INFINITY },
       { prompt: 'check', time_in_seconds: Number.MAX_SAFE_INTEGER + 1 },
-      { prompt: 'check', time_in_seconds: 1, allow_steer: 'yes' },
     ]
     try {
       for (const arguments_ of invalidCreates) {
@@ -438,8 +431,6 @@ describe('claude-code-loop host integration', () => {
       }
       expect((await callTool(harness.ctx, agent.agent, 'loop_delete', { id: ' ' })).isError).toBe(true)
       expect((await callTool(harness.ctx, agent.agent, 'loop_delete', { id: 'missing' })).isError).toBe(true)
-      expect((await callTool(harness.ctx, agent.agent, 'loop_update', { id: ' ' })).isError).toBe(true)
-      expect((await callTool(harness.ctx, agent.agent, 'loop_update', { id: 'missing', title: 'Missing' })).isError).toBe(true)
       expect(agent.session.events.filter(event => event.type === 'loop/change')).toEqual([])
     } finally {
       await disposeAgent(agent)
@@ -447,23 +438,23 @@ describe('claude-code-loop host integration', () => {
     }
   })
 
-  it('preserves allow_steer false and emits the complete session-local view', async () => {
+  it('emits the complete session-local view without legacy delivery fields', async () => {
     const harness = await createHarness()
     const agent = harness.makeAgent('view', 'idle')
     try {
       const created = await callTool(harness.ctx, agent.agent, 'loop_create', {
         prompt: 'check once',
         time_in_seconds: 5,
-        allow_steer: false,
       })
       expect(created).toMatchObject({ isError: false, value: {
         prompt: 'check once',
         time_in_seconds: 5,
-        allow_steer: false,
         state: 'scheduled',
         delivery_mode: 'session-local',
       } })
       expect(JSON.parse(created.content?.[0]?.text ?? '')).toMatchObject({ delivery_mode: 'session-local' })
+      expect(created.value).not.toHaveProperty('title')
+      expect(created.value).not.toHaveProperty('allow_steer')
     } finally {
       await disposeAgent(agent)
       await harness.dispose()
@@ -500,6 +491,7 @@ describe('claude-code-loop host integration', () => {
       session: harness.ctx.sessions.create('child'),
       status: 'idle',
       ctx: undefined,
+      send: vi.fn(),
       followup: vi.fn(),
       steer: vi.fn(),
     } as unknown as TestAgent
@@ -527,7 +519,7 @@ describe('claude-code-loop host integration', () => {
       expect(created.isError).toBe(false)
       await disposeAgent(agent)
       await vi.advanceTimersByTimeAsync(2_000)
-      expect(agent.agent.followup).not.toHaveBeenCalled()
+      expect(agent.agent.send).not.toHaveBeenCalled()
       expect(harness.ctx.agents.get('stale')).toBeUndefined()
     } finally {
       await harness.dispose()
@@ -560,7 +552,7 @@ describe('claude-code-loop host integration', () => {
       harness.setFailFlush(true)
 
       await vi.advanceTimersByTimeAsync(1_000)
-      expect(agent.agent.followup).not.toHaveBeenCalled()
+      expect(agent.agent.send).not.toHaveBeenCalled()
       expect(agent.session.events.filter(event => event.type === 'loop/change')).toHaveLength(1)
     } finally {
       await disposeAgent(agent)

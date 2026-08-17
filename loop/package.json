@@ -1,5 +1,5 @@
 {
-  "name": "claude-code-loop",
+  "name": "loop",
   "version": "0.1.0",
   "description": "Session-scoped recurring loop prompts for DeepSeek Harness",
   "private": true,
@@ -35,6 +35,7 @@
     "cordis.patch.yml",
     "README.md",
     "SPEC.md",
+    "ui.md",
     "UI_DESIGN.md"
   ],
   "scripts": {

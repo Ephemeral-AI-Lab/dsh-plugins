@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { apply, inject } from '../src/client/index.js'
+import { apply, inject } from '../src/ui/index.js'
 
 describe('client plugin entry', () => {
   it('registers the session-scoped Loops view and routes commands through the host', async () => {

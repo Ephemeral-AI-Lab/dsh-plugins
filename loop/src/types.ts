@@ -4,10 +4,8 @@ export const LOOP_CHANGE_VERSION = 1 as const
 
 export interface LoopRecord {
   readonly id: string
-  readonly title: string
   readonly prompt: string
   readonly time_in_seconds: number
-  readonly allow_steer: boolean
   readonly next_at: number
 }
 
@@ -55,6 +53,6 @@ declare module '@deepseek-ai/dsh-session/types' {
 
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionMap {
-    'claude-code-loop': LoopProjection
+    'loop': LoopProjection
   }
 }

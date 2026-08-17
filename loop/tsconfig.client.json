@@ -20,5 +20,5 @@
     "jsx": "react-jsx",
     "types": ["node", "react"]
   },
-  "include": ["src/client/**/*.ts", "src/client/**/*.tsx"]
+  "include": ["src/ui/**/*.ts", "src/ui/**/*.tsx"]
 }

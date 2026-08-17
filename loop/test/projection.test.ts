@@ -10,8 +10,8 @@ function event(data: unknown, seq = 0): SessionEvent {
 
 describe('loop session projection', () => {
   it('projects create, update, dispatch, delete, and ignores other events', () => {
-    const record = createLoopRecord('check', 5, true, 0, 'loop_1', 'Build')
-    const updated = { ...record, title: 'Deploy', next_at: 10_000 }
+    const record = createLoopRecord('check', 5, 0, 'loop_1')
+    const updated = { ...record, next_at: 10_000 }
     let state: LoopProjection = loopProjectionDefinition.init()
     state = applyLoopProjection(state, { type: 'message', seq: 0, time: 0, data: {} } as never)
     state = applyLoopProjection(state, event({ version: 1, operation: 'update', loop: updated }))
@@ -25,10 +25,24 @@ describe('loop session projection', () => {
   })
 
   it('validates the wire view and keeps the definition identity stable', () => {
-    expect(loopProjectionDefinition.key).toBe('claude-code-loop')
+    expect(loopProjectionDefinition.key).toBe('loop')
     expect(loopProjectionDefinition.stateVersion).toBe(1)
     expect(loopProjectionDefinition.view({ loops: [] })).toEqual({ loops: [] })
     expect(loopProjectionDefinition.schema.parse({ loops: [] })).toEqual({ loops: [] })
     expect(() => loopProjectionDefinition.schema.parse({ loops: [{ id: 'loop_1' }] })).toThrow()
+  })
+
+  it('hides legacy title and delivery fields from the current projection', () => {
+    const legacy = {
+      id: 'loop_legacy',
+      title: 'Old title',
+      prompt: 'check',
+      time_in_seconds: 5,
+      allow_steer: true,
+      next_at: 5_000,
+    }
+    expect(loopProjectionDefinition.schema.parse({ loops: [legacy] })).toEqual({
+      loops: [{ id: 'loop_legacy', prompt: 'check', time_in_seconds: 5, next_at: 5_000 }],
+    })
   })
 })

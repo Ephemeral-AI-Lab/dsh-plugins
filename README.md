@@ -8,6 +8,7 @@ Plugins for extending [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/de
 | --- | --- | --- | --- |
 | [`codex-shell`](./codex-shell/) | **Ready** | Adds Codex-compatible `exec_command` and `write_stdin` tools. Agents can start shell commands, keep long-running processes alive, and send input to them later. | [`codex-shell/README.md`](./codex-shell/README.md) |
 | [`codex-session-communication`](./codex-session-communication/) | **Under construction** | Adds cross-session tools so an agent can create another DSH session, send it a message, wait for it, inspect its transcript, and list available sessions. | [`codex-session-communication/SPEC.md`](./codex-session-communication/SPEC.md) |
+| [`loop`](./loop/) | **Under construction** | Adds durable, session-scoped recurring prompts through loop tools and the `/loop` slash command. | [`loop/README.md`](./loop/README.md) |
 
 ## Plugins
 
@@ -42,11 +43,30 @@ Typical use cases include asking a fresh agent session to handle a separate task
 
 The plugin is currently under construction. Its API, persistence behavior, and session lifecycle rules may still change before a stable release. The current design and tool contracts are documented in [`codex-session-communication/SPEC.md`](./codex-session-communication/SPEC.md).
 
+### [`loop`](https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/loop) — Under construction
+
+`loop` schedules a prompt to be delivered repeatedly to the current DSH agent session. The plugin exposes these tools:
+
+- `loop_create({ prompt, time_in_seconds })` — create a recurring loop.
+- `loop_list({})` — list loops in the current session.
+- `loop_delete({ id })` — remove a loop.
+
+The same operations are available through the slash command surface:
+
+```text
+/loop <seconds> <prompt>
+/loop list
+/loop delete <loop_id>
+```
+
+The loop plugin is currently under construction. Its UI, message-delivery behavior, and API details may still change before a stable release. See the [`loop` README](./loop/README.md) and [`loop/SPEC.md`](./loop/SPEC.md) for the current implementation and contract.
+
 ## Repository status
 
-This repository currently contains two plugins:
+This repository currently contains three plugins:
 
 1. [`codex-shell`](./codex-shell/) — ready for use.
 2. [`codex-session-communication`](./codex-session-communication/) — experimental and under construction.
+3. [`loop`](./loop/) — experimental and under construction.
 
 The plugins are intentionally kept outside the DeepSeek Harness source repository. They are installed and composed through DSH's profile and plugin mechanisms.
