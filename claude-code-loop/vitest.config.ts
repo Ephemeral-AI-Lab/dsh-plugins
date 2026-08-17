@@ -7,7 +7,7 @@ export default defineConfig({
     hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
-      include: ['src/*.ts'],
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
       thresholds: { branches: 100, functions: 100, lines: 100, statements: 100 },
     },
   },

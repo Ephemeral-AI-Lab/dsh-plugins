@@ -15,7 +15,7 @@ const record = (overrides: Partial<LoopRecord> = {}): LoopRecord => ({
   ...overrides,
 })
 
-function renderLoops(projection: LoopProjection, execute = vi.fn(async () => ({ ok: true, value: { matched: true } }))) {
+function renderLoops(projection: LoopProjection | undefined, execute = vi.fn(async () => ({ ok: true, value: { matched: true } }))) {
   const view = render(<LoopsView useProjection={() => projection} execute={execute} /> as never)
   return { ...view, execute }
 }
@@ -28,7 +28,7 @@ afterEach(() => {
 describe('Loops GUI', () => {
   it('renders an empty session and multiple projected loops without a session id', async () => {
     vi.useFakeTimers({ now: 0 })
-    const empty = renderLoops({ loops: [] })
+    const empty = renderLoops(undefined)
     expect(screen.getByRole('heading', { name: 'No loops yet' })).toBeTruthy()
     expect(screen.queryByText(/session-/u)).toBeNull()
     empty.unmount()
@@ -45,6 +45,36 @@ describe('Loops GUI', () => {
     expect(screen.getByText('Next in 28s')).toBeTruthy()
   })
 
+  it('formats hour, minute, and mixed-second intervals and countdowns', () => {
+    vi.useFakeTimers({ now: 0 })
+    renderLoops({ loops: [
+      record({ id: 'loop_minutes', time_in_seconds: 120, next_at: 120_000 }),
+      record({ id: 'loop_hours', time_in_seconds: 3_600, next_at: 3_600_000 }),
+      record({ id: 'loop_mixed', time_in_seconds: 90, next_at: 90_000 }),
+    ] })
+    expect(screen.getByText('Every 2m')).toBeTruthy()
+    expect(screen.getByText('Every 1h')).toBeTruthy()
+    expect(screen.getByText('Every 90s')).toBeTruthy()
+    expect(screen.getByText('Next in 2m')).toBeTruthy()
+    expect(screen.getByText('Next in 1h')).toBeTruthy()
+    expect(screen.getByText('Next in 90s')).toBeTruthy()
+  })
+
+  it('closes the inline editor and validates a non-positive interval', () => {
+    const { execute } = renderLoops({ loops: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'New loop' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByLabelText('Title')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'New loop' }))
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Health check' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Check' } })
+    fireEvent.change(screen.getByLabelText(/Repeat every/u), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    expect(screen.getByRole('alert').textContent).toContain('positive whole number')
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('validates and creates through the session command, then waits for projection', async () => {
     let projection: LoopProjection = { loops: [] }
     const { rerender, execute } = renderLoops(projection)
@@ -55,14 +85,16 @@ describe('Loops GUI', () => {
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Health check' } })
     fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Check the build' } })
     fireEvent.change(screen.getByLabelText(/Repeat every/u), { target: { value: '5' } })
+    fireEvent.click(screen.getByLabelText(/Steer a running agent/u))
     await fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
-    expect(execute).toHaveBeenCalledWith('/loop create {"title":"Health check","prompt":"Check the build","time_in_seconds":5,"allow_steer":true}')
+    expect(execute).toHaveBeenCalledWith('/loop create {"title":"Health check","prompt":"Check the build","time_in_seconds":5,"allow_steer":false}')
     expect(screen.getByDisplayValue('Health check')).toBeTruthy()
 
     projection = { loops: [record({
       title: 'Health check',
       prompt: 'Check the build',
       time_in_seconds: 5,
+      allow_steer: false,
       next_at: 5_000,
     })] }
     rerender(<LoopsView useProjection={() => projection} execute={execute} /> as never)
@@ -91,11 +123,17 @@ describe('Loops GUI', () => {
     const { rerender } = renderLoops(projection, execute)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(execute).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Delete this loop? Future deliveries will stop.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delete loop' }))
     await waitFor(() => expect(screen.getByText('persistence failed')).toBeTruthy())
     expect(screen.getByRole('button', { name: 'Delete loop' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete loop' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Deleting…' })).toBeTruthy())
+    projection = { loops: [record()] }
+    rerender(<LoopsView useProjection={() => projection} execute={execute} /> as never)
     projection = { loops: [] }
     rerender(<LoopsView useProjection={() => projection} execute={execute} /> as never)
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Build health' })).toBeNull())
@@ -110,5 +148,23 @@ describe('Loops GUI', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('not recognized'))
     expect(screen.getByDisplayValue('Health check')).toBeTruthy()
+  })
+
+  it('surfaces malformed, failed, and non-Error remote command failures', async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ ok: false, error: 'backend failed' })
+      .mockRejectedValueOnce('network failed')
+    renderLoops({ loops: [] }, execute)
+    fireEvent.click(screen.getByRole('button', { name: 'New loop' }))
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Health check' } })
+    fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Check' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('did not return'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('command failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'Create loop' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('network failed'))
   })
 })

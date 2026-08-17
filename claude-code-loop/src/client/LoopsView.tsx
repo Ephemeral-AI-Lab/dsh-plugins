@@ -81,10 +81,10 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
   }
 
   const save = async (): Promise<void> => {
-    if (form === null) return
-    const title = form.title.trim()
-    const prompt = form.prompt.trim()
-    const seconds = Number(form.timeInSeconds)
+    const currentForm = form!
+    const title = currentForm.title.trim()
+    const prompt = currentForm.prompt.trim()
+    const seconds = Number(currentForm.timeInSeconds)
     if (title.length === 0 || prompt.length === 0) {
       setError('Title and prompt are required.')
       return
@@ -98,7 +98,7 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
       title,
       prompt,
       time_in_seconds: seconds,
-      allow_steer: form.allowSteer,
+      allow_steer: currentForm.allowSteer,
     })
     const key = editingId ?? 'new'
     setPending(key)
@@ -106,7 +106,7 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
     try {
       const line = editingId === null ? `/loop create ${payload}` : `/loop update ${editingId} ${payload}`
       assertCommandSucceeded(await execute(line))
-      const expected = { ...form, title, prompt, timeInSeconds: String(seconds) }
+      const expected = { ...currentForm, title, prompt, timeInSeconds: String(seconds) }
       setAwaiting(editingId === null
         ? { kind: 'create', expected }
         : { kind: 'update', id: editingId, expected })
