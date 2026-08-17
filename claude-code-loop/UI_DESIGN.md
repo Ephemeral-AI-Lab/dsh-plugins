@@ -78,11 +78,9 @@ The active `Loops` page is deliberately quiet:
 ├─────────────────────────────────────────────────────────────┤
 │ ↻ loop_a91   every 1s   next in 8s   steer when running      │
 │   check whether the build is still healthy                    │
-│   session 4543420e-84...                                      │
 │                                                               │
 │ ↻ loop_b27   every 30s  next in 24s  follow-up                │
 │   summarize any new failures                                  │
-│   session 4543420e-84...                                      │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -126,7 +124,10 @@ The `Loops` page exposes only:
 - interval in seconds;
 - next run / overdue state;
 - delivery mode (`steer when running` or `follow-up`);
-- current session ID.
+
+The selected session is already established by the surrounding `Chat`,
+`Trajectory`, and `Loops` view context, so the page must not repeat a session
+ID in every row.
 
 There are deliberately no mutation buttons. Creation and deletion remain
 `/loop <seconds> <prompt>` and `/loop delete <id>` command operations.
@@ -169,16 +170,16 @@ interface LoopProjection {
 
 The projection is current session state, not a browser fold of `loop/change`
 events. The browser must not scan the transcript, maintain a second loop map,
-or infer ownership from raw event history. `sessionId` comes from the standard
-input-dock props and is shown in the details popover only.
+or infer ownership from raw event history. The standard session scope provides
+ownership implicitly; no session identifier needs to cross into the rendered
+loop rows.
 
 ## Interaction and accessibility
 
 - Use a real `<button>` for the compact indicator so it is keyboard reachable.
 - Give it an accessible name such as `3 active loops, next in 8 seconds`.
-- Expose expanded state with `aria-expanded` and connect the popover with
-  `aria-controls`.
-- Close on `Escape` and when focus leaves the popover.
+- Let the existing conversation view ring own tab semantics; the HUD only
+  navigates to the `Loops` view and does not create a second tab system.
 - Keep prompt previews visually truncated but available as text to assistive
   technology.
 - Mark the overdue line with a warning color and text, not color alone.
@@ -210,4 +211,4 @@ The highest-value browser tests are:
 3. multiple loops use the earliest `next_at`;
 4. overdue state renders the warning line;
 5. selecting the HUD switches to the `Loops` view;
-6. the page renders the selected session ID and never reads raw events.
+6. the page omits the redundant session ID and never reads raw events.

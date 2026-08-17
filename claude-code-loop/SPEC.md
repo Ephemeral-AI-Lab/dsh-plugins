@@ -196,8 +196,9 @@ overdue:          ⚠ Loop overdue · retrying
 ```
 
 Hover/click details are read-only and include prompt preview, interval, next
-run, delivery mode, loop ID, and current session ID. No Stop/Pause/Resume/Run
-Now buttons are part of v1.
+run, delivery mode, and loop ID. The selected conversation already establishes
+the owning session, so the UI must not repeat a session ID in every loop row.
+No Stop/Pause/Resume/Run Now buttons are part of v1.
 
 Projection registration must use a public DSH plugin API. If the installed
 DSH version does not expose external projection registration, stop at
