@@ -62,10 +62,16 @@ Trajectory state.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-The prompt's first line is the card title when available; otherwise use
-`Recurring prompt`. The full prompt is shown below it, truncated visually but
-not removed from the accessible text. Loop IDs can remain secondary metadata
-inside the edit/delete flow, but they should not dominate the page.
+Every loop should have a short title separate from its delivery prompt. The
+title is the card heading; the full prompt is shown below it, truncated
+visually but not removed from the accessible text. Loop IDs can remain
+secondary metadata inside the edit/delete flow, but they should not dominate
+the page.
+
+The GUI makes `title` required because it is a management surface. The public
+tool keeps `title` optional for compatibility with the existing
+`/loop <seconds> <prompt>` command; when omitted, the host derives a compact
+title from the first non-empty prompt line and persists it on the next update.
 
 Each card contains only the information needed to make a decision:
 
@@ -109,6 +115,9 @@ controlled form; only the title and submit label change.
 │ │ Check whether the build is still healthy                 │ │
 │ └──────────────────────────────────────────────────────────┘ │
 │                                                              │
+│ Title                                                        │
+│ [ Build health check                                      ]  │
+│                                                              │
 │ Run every                                                    │
 │ [ 1 ] seconds                                               │
 │                                                              │
@@ -123,6 +132,7 @@ Edit uses the same form:
 
 ```text
 Edit loop
+Title                  [existing title]
 Prompt                 [existing prompt]
 Run every              [existing interval] seconds
 Delivery               [Steer when running / Follow-up]
@@ -131,6 +141,7 @@ Delivery               [Steer when running / Follow-up]
 
 Form rules:
 
+- title is required in the GUI and trimmed;
 - prompt is required and trimmed;
 - interval is a positive safe integer, in seconds;
 - delivery is a two-option control mapped to `allow_steer`;
@@ -215,6 +226,7 @@ Loops page + composer summary
 interface LoopProjection {
   loops: Array<{
     id: string
+    title: string
     prompt_preview: string
     time_in_seconds: number
     next_at: number
@@ -230,12 +242,15 @@ maintain a second loop map, or run its own scheduler. This keeps GUI actions
 consistent with `/loop` commands and avoids adding a new RPC for a small
 feature.
 
-The current backend already supports create, list, and delete. GUI editing
-requires the next backend slice:
+The current backend does not yet persist a title and supports create, list, and
+delete only. The next backend slice should add an optional `title` to
+`loop_create`, `LoopRecord`, `LoopView`, and the projection, then add GUI
+editing:
 
 ```ts
 loop_update({
   id: string,
+  title?: string,
   prompt?: string,
   time_in_seconds?: number,
   allow_steer?: boolean,
@@ -303,14 +318,15 @@ browser tests should cover:
 2. zero loops show the empty state and no compact summary;
 3. one and multiple loops render cards ordered by `next_at`;
 4. overdue loops have visible text and accessible status, not color alone;
-5. `New loop` opens an empty form and validates prompt/interval;
+5. `New loop` opens an empty form and validates title, prompt, and interval;
 6. a valid create submits the session command and renders the new projection;
-7. `Edit` opens prefilled values and submits only the changed settings;
-8. changing interval displays the projection-provided next run;
-9. `Delete` requires confirmation, then removes the card after success;
-10. create/edit/delete failures keep the user in context and show an error;
-11. pending actions prevent duplicate submissions;
-12. keyboard navigation, modal focus return, and screen-reader labels work;
-13. countdown repaint does not invoke any scheduler or dispatch a prompt;
-14. the compact summary selects the Loops view and does not duplicate the
+7. legacy command-created loops get a deterministic derived title;
+8. `Edit` opens prefilled values and submits only the changed settings;
+9. changing interval displays the projection-provided next run;
+10. `Delete` requires confirmation, then removes the card after success;
+11. create/edit/delete failures keep the user in context and show an error;
+12. pending actions prevent duplicate submissions;
+13. keyboard navigation, modal focus return, and screen-reader labels work;
+14. countdown repaint does not invoke any scheduler or dispatch a prompt;
+15. the compact summary selects the Loops view and does not duplicate the
     management controls.
