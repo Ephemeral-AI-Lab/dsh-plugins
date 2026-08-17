@@ -5,10 +5,12 @@ import {
   LoopRuntime,
   chooseDelivery,
   createLoopRecord,
+  deriveLoopTitle,
   foldLoopEvents,
   loopView,
   nextOccurrence,
   flushPersistence,
+  updateLoopRecord,
 } from '../src/loop.js'
 function event(data: unknown, seq = 0) {
   return { type: 'loop/change', seq, time: 0, data } as never
@@ -19,6 +21,7 @@ describe('claude-code-loop domain', () => {
     const record = createLoopRecord('check status', 5, undefined, 1000, 'loop_1')
     expect(record).toEqual({
       id: 'loop_1',
+      title: 'check status',
       prompt: 'check status',
       time_in_seconds: 5,
       allow_steer: true,
@@ -33,6 +36,26 @@ describe('claude-code-loop domain', () => {
     expect(record.allow_steer).toBe(false)
     expect(record.id.startsWith('loop_')).toBe(true)
     expect(record.id.length).toBeGreaterThan(5)
+  })
+
+  it('derives compact titles and updates interval scheduling only when needed', () => {
+    const record = createLoopRecord('  first line\nsecond line  ', 5, true, 1_000, 'loop_1')
+    expect(record.title).toBe('first line')
+    expect(updateLoopRecord(record, { prompt: 'new prompt' }, 2_000)).toMatchObject({
+      title: 'first line', prompt: 'new prompt', next_at: 6_000,
+    })
+    expect(updateLoopRecord(record, { time_in_seconds: 10 }, 2_000)).toMatchObject({
+      title: 'first line', prompt: 'first line\nsecond line', next_at: 12_000,
+    })
+    expect(updateLoopRecord(record, { title: 'New title', allow_steer: false }, 2_000)).toMatchObject({
+      title: 'New title', allow_steer: false, next_at: 6_000,
+    })
+    expect(() => updateLoopRecord(record, {})).toThrow('at least one')
+    expect(() => updateLoopRecord(record, { title: ' ' })).toThrow('title')
+    expect(() => updateLoopRecord(record, {}, Number.NaN)).toThrow('now')
+    expect(() => updateLoopRecord(record, { allow_steer: 'yes' as never })).toThrow('allow_steer')
+    expect(deriveLoopTitle('   ')).toBe('Recurring prompt')
+    expect(deriveLoopTitle('x'.repeat(100))).toHaveLength(78)
   })
 
   it.each([
@@ -83,6 +106,7 @@ describe('claude-code-loop domain', () => {
     ['unsupported version', { version: 2, operation: 'delete', id: 'loop_1' }],
     ['invalid record id', { version: 1, operation: 'create', loop: { id: ' ', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
     ['invalid record prompt', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: ' ', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
+    ['invalid record title', { version: 1, operation: 'create', loop: { id: 'loop_1', title: ' ', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: 1000 } }],
     ['invalid record interval', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 0, allow_steer: true, next_at: 1000 } }],
     ['invalid record boolean', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, allow_steer: 'yes', next_at: 1000 } }],
     ['invalid record next_at', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, allow_steer: true, next_at: -1 } }],
@@ -100,6 +124,7 @@ describe('claude-code-loop domain', () => {
 
     expect(() => foldLoopEvents([event({ version: 1, operation: 'delete', id: 'missing' })])).toThrow('inactive')
     expect(() => foldLoopEvents([event({ version: 1, operation: 'dispatch', id: 'missing', next_at: 1 })])).toThrow('inactive')
+    expect(() => foldLoopEvents([event({ version: 1, operation: 'update', loop: record })])).toThrow('inactive')
     expect(() => foldLoopEvents([
       event({ version: 1, operation: 'create', loop: record }),
       event({ version: 1, operation: 'dispatch', id: 'loop_1', next_at: 1000 }, 1),

@@ -1,12 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-session-projection'
 import { KNOWN_SESSION_EVENT_TYPES } from '@deepseek-ai/dsh-session'
 import { LoopRuntime } from './loop.js'
 import { registerLoopCommand } from './commands.js'
 import { registerLoopTools } from './tools.js'
+import { loopProjectionDefinition } from './projection.js'
 
 export const name = 'claude-code-loop'
-export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersistence']
+export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersistence', 'sessionProjections']
 
 // dsh-session exposes no public external event registration API; register the
 // plugin-owned durable event in the installed runtime catalog for persistence.
@@ -15,6 +17,7 @@ export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersis
 type OwnerCleanup = () => void | Promise<void>
 
 export function apply(ctx: Context): void {
+  ctx.sessionProjections.register(loopProjectionDefinition as never)
   const runtimes = new Map<Agent, OwnerCleanup>()
   let stopping = false
 

@@ -5,6 +5,7 @@ import CommandRuntime from '@deepseek-ai/dsh-commands'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import SessionStore, { type Session } from '@deepseek-ai/dsh-session'
+import SessionProjection from '@deepseek-ai/dsh-session-projection'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerLoopCommand } from '../src/commands.js'
@@ -17,13 +18,13 @@ let callCounter = 0
 async function createHarness() {
   const ctx = new Context()
   const fibers = []
-  for (const plugin of [SessionStore, AgentRegistry, SystemPrompt, ToolRuntime, CommandRuntime]) fibers.push(await ctx.plugin(plugin))
+  for (const plugin of [SessionStore, SessionProjection, AgentRegistry, SystemPrompt, ToolRuntime, CommandRuntime]) fibers.push(await ctx.plugin(plugin))
 
   const flushes: string[] = []
   let failFlush = false
   const host = await ctx.plugin({
     name: 'test-host',
-    inject: ['tools', 'commands', 'agents', 'sessions'],
+    inject: ['tools', 'commands', 'agents', 'sessions', 'sessionProjections'],
     apply(hostCtx) {
       hostCtx.on('session/flush', session => {
         flushes.push(session.id)
@@ -131,6 +132,34 @@ describe('claude-code-loop host integration', () => {
     } finally {
       await disposeAgent(second)
       await disposeAgent(first)
+      await harness.dispose()
+    }
+  })
+
+  it('updates a loop through the real tool boundary and publishes the session projection', async () => {
+    vi.useFakeTimers({ now: 1_000 })
+    const harness = await createHarness()
+    const agent = harness.makeAgent('update', 'idle')
+    try {
+      const created = await callTool(harness.ctx, agent.agent, 'loop_create', {
+        title: 'Build', prompt: 'check the build', time_in_seconds: 5,
+      })
+      expect(created).toMatchObject({ isError: false, value: { title: 'Build', next_at: 6_000 } })
+      expect(harness.ctx.sessionProjections.snapshot(agent.session).values['claude-code-loop']).toEqual({
+        loops: [expect.objectContaining({ id: created.value.id, title: 'Build' })],
+      })
+
+      const updated = await callTool(harness.ctx, agent.agent, 'loop_update', {
+        id: created.value.id, title: 'Deploy', prompt: 'check deploy', time_in_seconds: 10,
+      })
+      expect(updated).toMatchObject({ isError: false, value: {
+        id: created.value.id, title: 'Deploy', prompt: 'check deploy', next_at: 11_000,
+      } })
+      expect(harness.ctx.sessionProjections.snapshot(agent.session).values['claude-code-loop']).toEqual({
+        loops: [expect.objectContaining({ id: created.value.id, title: 'Deploy', next_at: 11_000 })],
+      })
+    } finally {
+      await disposeAgent(agent)
       await harness.dispose()
     }
   })
@@ -286,14 +315,14 @@ describe('claude-code-loop host integration', () => {
       const invalid = await callCommand(harness.ctx, agent.agent, '/loop list extra')
       expect(invalid?.result).toEqual({
         kind: 'error',
-        text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop delete <id>',
+        text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop create <json> | /loop update <id> <json> | /loop delete <id>',
       })
       expect(agent.session.events.some(event => event.type === 'loop/change')).toBe(false)
 
       for (const line of ['/loop', '/loop delete', '/loop delete ', '/loop 1', '/loop nonsense']) {
         expect((await callCommand(harness.ctx, agent.agent, line))?.result).toEqual({
           kind: 'error',
-          text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop delete <id>',
+          text: 'Usage: /loop <seconds> <prompt> | /loop list | /loop create <json> | /loop update <id> <json> | /loop delete <id>',
         })
       }
 
@@ -336,9 +365,10 @@ describe('claude-code-loop host integration', () => {
     try {
       const create = agent.agent.ctx.tools.get('loop_create', agent.agent)
       const list = agent.agent.ctx.tools.get('loop_list', agent.agent)
+      const update = agent.agent.ctx.tools.get('loop_update', agent.agent)
       const del = agent.agent.ctx.tools.get('loop_delete', agent.agent)
 
-      expect([create?.name, list?.name, del?.name]).toEqual(['loop_create', 'loop_list', 'loop_delete'])
+      expect([create?.name, list?.name, update?.name, del?.name]).toEqual(['loop_create', 'loop_list', 'loop_update', 'loop_delete'])
       expect(create?.description).toContain('time_in_seconds is the only time unit')
       expect(create?.parameters).toMatchObject({
         properties: {
@@ -351,6 +381,10 @@ describe('claude-code-loop host integration', () => {
       expect(create?.parameters.properties).not.toHaveProperty('minutes')
       expect(create?.parameters.properties).not.toHaveProperty('session_id')
       expect(list?.parameters).toMatchObject({ type: 'object', properties: {} })
+      expect(update?.parameters).toMatchObject({
+        properties: { id: { type: 'string' }, title: { type: 'string' }, time_in_seconds: { type: 'integer' } },
+        required: ['id'],
+      })
       expect(del?.parameters).toMatchObject({
         properties: { id: { type: 'string' } },
         required: ['id'],
@@ -393,6 +427,8 @@ describe('claude-code-loop host integration', () => {
       }
       expect((await callTool(harness.ctx, agent.agent, 'loop_delete', { id: ' ' })).isError).toBe(true)
       expect((await callTool(harness.ctx, agent.agent, 'loop_delete', { id: 'missing' })).isError).toBe(true)
+      expect((await callTool(harness.ctx, agent.agent, 'loop_update', { id: ' ' })).isError).toBe(true)
+      expect((await callTool(harness.ctx, agent.agent, 'loop_update', { id: 'missing', title: 'Missing' })).isError).toBe(true)
       expect(agent.session.events.filter(event => event.type === 'loop/change')).toEqual([])
     } finally {
       await disposeAgent(agent)

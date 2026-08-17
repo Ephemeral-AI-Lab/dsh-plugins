@@ -2,11 +2,23 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Session } from '@deepseek-ai/dsh-session'
-import { createLoopRecord, flushPersistence, foldLoopEvents, LoopInputError, loopView, type LoopRuntime } from './loop.js'
+import {
+  createLoopRecord, flushPersistence, foldLoopEvents, LoopInputError, loopView, updateLoopRecord,
+  type LoopRuntime,
+} from './loop.js'
 
 interface LoopCreateArgs {
+  title?: string
   prompt: string
   time_in_seconds: number
+  allow_steer?: boolean
+}
+
+interface LoopUpdateArgs {
+  id: string
+  title?: string
+  prompt?: string
+  time_in_seconds?: number
   allow_steer?: boolean
 }
 
@@ -19,6 +31,7 @@ const LOOP_SCHEMA = {
   additionalProperties: false,
   properties: {
     id: { type: 'string', required: true },
+    title: { type: 'string', required: true },
     prompt: { type: 'string', required: true },
     time_in_seconds: { type: 'integer', required: true },
     allow_steer: { type: 'boolean', required: true },
@@ -37,8 +50,9 @@ export function registerLoopTools(
   const disposers = [
     toolCtx.tools.register(defineTool({
       name: 'loop_create',
-      description: 'Create a session-scoped recurring prompt loop. time_in_seconds is the only time unit. allow_steer defaults to true.',
+      description: 'Create a titled, session-scoped recurring prompt loop. time_in_seconds is the only time unit. allow_steer defaults to true.',
       parameters: {
+        title: { type: 'string', description: 'Short title shown in the Loops view. Defaults to the first prompt line.' },
         prompt: { type: 'string', required: true, description: 'Prompt delivered on every loop iteration.' },
         time_in_seconds: { type: 'integer', required: true, description: 'Positive safe-integer interval in seconds.' },
         allow_steer: { type: 'boolean', description: 'When true, steer a running agent; defaults to true.' },
@@ -47,11 +61,37 @@ export function registerLoopTools(
       async execute(args: LoopCreateArgs, _exec) {
         return runtime.transact(async () => {
           await flushPersistence(rootCtx, agent)
-          const record = createLoopRecord(args.prompt, args.time_in_seconds, args.allow_steer ?? true)
+          const record = createLoopRecord(args.prompt, args.time_in_seconds, args.allow_steer ?? true, Date.now(), undefined, args.title)
           agent.session.append('loop/change', { version: 1, operation: 'create', loop: record })
           await flushPersistence(rootCtx, agent)
           runtime.requestDrive()
           return loopView(record)
+        })
+      },
+    })),
+    toolCtx.tools.register(defineTool({
+      name: 'loop_update',
+      description: 'Update one active loop. Changing its interval reschedules its next run; other changes preserve next_at.',
+      parameters: {
+        id: { type: 'string', required: true, description: 'Loop id returned by loop_create or loop_list.' },
+        title: { type: 'string', description: 'New short title.' },
+        prompt: { type: 'string', description: 'New recurring prompt.' },
+        time_in_seconds: { type: 'integer', description: 'New positive interval in seconds.' },
+        allow_steer: { type: 'boolean', description: 'Whether a running agent may receive steer delivery.' },
+      },
+      output: { schema: LOOP_SCHEMA, render: renderJson },
+      async execute(args: LoopUpdateArgs, _exec) {
+        if (typeof args.id !== 'string' || args.id.trim().length === 0) throw new LoopInputError('id must be non-empty')
+        return runtime.transact(async () => {
+          await flushPersistence(rootCtx, agent)
+          const folded = fold(agent.session)
+          const current = folded.active.find(loop => loop.id === args.id)
+          if (current === undefined) throw new LoopInputError(`unknown loop id: ${args.id}`)
+          const updated = updateLoopRecord(current, args)
+          agent.session.append('loop/change', { version: 1, operation: 'update', loop: updated })
+          await flushPersistence(rootCtx, agent)
+          runtime.requestDrive()
+          return loopView(updated)
         })
       },
     })),

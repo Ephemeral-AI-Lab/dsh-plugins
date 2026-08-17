@@ -4,21 +4,21 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "src",
-    "outDir": "lib",
+    "outDir": "lib/types",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
+    "emitDeclarationOnly": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
-    "types": ["node"]
+    "jsx": "react-jsx",
+    "types": ["node", "react"]
   },
-  "include": ["src/*.ts"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx"]
 }

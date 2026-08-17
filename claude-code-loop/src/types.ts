@@ -4,6 +4,7 @@ export const LOOP_CHANGE_VERSION = 1 as const
 
 export interface LoopRecord {
   readonly id: string
+  readonly title: string
   readonly prompt: string
   readonly time_in_seconds: number
   readonly allow_steer: boolean
@@ -22,6 +23,12 @@ export interface LoopDeleteChange {
   readonly id: string
 }
 
+export interface LoopUpdateChange {
+  readonly version: 1
+  readonly operation: 'update'
+  readonly loop: LoopRecord
+}
+
 export interface LoopDispatchChange {
   readonly version: 1
   readonly operation: 'dispatch'
@@ -29,7 +36,11 @@ export interface LoopDispatchChange {
   readonly next_at: number
 }
 
-export type LoopChange = LoopCreateChange | LoopDeleteChange | LoopDispatchChange
+export type LoopChange = LoopCreateChange | LoopDeleteChange | LoopUpdateChange | LoopDispatchChange
+
+export interface LoopProjection {
+  readonly loops: readonly LoopRecord[]
+}
 
 export interface LoopView extends LoopRecord {
   readonly state: 'scheduled' | 'overdue'
@@ -39,5 +50,11 @@ export interface LoopView extends LoopRecord {
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     'loop/change': LoopChange
+  }
+}
+
+declare module '@deepseek-ai/dsh-session-projection/types' {
+  interface SessionProjectionMap {
+    'claude-code-loop': LoopProjection
   }
 }

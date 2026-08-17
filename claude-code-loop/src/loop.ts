@@ -31,23 +31,67 @@ export interface FoldedLoops {
   readonly seenIds: readonly string[]
 }
 
+export interface LoopUpdatePatch {
+  readonly title?: string
+  readonly prompt?: string
+  readonly time_in_seconds?: number
+  readonly allow_steer?: boolean
+}
+
 export function createLoopRecord(
   prompt: string,
   timeInSeconds: number,
   allowSteer = true,
   now = Date.now(),
   id = `loop_${randomUUID()}`,
+  title?: string,
 ): LoopRecord {
   validatePrompt(prompt)
   validateTime(timeInSeconds)
   if (typeof allowSteer !== 'boolean') throw new LoopInputError('allow_steer must be a boolean')
   if (!Number.isSafeInteger(now) || now < 0) throw new LoopInputError('now must be a non-negative safe integer')
+  const normalizedTitle = title === undefined ? deriveLoopTitle(prompt) : title.trim()
+  validateTitle(normalizedTitle)
   return {
     id,
+    title: normalizedTitle,
     prompt: prompt.trim(),
     time_in_seconds: timeInSeconds,
     allow_steer: allowSteer,
     next_at: addSeconds(now, timeInSeconds),
+  }
+}
+
+export function deriveLoopTitle(prompt: string): string {
+  const firstLine = prompt.trim().split(/\r?\n/u)[0]!.trim()
+  const compact = firstLine.replace(/\s+/gu, ' ')
+  if (compact.length <= 80) return compact || 'Recurring prompt'
+  return `${compact.slice(0, 77).trimEnd()}…`
+}
+
+export function updateLoopRecord(record: LoopRecord, patch: LoopUpdatePatch, now = Date.now()): LoopRecord {
+  if (!Number.isSafeInteger(now) || now < 0) throw new LoopInputError('now must be a non-negative safe integer')
+  if (patch.title === undefined && patch.prompt === undefined
+    && patch.time_in_seconds === undefined && patch.allow_steer === undefined) {
+    throw new LoopInputError('at least one loop setting must be provided')
+  }
+
+  const title = patch.title === undefined ? record.title : patch.title.trim()
+  const prompt = patch.prompt === undefined ? record.prompt : patch.prompt
+  const timeInSeconds = patch.time_in_seconds === undefined ? record.time_in_seconds : patch.time_in_seconds
+  const allowSteer = patch.allow_steer === undefined ? record.allow_steer : patch.allow_steer
+  validateTitle(title)
+  validatePrompt(prompt)
+  validateTime(timeInSeconds)
+  if (typeof allowSteer !== 'boolean') throw new LoopInputError('allow_steer must be a boolean')
+
+  return {
+    ...record,
+    title,
+    prompt: prompt.trim(),
+    time_in_seconds: timeInSeconds,
+    allow_steer: allowSteer,
+    next_at: patch.time_in_seconds === undefined ? record.next_at : addSeconds(now, timeInSeconds),
   }
 }
 
@@ -212,14 +256,21 @@ export async function flushPersistence(ctx: Context, agent: Agent): Promise<void
 function applyChange(active: Map<string, LoopRecord>, seenIds: string[], change: LoopChange): void {
   if (change.version !== LOOP_CHANGE_VERSION) throw new LoopLogError('unsupported loop change version')
   if (change.operation === 'create') {
-    validateRecord(change.loop)
-    if (seenIds.includes(change.loop.id)) throw new LoopLogError(`duplicate loop id: ${change.loop.id}`)
-    seenIds.push(change.loop.id)
-    active.set(change.loop.id, change.loop)
+    const loop = normalizeRecord(change.loop)
+    if (seenIds.includes(loop.id)) throw new LoopLogError(`duplicate loop id: ${loop.id}`)
+    seenIds.push(loop.id)
+    active.set(loop.id, loop)
     return
   }
   if (change.operation === 'delete') {
     if (!active.delete(change.id)) throw new LoopLogError(`cannot delete inactive loop: ${change.id}`)
+    return
+  }
+  if (change.operation === 'update') {
+    const current = active.get(change.loop.id)
+    if (current === undefined) throw new LoopLogError(`cannot update inactive loop: ${change.loop.id}`)
+    const loop = normalizeRecord(change.loop)
+    active.set(loop.id, loop)
     return
   }
   const loop = active.get(change.id)
@@ -230,12 +281,23 @@ function applyChange(active: Map<string, LoopRecord>, seenIds: string[], change:
   active.set(change.id, { ...loop, next_at: change.next_at })
 }
 
+function normalizeRecord(record: LoopRecord): LoopRecord {
+  const legacy = record as LoopRecord & { readonly title?: unknown }
+  const title = typeof legacy.title === 'string' ? legacy.title : deriveLoopTitle(record.prompt)
+  const normalized = { ...record, title }
+  validateRecord(normalized)
+  return normalized
+}
+
 function validateRecord(record: LoopRecord): void {
   if (typeof record.id !== 'string' || record.id.trim() !== record.id || record.id.length === 0) {
     throw new LoopLogError('loop id must be a non-empty string without surrounding whitespace')
   }
   if (typeof record.prompt !== 'string' || record.prompt.trim().length === 0) {
     throw new LoopLogError('loop prompt must be non-empty')
+  }
+  if (typeof record.title !== 'string' || record.title.trim() !== record.title || record.title.length === 0) {
+    throw new LoopLogError('loop title must be a non-empty string without surrounding whitespace')
   }
   validateLogTime(record.time_in_seconds)
   if (typeof record.allow_steer !== 'boolean') throw new LoopLogError('allow_steer must be boolean')
@@ -244,6 +306,10 @@ function validateRecord(record: LoopRecord): void {
 
 function validatePrompt(prompt: string): void {
   if (typeof prompt !== 'string' || prompt.trim().length === 0) throw new LoopInputError('prompt must be non-empty')
+}
+
+function validateTitle(title: string): void {
+  if (typeof title !== 'string' || title.trim().length === 0) throw new LoopInputError('title must be non-empty')
 }
 
 function validateTime(seconds: number): void {
