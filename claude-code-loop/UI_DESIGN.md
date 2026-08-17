@@ -242,9 +242,8 @@ maintain a second loop map, or run its own scheduler. This keeps GUI actions
 consistent with `/loop` commands and avoids adding a new RPC for a small
 feature.
 
-The current backend does not yet persist a title and supports create, list, and
-delete only. The next backend slice should add an optional `title` to
-`loop_create`, `LoopRecord`, `LoopView`, and the projection, then add GUI
+The backend contract must persist an optional `title` on create and expose it
+through `LoopRecord`, `LoopView`, and the projection. It must also expose GUI
 editing:
 
 ```ts

@@ -365,12 +365,14 @@ helper, but it is not sufficient for the backend plugin integration suite.
 
 The tool tests should verify:
 
-- the exact three tool names;
+- the exact four tool names;
 - agent-local visibility;
 - no accidental global registration;
 - real input validation;
 - real output rendering;
-- create/list/delete event ordering;
+- title fallback and explicit title behavior;
+- create/list/update/delete event ordering;
+- update isolation and schedule semantics;
 - exact disposer behavior;
 - no tool remains after Agent/plugin disposal.
 
@@ -572,7 +574,7 @@ assert A does not deliver
 assert B still delivers normally
 ```
 
-Loop IDs are session-local in v1. The same explicit loop ID may exist in two
+Loop IDs are session-local. The same explicit loop ID may exist in two
 different sessions; that is valid because the Session is the ownership scope.
 
 ## 14. Test file organization
@@ -590,7 +592,8 @@ test/
 ├── tools.test.ts
 ├── delivery.test.ts
 ├── persistence.test.ts
-└── plugin-entrypoint.integration.test.ts
+├── plugin-entrypoint.integration.test.ts
+└── ui.test.tsx
 ```
 
 If `fake-loop.ts` becomes the only shared fixture, do not add both
@@ -604,8 +607,10 @@ UI tests should be added separately when `src/ui/` exists:
 test/ui.test.tsx
 ```
 
-The UI suite should consume projected session state and should not instantiate
-timers, write events, or call Agent methods.
+The UI suite should consume projected session state and a mocked session
+command channel. It should cover title rendering, create/edit/delete flows,
+validation, pending/error states, keyboard interaction, and must not
+instantiate schedulers, write events, or call Agent methods.
 
 ## 15. Test execution stages
 

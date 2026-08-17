@@ -1,6 +1,6 @@
 # claude-code-loop
 
-Status: design and implementation specification
+Status: implementation specification
 
 `claude-code-loop` adds session-scoped recurring prompt delivery to DeepSeek
 Harness (DSH) as an external Cordis plugin. It must not modify the
@@ -18,15 +18,16 @@ Required:
 6. Keep loops isolated to their owning session.
 7. Expose current loop state to the UI without browser-side event replay.
 8. Show a small indicator for the selected conversation.
-9. Pass deterministic preflight tests before any real-agent test.
-10. Keep every source change inside this plugin directory.
+9. Give every loop a human-readable title for GUI management.
+10. Allow session-scoped create, update, and delete operations.
+11. Pass deterministic preflight tests before any real-agent test.
+12. Keep every source change inside this plugin directory.
 
-Not in v1:
+Not in this version:
 
 - changes to DSH core or the DSH web application;
 - a global scheduler or separate database;
-- `loop_pause`, `loop_resume`, `loop_update`, or `loop_run_now`;
-- UI mutation controls;
+- `loop_pause`, `loop_resume`, or `loop_run_now`;
 - a promise that timers survive host-process termination.
 
 Durable events allow a resumed session to reconstruct state; timer handles are
@@ -49,12 +50,15 @@ it does not mean that the model completed the resulting turn.
 
 ## 3. Public tools
 
-The plugin exposes exactly three model-visible tools in v1.
+The plugin exposes four model-visible tools. The GUI uses the same session
+command/tool path, so model and browser mutations share validation,
+persistence, and scheduling behavior.
 
 ### `loop_create`
 
 ```ts
 loop_create({
+  title?: string,
   prompt: string,
   time_in_seconds: number,
   allow_steer?: boolean,
@@ -63,12 +67,17 @@ loop_create({
 
 Rules:
 
+- `title`, when supplied, is trimmed and non-empty;
 - `prompt` is required and non-empty after trimming;
 - `time_in_seconds` is a positive safe integer;
 - seconds are the only time unit;
 - `allow_steer` defaults to `true` and the default is persisted explicitly;
 - the first delivery is scheduled at `now + time_in_seconds`;
 - the plugin generates the session-local loop ID.
+
+The GUI requires a title. The existing `/loop <seconds> <prompt>` syntax keeps
+working without a title; the host derives a compact title from the first
+non-empty prompt line for that path.
 
 ### `loop_list`
 
@@ -77,6 +86,29 @@ loop_list() -> LoopView[]
 ```
 
 Returns active loops for the current session. An empty array is normal.
+
+### `loop_update`
+
+```ts
+loop_update({
+  id: string,
+  title?: string,
+  prompt?: string,
+  time_in_seconds?: number,
+  allow_steer?: boolean,
+}) -> LoopView
+```
+
+Rules:
+
+- `id` must name an active loop in the current session;
+- at least one mutable field must be supplied;
+- supplied `title` and `prompt` values are trimmed and non-empty;
+- supplied `time_in_seconds` is a positive safe integer;
+- supplied `allow_steer` is boolean;
+- changing only title, prompt, or delivery mode preserves `next_at`;
+- changing the interval sets `next_at` to `now + time_in_seconds`;
+- the complete post-update record is persisted before success is returned.
 
 ### `loop_delete`
 
@@ -92,6 +124,7 @@ cross-session IDs are input errors.
 ```ts
 interface LoopView {
   id: string
+  title: string
   prompt: string
   time_in_seconds: number
   allow_steer: boolean
@@ -135,11 +168,13 @@ The plugin owns the `loop/change` event family:
 ```ts
 type LoopChange =
   | { version: 1; operation: 'create'; loop: LoopRecord }
+  | { version: 1; operation: 'update'; loop: LoopRecord }
   | { version: 1; operation: 'delete'; id: string }
   | { version: 1; operation: 'dispatch'; id: string; next_at: number }
 
 interface LoopRecord {
   id: string
+  title: string
   prompt: string
   time_in_seconds: number
   allow_steer: boolean
@@ -150,11 +185,12 @@ interface LoopRecord {
 The event log is the source of truth. Timer handles, runtime maps, in-flight
 promises, and cached folded state are process-local.
 
-Create, delete, and dispatch must flush the session before reporting success.
+Create, update, delete, and dispatch must flush the session before reporting
+success.
 On resume, fold the event suffix and recreate timers for active records. Apply
 the missed-tick policy from Section 4 on the first resumed drive.
 
-The plugin installs one runtime and three agent-scoped tools for each root
+The plugin installs one runtime and four agent-scoped tools for each root
 agent. `agent.ctx.effect()` owns runtime/timer/tool cleanup. Plugin disposal
 stops accepting new agents and awaits all existing runtime disposers.
 
@@ -173,6 +209,7 @@ claude-code-loop
 interface LoopProjection {
   loops: Array<{
     id: string
+    title: string
     prompt_preview: string
     time_in_seconds: number
     next_at: number
@@ -182,23 +219,27 @@ interface LoopProjection {
 }
 ```
 
-The projection is current state for the UI, not a model-visible tool. The
-host updates it after create, delete, dispatch, and resume folding. The UI
+The projection is current state for the UI, not a model-visible tool. The host
+updates it after create, update, delete, dispatch, and resume folding. The UI
 must not own a scheduler or replay raw `loop/change` events.
 
-Inject the indicator into `conversation.composer.dock`:
+Inject a session-scoped GUI page into `conversation.view` beside Chat and
+Trajectory, plus an optional compact navigation summary into
+`conversation.input.dock`:
 
 ```text
-no active loops: render nothing
-one loop:         ↻ Loop · 1 active · next in 24s
-several loops:    ↻ Loops · 3 active · next in 8s
-overdue:          ⚠ Loop overdue · retrying
+page:             Loops tab with cards and New/Edit/Delete controls
+empty page:       No recurring loops yet + New loop
+summary:          ↻ 3 active loops · next in 8s [Open loops]
+no active loops:   summary renders nothing
 ```
 
-Hover/click details are read-only and include prompt preview, interval, next
-run, delivery mode, and loop ID. The selected conversation already establishes
+The GUI form edits title, prompt, interval, and delivery mode. Delete requires
+confirmation. Mutations use the existing DSH session command channel and wait
+for the projection to reflect success; the browser never writes events or
+calls Agent delivery methods. The selected conversation already establishes
 the owning session, so the UI must not repeat a session ID in every loop row.
-No Stop/Pause/Resume/Run Now buttons are part of v1.
+No Pause/Resume/Run Now buttons are part of this version.
 
 Projection registration must use a public DSH plugin API. If the installed
 DSH version does not expose external projection registration, stop at
@@ -224,7 +265,7 @@ claude-code-loop/
 │   ├── loop.ts
 │   │   └── runtime, folding, scheduling, and projection snapshot
 │   ├── tools.ts
-│   │   └── loop_create, loop_list, loop_delete
+│   │   └── loop_create, loop_list, loop_update, loop_delete
 │   ├── types.ts
 │   │   └── shared loop/event/projection types
 │   └── ui/
@@ -303,10 +344,12 @@ patch or copy files into `deepseek-harness`.
    independent of real timers and model providers.
 2. Implement one runtime per root agent/session, with a fake-clock seam for
    tests.
-3. Register and test the three tools against a fake context and agent.
+3. Register and test the four tools against a real tool/session boundary with
+   a mocked Agent/model.
 4. Register the `claude-code-loop` session projection through the public DSH
    plugin API.
-5. Add `src/ui/` only after the projection contract is deterministic.
+5. Add the GUI page, shared create/edit form, and summary indicator after the
+   projection contract is deterministic.
 6. Build host and UI entries and verify package exports.
 
 ## 10. Test framework and behavior coverage
@@ -328,11 +371,14 @@ matrix instead of claiming a numeric percentage.
 Tool contract:
 
 - valid create;
+- optional and explicit title behavior;
 - default and explicit `allow_steer`;
 - blank prompt and invalid interval rejection;
 - empty and populated list;
 - current-session delete;
 - unknown and cross-session delete;
+- current-session update for title, prompt, interval, and delivery mode;
+- unknown and cross-session update;
 - required result shape.
 
 Scheduling:
@@ -353,13 +399,14 @@ Persistence/lifecycle:
 - agent and plugin disposal remove timers and tools;
 - sessions remain isolated.
 
-UI, once implemented:
+UI:
 
-- empty projection renders nothing;
-- one and multiple active-loop states render correctly;
-- overdue state renders a warning;
-- hover details are session-specific;
-- changing sessions changes the indicator;
+- title, prompt, interval, and delivery controls are rendered;
+- create validates and submits a session command;
+- edit is prefilled and submits the changed settings;
+- delete requires confirmation and removes the projected card;
+- errors and pending states keep the user in context;
+- changing sessions changes the visible projection;
 - UI disposal removes slot registration.
 
 Numeric coverage may be added later with a separate V8 provider and
@@ -393,15 +440,16 @@ node --input-type=module -e \
 
 The fake-agent preflight must:
 
-1. register all three tools;
-2. create a two-second loop;
+1. register all four tools;
+2. create a titled two-second loop;
 3. list it;
 4. advance a fake clock past `next_at`;
 5. assert exactly one steer/follow-up according to status and policy;
 6. assert `next_at` advanced;
-7. delete it;
-8. assert the list is empty;
-9. dispose the runtime and assert no timer remains.
+7. update its title or interval and verify the new view;
+8. delete it;
+9. assert the list is empty;
+10. dispose the runtime and assert no timer remains.
 
 The isolation preflight must prove:
 
@@ -412,8 +460,9 @@ session B: delete loop A -> error
 session A: list -> [loop A]
 ```
 
-The UI preflight feeds fixture projections directly to the component. It does
-not start a DSH web server or model provider.
+The UI preflight feeds fixture projections and a mocked command channel
+directly to the components. It does not start a DSH web server or model
+provider.
 
 Before and after all tests, compare the DSH core worktree against a recorded
 baseline. Any new or modified file under:
@@ -447,12 +496,13 @@ mode, UI states, and cleanup result.
 
 The implementation is complete only when:
 
-1. the three tool contracts are exact;
+1. the four tool contracts are exact, including title behavior;
 2. seconds are the only time unit;
 3. `allow_steer` defaults to true;
 4. session isolation and resume tests pass;
 5. fake-agent preflight passes without a model;
 6. compiled host and UI entries load correctly;
-7. the UI reads the named session projection and owns no scheduler;
+7. the UI reads the named session projection, owns no scheduler, and supports
+   create/edit/delete through the session command channel;
 8. the manual disposable-profile smoke test passes; and
 9. no `deepseek-harness` source file was changed.
