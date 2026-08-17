@@ -2,14 +2,14 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createPtyFirstFactory } from '../../src/backend/pty-backend.js'
+import { createPipeBackend } from '../../src/backend/pipe-backend.js'
 import { ExecSessionService } from '../../src/session/exec-session-service.js'
 import { WindowsPowerShellAdapter } from '../../src/shell/windows-powershell.js'
 import type { ResolvedConfig } from '../../src/types.js'
 
 const config: ResolvedConfig = {
   executionMode: 'trusted',
-  ptyFallback: 'error',
+  ptyFallback: 'pipe',
   maxSessions: 4,
   defaultYieldTimeMs: 250,
   pollYieldTimeMs: 250,
@@ -21,20 +21,38 @@ const config: ResolvedConfig = {
 }
 
 describe('Windows service lifecycle', () => {
-  it.runIf(process.platform === 'win32')('starts a PTY session, writes stdin, and preserves Unicode/workdir', async () => {
+  it.runIf(process.platform === 'win32')('runs a trivial PowerShell command through pipes without PTY delay', async () => {
+    const service = createService()
+    const startedAt = performance.now()
+    try {
+      const result = await service.exec({
+        owner: {},
+        cmd: "[Console]::WriteLine('pipe:\u2713')",
+        yieldTimeMs: 1_000,
+        signal: new AbortController().signal,
+      })
+
+      expect(result.exit_code).toBe(0)
+      expect(result.output).toContain('pipe:\u2713')
+      expect(result.output).not.toMatch(/\u001b/)
+      // This catches the previous ~3.2s PTY startup regression while allowing
+      // normal Windows PowerShell process startup overhead.
+      expect(performance.now() - startedAt).toBeLessThan(1_000)
+    } finally {
+      await service.dispose()
+    }
+  }, 30_000)
+
+  it.runIf(process.platform === 'win32')('supports exec_command plus write_stdin through a pipe', async () => {
     const workdir = await mkdtemp(join(tmpdir(), 'codex-shell-\u6D4B\u8BD5-'))
-    const service = new ExecSessionService(
-      config,
-      new WindowsPowerShellAdapter(),
-      createPtyFirstFactory('error'),
-    )
+    const service = createService()
     const owner = {}
     try {
       const started = await service.exec({
         owner,
-        cmd: "$line = [Console]::In.ReadLine(); [Console]::WriteLine('input:' + $line); [Console]::WriteLine('unicode:\u2713')",
+        cmd: "$line = [Console]::In.ReadLine(); [Console]::WriteLine('input:' + $line); [Console]::WriteLine('unicode:\u2713'); [Console]::WriteLine('cwd:' + (Get-Location).Path)",
         workdir,
-        yieldTimeMs: 100,
+        yieldTimeMs: 0,
         signal: new AbortController().signal,
       })
       expect(started.session_id).toBeTypeOf('number')
@@ -42,25 +60,78 @@ describe('Windows service lifecycle', () => {
       const completed = await service.write({
         owner,
         sessionId: started.session_id!,
-        chars: 'hello\r\n',
-        yieldTimeMs: 2_000,
+        chars: 'hello\n',
+        yieldTimeMs: 1_000,
         signal: new AbortController().signal,
       })
       expect(completed.exit_code).toBe(0)
       expect(completed.output).toContain('input:hello')
       expect(completed.output).toContain('unicode:\u2713')
-
-      const cwd = await service.exec({
-        owner,
-        cmd: '(Get-Location).Path',
-        workdir,
-        yieldTimeMs: 5_000,
-        signal: new AbortController().signal,
-      })
-      expect(cwd.output).toContain(workdir)
+      expect(completed.output).toContain(`cwd:${workdir}`)
     } finally {
       await service.dispose()
       await rm(workdir, { recursive: true, force: true })
     }
   }, 30_000)
+
+  it.runIf(process.platform === 'win32')('supports independent pipe sessions in parallel', async () => {
+    const service = createService()
+    const owner = {}
+    try {
+      const [first, second] = await Promise.all([
+        service.exec({
+          owner,
+          cmd: "$line = [Console]::In.ReadLine(); [Console]::WriteLine('first:' + $line)",
+          yieldTimeMs: 0,
+          signal: new AbortController().signal,
+        }),
+        service.exec({
+          owner,
+          cmd: "$line = [Console]::In.ReadLine(); [Console]::WriteLine('second:' + $line)",
+          yieldTimeMs: 0,
+          signal: new AbortController().signal,
+        }),
+      ])
+
+      expect(first.session_id).toBeTypeOf('number')
+      expect(second.session_id).toBeTypeOf('number')
+      expect(first.session_id).not.toBe(second.session_id)
+
+      const [firstDone, secondDone] = await Promise.all([
+        service.write({ owner, sessionId: first.session_id!, chars: 'one\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
+        service.write({ owner, sessionId: second.session_id!, chars: 'two\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
+      ])
+
+      expect(firstDone.output).toContain('first:one')
+      expect(secondDone.output).toContain('second:two')
+      expect(firstDone.exit_code).toBe(0)
+      expect(secondDone.exit_code).toBe(0)
+    } finally {
+      await service.dispose()
+    }
+  }, 30_000)
+
+  it.runIf(process.platform === 'win32')('cleans up a live pipe session on disposal', async () => {
+    const service = createService()
+    try {
+      const started = await service.exec({
+        owner: {},
+        cmd: '$null = [Console]::In.ReadLine()',
+        yieldTimeMs: 0,
+        signal: new AbortController().signal,
+      })
+      expect(started.session_id).toBeTypeOf('number')
+      expect(service.liveSessionCount).toBe(1)
+
+      await service.dispose()
+
+      expect(service.liveSessionCount).toBe(0)
+    } finally {
+      await service.dispose()
+    }
+  }, 30_000)
 })
+
+function createService(): ExecSessionService {
+  return new ExecSessionService(config, new WindowsPowerShellAdapter(), createPipeBackend)
+}

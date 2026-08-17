@@ -2,45 +2,40 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { callTool, createRegisteredToolHarness, execution, type SimulatedAgent } from '../support/registered-tools.js'
 import { delay } from '../../src/session/lifecycle.js'
 
-describe('timing, waiting, and timeouts', () => {
+describe('registered exec session output retention', () => {
   let harness: ReturnType<typeof createRegisteredToolHarness>
   let agent: SimulatedAgent
 
   beforeEach(() => {
     harness = createRegisteredToolHarness()
-    agent = harness.agent('timing-agent')
+    agent = harness.agent('retention-tool-agent')
   })
 
   afterEach(async () => {
     await harness.service.dispose()
   })
 
-  it('returns a live session instead of a fabricated exit code when waiting is zero', async () => {
-    const result = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-
-    expect(result.isError).toBe(false)
-    expect(result.value?.session_id).toBeTypeOf('number')
-    expect(result.value?.exit_code).toBeUndefined()
-  })
-
-  it('returns delayed output after a subsequent poll', async () => {
+  it('lets the next empty write_stdin poll retrieve output emitted after exec_command returned', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
+    const sessionId = started.value?.session_id
+    expect(sessionId).toBeTypeOf('number')
+
+    await delay(250)
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      session_id: sessionId,
       chars: '',
-      yield_time_ms: 1_000,
+      yield_time_ms: 0,
     }, execution(agent))
 
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ output: expect.stringContaining('PASS slow'), exit_code: 0 })
   })
 
-  it('retains final output when a live session exits before polling starts', async () => {
+  it('keeps naturally exited output available until the empty poll delivers it', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
     const sessionId = started.value?.session_id
     expect(sessionId).toBeTypeOf('number')
 
-    // The fixture exits naturally while no tool call is active.
     await delay(250)
     expect(harness.service.liveSessionCount).toBe(1)
 
@@ -50,8 +45,29 @@ describe('timing, waiting, and timeouts', () => {
       yield_time_ms: 0,
     }, execution(agent))
 
+    expect(result.value?.exit_code).toBe(0)
+    expect(harness.service.liveSessionCount).toBe(0)
+  })
+
+  it('does not lose the final result when write_stdin is attempted after natural exit', async () => {
+    const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
+    const sessionId = started.value?.session_id
+    expect(sessionId).toBeTypeOf('number')
+
+    await delay(250)
+    const lateWrite = await callTool(harness.writeStdin, {
+      session_id: sessionId,
+      chars: 'late-input',
+      yield_time_ms: 0,
+    }, execution(agent))
+    expect(lateWrite.isError).toBe(true)
+
+    const result = await callTool(harness.writeStdin, {
+      session_id: sessionId,
+      chars: '',
+      yield_time_ms: 0,
+    }, execution(agent))
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ output: expect.stringContaining('PASS slow'), exit_code: 0 })
-    expect(harness.service.liveSessionCount).toBe(0)
   })
 })

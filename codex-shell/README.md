@@ -15,11 +15,13 @@ From a DeepSeek Harness source checkout:
 
 ```powershell
 cd C:/path/to/deepseek-harness
+pnpm install
 pnpm dsh plugin --profile web add dsh-codex-shell@0.1.1
 ```
 
-> ⚠️ `npm install dsh-codex-shell` alone does not install the plugin into
-> DSH.
+> ⚠️ Do not run `npm install dsh-codex-shell` as a separate setup step. The
+> DSH plugin command installs it into the selected profile. `pnpm install` in
+> the source checkout only bootstraps DSH itself.
 
 ## 🐋 2. Create the Codex Whale preset
 
@@ -72,7 +74,25 @@ Validate the result before finishing.
 - `max_output_tokens` (`number`, optional) - Maximum output token budget; default configured limit (`10000` by default).
 
 Typical flow: call `exec_command`; if it returns a `session_id`, call
-`write_stdin` with that ID to send input or poll until `exit_code` is returned.
+`write_stdin` with that ID to send input or poll until the terminal result is
+fully collected. A terminal result may contain both `exit_code` and
+`session_id` when `max_output_tokens` capped the current page; keep polling
+with empty `chars` until `session_id` is no longer returned.
+
+## 🧭 Current session behavior
+
+- Pipe transport is the default on Windows, macOS, and Linux. A real PTY is
+  not required for the `exec_command` plus `write_stdin` lifecycle.
+- Output produced after `exec_command` returns is retained for the next
+  `write_stdin` poll.
+- An exited process remains pollable while unread output is buffered. The
+  session is released only after its terminal output has been collected.
+- `max_output_tokens` limits each response page; it does not discard buffered
+  output. Continue polling to retrieve later pages.
+- Natural-exit notifications identify the session and instruct the owner to
+  call `write_stdin` with empty `chars`.
+- Session output and process resources are bounded and cleaned up on terminal
+  completion, owner disposal, and plugin disposal.
 
 ## 🎯 Why do we need it?
 
@@ -154,9 +174,17 @@ allowBuilds:
 
 Then install the plugin again.
 
-### The profile has version 0.1.0
+### The profile has an older plugin version
 
 ```powershell
 dsh plugin --profile web remove dsh-codex-shell
 dsh plugin --profile web add dsh-codex-shell@0.1.1
 ```
+
+## 📚 Documentation
+
+- [Implementation specification](SPEC.md)
+- [Reusable E2E test prompts](e2e-test-prompt.md)
+- [0.1.0 changelog](changelog/0.1.0.md)
+- [0.1.1 changelog](changelog/0.1.1.md)
+- [0.1.2 changelog](changelog/0.1.2.md)

@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { createPtyFirstFactory } from './backend/pty-backend.js'
+import { createPipeBackend } from './backend/pipe-backend.js'
 import { createExecutionPolicy } from './policy/execution-policy.js'
 import { registerExecCommandTool } from './tools/exec-command.js'
 import { registerWriteStdinTool } from './tools/write-stdin.js'
@@ -32,7 +32,9 @@ export function apply(ctx: Context, config: Config = {}): void {
   const service = new ExecSessionService(
     resolved,
     createShellAdapter(resolved),
-    createPtyFirstFactory(resolved.ptyFallback),
+    // Ordinary commands use redirected pipes. This keeps exec_command fast
+    // while preserving a persistent stdin for write_stdin.
+    createPipeBackend,
     policy,
   )
 
@@ -43,7 +45,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.systemPrompt.section({
     name: 'tool:codex-shell',
     order: 105,
-    text: 'The codex-shell command tools use the host-resolved shell; use `workdir` for the command directory. Long-running commands return an opaque session id for `write_stdin`.',
+    text: 'The codex-shell command tools use the host-resolved shell; use `workdir` for the command directory. Long-running commands return an opaque session id for `write_stdin`. If a session exits after returning, poll it with `write_stdin` using empty `chars` to collect its final output and exit code.',
   })
 
   registerExecCommandTool(ctx, service)
