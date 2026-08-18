@@ -1,5 +1,30 @@
 import type { JsonValue } from '@deepseek-ai/dsh-session'
 
+export interface CreateSessionModel {
+  provider: string
+  model: string
+  /** Adapter-owned reasoning/thinking effort identifier. */
+  reasoningEffort?: string
+}
+
+export interface CreateSessionArgs {
+  prompt: string
+  preset?: string
+  model?: CreateSessionModel
+  /** Existing absolute directory. */
+  cwd?: string
+}
+
+export interface CreateSessionResult {
+  session_id: string
+  accepted: true
+  status: 'queued'
+  /** Workspace selected for the new session, when it was resolved. */
+  workspace_id?: string
+  /** Canonical persisted working directory, when one was selected. */
+  cwd?: string
+}
+
 export interface ListSessionsArgs {
   limit?: number
 }

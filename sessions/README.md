@@ -1,14 +1,17 @@
 # dsh-sessions
 
-Read-only session discovery for DeepSeek Harness.
+Session discovery and creation for DeepSeek Harness.
 
 It provides:
 
 - `list_sessions({ limit? })` for agent-facing session selection;
 - `check_session_status({ session_id })` for one exact session;
 - `read_session({ session_id, offset?, limit? })` for bounded reconstructed message reads;
-- `/sessions list [--limit N]`, `/sessions status SESSION_ID`, and
-  `/sessions read SESSION_ID [--offset N] [--limit N]` for human-readable views.
+- `create_session({ prompt, preset?, model?, cwd? })` for a fresh session with an initial prompt;
+- `/sessions list [--limit N]`, `/sessions status SESSION_ID`,
+  `/sessions read SESSION_ID [--offset N] [--limit N]`, and
+  `/sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]`
+  for human-readable views and session creation.
 
 The slash command syntax is:
 
@@ -18,6 +21,17 @@ The slash command syntax is:
 /sessions read SESSION_ID [--offset N] [--limit N]
 ```
 
+`create_session` queues the initial prompt and returns as soon as the new
+session accepts it. `preset` and `model` are optional: they inherit from the
+calling agent when present, otherwise the deployment defaults are used. An
+explicit model is `{ provider, model, reasoningEffort? }`; the effort is an
+adapter-owned identifier validated against the selected model. `cwd` optionally
+binds the session to an existing absolute directory. A child inherits the
+caller's `cwd` when neither is supplied. When using the slash command,
+`--model PROVIDER/MODEL --effort LEVEL` is shorthand for the tool's nested
+`model` object; a JSON object with the tool argument shape is also accepted
+after `/sessions create`.
+
 `read_session` uses a 1-based message-block `offset` and defaults `limit` to
 200 message blocks. It reconstructs the canonical conversation surface, so
 token deltas, chunks, lifecycle events, and other trace-only records are not
@@ -26,10 +40,9 @@ returned. The output is grouped into `[USER]`, `[CONTEXT]`, `[ASSISTANT]`, and
 returned range and total message count.
 
 The plugin reads persisted headers, live agents, and durable titles. It never
-resumes a cold session and never triggers title generation. Do not compose it
-alongside another plugin that registers `list_sessions`, such as the current
-`codex-session-communication` package, until that duplicate registration is
-removed or consolidated.
+resumes a cold session and never triggers title generation. It owns session
+inspection and creation; `codex-session-communication` should be composed only
+for `send_message_to_session` and `wait_sessions`.
 
 In the message composer, entering `/sessions read SESSION_ID` opens a small
 argument-completion popup with the unused `--offset` and `--limit` options.
