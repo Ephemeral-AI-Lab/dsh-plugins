@@ -1,7 +1,13 @@
 {
   "name": "dsh-loop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Session-scoped recurring alarms for DeepSeek Harness",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git",
+    "directory": "loop"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -24,13 +30,14 @@
       "default": "./lib/index.js"
     },
     "./client": {
-      "types": "./lib/types/client/index.d.ts",
+      "types": "./lib/types/ui/index.d.ts",
       "default": "./lib/client.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
     "lib",
+    "LICENSE",
     "cordis.patch.yml",
     "README.md",
     "SPEC.md",
@@ -41,7 +48,6 @@
     "UI_DESIGN.md"
   ],
   "scripts": {
-    "prepare": "npm run build",
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node node_modules/tsdown/dist/run.mjs",
     "build:client": "tsc -p tsconfig.client.json && node node_modules/tsdown/dist/run.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -87,6 +93,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "jsdom": "^29.1.1",
     "lightningcss": "^1.33.0",
+    "react": "18.3.1",
     "react-dom": "^18.3.1",
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",
