@@ -78,6 +78,7 @@ part of a profile.
 | [`dsh-loop`](./loop/) | ✅ Published · `0.1.3` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
 | [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
 | [`codex-session-communication`](./codex-session-communication/) | 🛠️ Source-only | Cross-session tools for creating, messaging, waiting on, and inspecting DSH sessions. | [`SPEC`](./codex-session-communication/SPEC.md) |
+| [`dsh-sessions`](./sessions/) | 🛠️ Source-only | Read-only session discovery through `list_sessions` and `/sessions`. | [`README`](./sessions/README.md) · [`SPEC`](./sessions/SPEC.md) |
 
 ### 🐚 `dsh-codex-shell`
 

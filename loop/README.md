@@ -156,6 +156,7 @@ deepseek-harness. The implementation contract is documented in
 ## 📚 Documentation
 
 - [Implementation specification](./SPEC.md)
+- [Cross-session v2 design specification](./SPEC_V2.md)
 - [Web UI contract](./ui.md)
 - [Reusable E2E test prompts](./e2e-test-prompt.md)
 - [Test plan](./TEST_PLAN.md)
