@@ -1,6 +1,6 @@
 {
   "name": "dsh-sessions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Session discovery, creation, message delivery, and slash commands for DeepSeek Harness",
   "license": "MIT",
   "repository": {
@@ -44,7 +44,8 @@
     "README.md",
     "cordis.patch.yml",
     "SPEC.md",
-    "ui.md"
+    "ui.md",
+    "test/e2e/prompts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && node node_modules/tsdown/dist/run.mjs",

@@ -11,9 +11,7 @@ is `dsh-plugins/sessions`.
 This is an adapter over DSH's built-in session services. It is not a second
 implementation of `@deepseek-ai/dsh-session`, and it must not duplicate the
 session store or persistence backend. `dsh-sessions` owns session inspection,
-fresh-session creation, and message delivery. The legacy
-`codex-session-communication` plugin owns waiting during the migration and
-should not be composed for message delivery.
+fresh-session creation, and message delivery.
 
 ## 1. Package boundary
 

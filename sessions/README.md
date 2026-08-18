@@ -1,109 +1,149 @@
 # dsh-sessions
 
-Session discovery and creation for DeepSeek Harness.
+Adds session discovery, bounded message inspection, fresh-session creation,
+and message delivery to DeepSeek Harness.
 
-## Release: 0.1.0
+## 1. Release: 0.1.1
 
-The first npm release provides read-only session status and message inspection,
-fresh-session creation, and the `/sessions` command interface.
+This release provides four public agent tools:
 
-## Install
+- `session_status` for recent sessions or one exact session;
+- `session_read` for bounded canonical message reads;
+- `session_create` for creating a fresh session with an initial prompt;
+- `session_send` for steering or following up an existing session.
 
-Install the published package with npm:
+It also provides the `/sessions` command family and supports explicit model
+provider, model, and thinking-effort selection during session creation.
 
-```powershell
-npm install dsh-sessions@0.1.0
-```
+## 2. Install the plugin
 
-Or add it to a DSH profile with the DSH CLI:
+Install the published package into a DSH profile:
 
-```powershell
-dsh plugin --profile web add dsh-sessions@0.1.0
-```
+~~~powershell
+# With the DSH CLI:
+dsh plugin --profile web add dsh-sessions@0.1.1
 
-Restart DSH and create a new session after installing the plugin.
+# Without the `dsh` CLI:
+npm install dsh-sessions@0.1.1
+~~~
 
-It provides:
+The DSH profile installation is required for Harness to load the plugin. After
+upgrading, restart DSH and create a new agent session so the current tool
+registry is loaded.
 
-- `session_status({ session_id?, recent_n? })` for recent session status or one exact session;
-- `session_read({ session_id, offset?, limit? })` for bounded reconstructed message reads;
-- `session_create({ prompt, preset?, model?, cwd? })` for a fresh session with an initial prompt;
-- `session_send({ session_id, message, mode? })` for steering or following up an existing session;
-- `/sessions status [SESSION_ID] [--recent N]`,
-  `/sessions read SESSION_ID [--offset N] [--limit N]`, and
-  `/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]`,
-  `/sessions send SESSION_ID MESSAGE [--mode steer|followup]`
-  for human-readable views, session creation, and message delivery.
+For local development, build the package and install the checkout into the
+target profile:
 
-The slash command syntax is:
+~~~powershell
+pnpm build
+dsh plugin --profile web add C:\path\to\dsh-plugins\sessions
+~~~
 
-```text
+## 3. Quick start
+
+Create a child session, inspect it, read its conversation, and send a message:
+
+~~~text
+session_create({ "prompt": "Reply with exactly READY and nothing else." })
+
+session_status({ "session_id": "<SESSION_ID>" })
+
+session_read({ "session_id": "<SESSION_ID>", "offset": 1, "limit": 20 })
+
+session_send({
+  "session_id": "<SESSION_ID>",
+  "message": "Continue with the next step."
+})
+~~~
+
+`session_create` returns a queued result containing the new session ID. Use
+that ID with the other tools.
+
+## 4. Agent tools and command interface
+
+### Agent tools
+
+| Tool | Arguments | Behavior |
+| --- | --- | --- |
+| `session_status` | `session_id?`, `recent_n?` | Lists recent sessions, or returns one exact status row. Defaults to the 50 most recently updated sessions. |
+| `session_read` | `session_id`, `offset?`, `limit?` | Reads canonical conversation blocks without resuming or mutating the session. |
+| `session_create` | `prompt`, `preset?`, `model?`, `cwd?` | Creates a fresh session and queues its initial prompt. |
+| `session_send` | `session_id`, `message`, `mode?` | Sends to an existing session; `mode` defaults to `steer`. |
+
+An explicit creation model has this shape:
+
+~~~json
+{
+  "provider": "<PROVIDER>",
+  "model": "<MODEL>",
+  "reasoningEffort": "<LEVEL>"
+}
+~~~
+
+The adapter validates the effort identifier against the selected model. The
+`cwd` option must be an existing absolute directory.
+
+### Slash commands
+
+~~~text
 /sessions status [SESSION_ID] [--recent N]
 /sessions read SESSION_ID [--offset N] [--limit N]
+/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
 /sessions send SESSION_ID MESSAGE [--mode steer|followup]
-```
+~~~
 
-`session_status` returns the 50 most recently updated sessions by default. Pass
-`recent_n` to change that count, or pass `session_id` to inspect one exact
-session. The exact-session form still returns a `sessions` array containing one
-row; a missing ID is reported with status `missing`.
+The `/sessions create` flags map to the tool's nested `model` object. A JSON
+object with the same shape as `session_create` is also accepted.
 
-`session_create` queues the initial prompt and returns as soon as the new
-session accepts it. `preset` and `model` are optional: they inherit from the
-calling agent when present, otherwise the deployment defaults are used. An
-explicit model is `{ provider, model, reasoningEffort? }`; the effort is an
-adapter-owned identifier validated against the selected model. `cwd` optionally
-binds the session to an existing absolute directory. A child inherits the
-caller's `cwd` when neither is supplied. When using the slash command,
-`--provider PROVIDER --model MODEL --effort LEVEL` supplies the tool's nested
-`model` object; a JSON object with the tool argument shape is also accepted
-after `/sessions create`.
+## 5. Session lifecycle and delivery
 
-`session_read` uses a 1-based message-block `offset` and defaults `limit` to
-200 message blocks. It reconstructs the canonical conversation surface, so
-token deltas, chunks, lifecycle events, and other trace-only records are not
-returned. The output is grouped into `[USER]`, `[CONTEXT]`, `[ASSISTANT]`, and
-`[TOOL]` blocks without XML or generated line numbers; the footer reports the
-returned range and total message count.
+- `session_create` only creates a fresh session and queues its initial prompt;
+  it does not wait for model completion.
+- `session_status` is inspection-only and defaults to 50 recent sessions.
+- `session_read` uses a 1-based message-block offset and a maximum limit of
+  200. It omits trace-only chunks, token deltas, and lifecycle records.
+- `session_send` defaults to `steer`, which wakes an idle agent and targets the
+  nearest step of a running agent.
+- `session_send({ mode: "followup" })` queues a separate next turn.
+- Cold sessions are resumed only for an explicit `session_send`; status and
+  read never resume them.
 
-`session_send` delivers to a live or explicitly resumed session. Its `mode`
-defaults to `steer`, which wakes idle agents and targets the nearest step of a
-running agent; `followup` queues a separate next turn.
+The returned send `message_id` confirms accepted inbox work. It does not mean
+that the target agent has finished processing the message.
 
-The equivalent slash command is `/sessions send SESSION_ID MESSAGE`; quote the
-message when it contains spaces. Use `--mode followup` to queue an ordinary
-next turn instead of the default steering delivery.
+## 6. E2E testing
 
-The plugin reads persisted headers, live agents, and durable titles. It never
-resumes a cold session for inspection and never triggers title generation. It
-owns session inspection, creation, and message delivery. The legacy
-`codex-session-communication` plugin should only be composed for
-`wait_sessions` until it is removed.
+Reusable prompt fixtures are in
+[`test/e2e/prompts`](./test/e2e/prompts/). The recommended flow is create,
+capture the returned `session_id`, and substitute it into the status, read, and
+send prompts.
 
-In the message composer, entering `/sessions read SESSION_ID` opens a small
-argument-completion popup with the unused `--offset` and `--limit` options.
-Selecting an option inserts it into the draft with a trailing space so its
-numeric value can be entered immediately. A partially typed option is filtered
-and replaced when selected; the draft is never sent while the popup is shown.
-The local hint matcher ignores leading, trailing, and repeated whitespace
-between `/sessions` and its subcommand.
+The exact registered names are required. `session_send` must not be replaced by
+the built-in `send_message`, which targets subagents and has different
+semantics.
 
-## Verify locally
+## 7. Verify locally
 
-Run the package checks and build the published artifacts:
-
-```powershell
+~~~powershell
 pnpm typecheck
 pnpm test -- --runInBand
 pnpm build
-```
+pnpm pack --dry-run
+~~~
 
-The npm package includes the generated `lib` directory, the plugin manifest
-patch, and this README. The development dependencies are not included in the
-published package.
+The published package includes the generated `lib` directory, the plugin patch,
+the README, the implementation specification, and the reusable E2E prompt
+fixtures. Unit-test sources and development dependencies are not included.
 
-## Package scope
+## 8. Package scope
 
-The plugin uses public DeepSeek Harness and Cordis APIs. It does not modify
-DeepSeek Harness source code. Session messaging and waiting remain owned by the
-companion `codex-session-communication` plugin.
+The plugin uses public DeepSeek Harness and Cordis APIs and does not modify
+DeepSeek Harness source code. `dsh-loop` owns recurring self-prompts for the
+current session; `dsh-sessions` owns cross-session inspection, creation, and
+message delivery.
+
+## 9. Documentation
+
+- [Implementation specification](./SPEC.md)
+- [UI contract](./ui.md)
+- [E2E prompt fixtures](./test/e2e/prompts/README.md)

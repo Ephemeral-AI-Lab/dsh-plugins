@@ -62,6 +62,18 @@ dsh plugin --profile web add dsh-mock@0.1.0
 npm install dsh-mock@0.1.0
 ```
 
+### 🧭 Sessions
+
+Inspect, create, read, and message DSH sessions with the current session tools:
+
+```powershell
+# With the DSH CLI:
+dsh plugin --profile web add dsh-sessions@0.1.1
+
+# Without the `dsh` CLI:
+npm install dsh-sessions@0.1.1
+```
+
 Restart DSH and create a new session after installing a plugin. If `dsh` is not
 on your PATH, run the same command from a DeepSeek Harness source checkout with
 `pnpm dsh` instead.
@@ -77,8 +89,7 @@ part of a profile.
 | [`dsh-codex-shell`](./codex-shell/) | ✅ Published · `0.1.2` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-shell/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-shell) |
 | [`dsh-loop`](./loop/) | ✅ Published · `0.1.3` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
 | [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
-| [`codex-session-communication`](./codex-session-communication/) | 🛠️ Source-only | Cross-session tools for creating, messaging, waiting on, and inspecting DSH sessions. | [`SPEC`](./codex-session-communication/SPEC.md) |
-| [`dsh-sessions`](./sessions/) | 🛠️ Source-only | Read-only session discovery through `list_sessions` and `/sessions`. | [`README`](./sessions/README.md) · [`SPEC`](./sessions/SPEC.md) |
+| [`dsh-sessions`](./sessions/) | ✅ Published · `0.1.1` | Session discovery, bounded reads, creation, and delivery through session tools and `/sessions`. | [`README`](./sessions/README.md) · [`SPEC`](./sessions/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-sessions) |
 
 ### 🐚 `dsh-codex-shell`
 
@@ -106,12 +117,6 @@ Install it into the DSH `web` profile with one command:
 dsh plugin --profile web add dsh-mock@0.1.0
 ```
 
-### 🔗 `codex-session-communication`
-
-Coordinate multiple DSH sessions from one agent: delegate work, send messages,
-wait for progress, inspect transcripts, and list visible sessions. This package
-is still experimental and is not published to npm yet.
-
 ## 🛠️ Development
 
 Each plugin is independently installable and testable. For example:
@@ -132,7 +137,8 @@ DSH composes plugins through profile-scoped installation and patch layers.
 - [Loop documentation](./loop/README.md)
 - [Mock documentation](./mock/README.md)
 - [Mock implementation specification](./mock/SPEC.md)
-- [Session communication specification](./codex-session-communication/SPEC.md)
+- [Sessions documentation](./sessions/README.md)
+- [Sessions specification](./sessions/SPEC.md)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
 ## 🤝 Contributing
