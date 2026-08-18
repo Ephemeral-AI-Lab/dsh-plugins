@@ -14,19 +14,15 @@ The stable npm release is available through both DSH and npm:
 
 ~~~powershell
 # With the DSH CLI:
-dsh plugin --profile web add dsh-loop@0.1.1
+dsh plugin --profile web add dsh-loop@0.1.2
 
 # Without the `dsh` CLI:
-npm install dsh-loop@0.1.1
+npm install dsh-loop@0.1.2
 ~~~
 
-The `0.1.2` source release is prepared in this repository but is pending npm
-2FA publication. After it is merged and published, replace `0.1.1` above with
-`0.1.2`.
-
-For a pre-publication Git install, the marketplace can pin a full Git commit
-and the `loop` monorepo path, then delegate the package change to the official
-DSH CLI. A direct fixed-source spec has this shape:
+For a pinned Git-source install, the marketplace can pin a full Git commit and
+the `loop` monorepo path, then delegate the package change to the official DSH
+CLI. A direct fixed-source spec has this shape:
 
 ~~~powershell
 dsh plugin --profile web add "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git#<40-character-commit>&path:loop"
