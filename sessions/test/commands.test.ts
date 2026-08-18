@@ -3,6 +3,12 @@ import { parseCreateSessionArgs, parseSendSessionArgs, parseSessionsCommand, reg
 
 describe('sessions slash command', () => {
   it('parses status, read, send, and create subcommands', () => {
+    expect(parseSessionsCommand('sidechat "inspect the build"')).toEqual({
+      kind: 'sidechat', args: { prompt: 'inspect the build' },
+    })
+    expect(parseSessionsCommand('sidechat-send child-1 ask about "quoted" text')).toEqual({
+      kind: 'sidechat-send', args: { subagent_id: 'child-1', message: 'ask about "quoted" text' },
+    })
     expect(parseSessionsCommand('status')).toEqual({ kind: 'status', args: {} })
     expect(parseSessionsCommand('status --recent 20')).toEqual({ kind: 'status', args: { recent_n: 20 } })
     expect(parseSessionsCommand('status session-1')).toEqual({ kind: 'status', args: { session_id: 'session-1' } })

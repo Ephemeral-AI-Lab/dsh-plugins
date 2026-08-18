@@ -1,11 +1,11 @@
 # dsh-sessions
 
 Adds session discovery, bounded message inspection, fresh-session creation,
-and message delivery to DeepSeek Harness.
+message delivery, and durable side chats to DeepSeek Harness.
 
 ## 1. Release: 0.1.1
 
-This release provides four public agent tools:
+This release provides five public agent tools:
 
 - `session_status` for recent sessions or one exact session;
 - `session_read` for bounded canonical message reads;
@@ -14,6 +14,12 @@ This release provides four public agent tools:
 
 It also provides the `/sessions` command family and supports explicit model
 provider, model, and thinking-effort selection during session creation.
+
+Side chats are opened with `session_open_sidechat` or `/sessions sidechat "PROMPT"`.
+They return the real continuable child session id, inherit the parent's
+balanced and stable model context, and continue through the existing Harness
+`send_message` path. The browser renders them in a persistent, tabbed
+`shell.overlay` panel without navigating away from the main session.
 
 ## 2. Install the plugin
 
@@ -69,6 +75,7 @@ that ID with the other tools.
 | `session_read` | `session_id`, `offset?`, `limit?` | Reads canonical conversation blocks without resuming or mutating the session. |
 | `session_create` | `prompt`, `preset?`, `model?`, `cwd?` | Creates a fresh session and queues its initial prompt. |
 | `session_send` | `session_id`, `message`, `mode?` | Sends to an existing session; `mode` defaults to `steer`. |
+| `session_open_sidechat` | `prompt` | Opens a durable continuable child attached to the calling agent and returns `subagent_id` plus the accepted message id. |
 
 An explicit creation model has this shape:
 
@@ -90,6 +97,7 @@ The adapter validates the effort identifier against the selected model. The
 /sessions read SESSION_ID [--offset N] [--limit N]
 /sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
 /sessions send SESSION_ID MESSAGE [--mode steer|followup]
+/sessions sidechat "PROMPT"
 ~~~
 
 The `/sessions create` flags map to the tool's nested `model` object. A JSON
@@ -110,6 +118,20 @@ object with the same shape as `session_create` is also accepted.
 
 The returned send `message_id` confirms accepted inbox work. It does not mean
 that the target agent has finished processing the message.
+
+### Side-chat lifecycle
+
+Side chats run independently of the main turn. Opening returns after the child
+inbox accepts the initial prompt, and main-turn completion never waits for the
+child. The Harness serializes follow-ups per child, synchronizes the latest
+stable parent surface before each next child turn, and supports both live and
+cold-resumed children through the same real `subagent_id`.
+
+The panel keeps `status` (`running`, `idle`, `finished`, or `error`) separate
+from `residency` (`live` or `cold`) and preserves tabs across close/reopen.
+Disposing the parent cancels live child work through the Harness ownership
+graph without deleting the durable child session; settlement notices are
+best-effort and the child transcript remains authoritative.
 
 ## 6. E2E testing
 
@@ -145,5 +167,6 @@ message delivery.
 ## 9. Documentation
 
 - [Implementation specification](./SPEC.md)
+- [Side-chat design specification](./SIDE_CHAT_SPEC.md)
 - [UI contract](./ui.md)
 - [E2E prompt fixtures](./test/e2e/prompts/README.md)

@@ -90,9 +90,9 @@ describe('dsh-sessions plugin wiring edge cases', () => {
     ['injects session query', () => expect(plugin.inject).toContain('sessionQuery')],
     ['injects workspace registry', () => expect(plugin.inject).toContain('workspaceRegistry')],
     ['exports apply as a function', () => expect(plugin.apply).toBeTypeOf('function')],
-    ['registers four current tool names', () => {
+    ['registers current tool names', () => {
       const h = makeHarness(); plugin.apply(h.ctx as never)
-      expect(h.tools.map(tool => tool.name)).toEqual(['session_status', 'session_read', 'session_create', 'session_send'])
+      expect(h.tools.map(tool => tool.name)).toEqual(['session_status', 'session_read', 'session_create', 'session_send', 'session_open_sidechat'])
     }],
     ['does not register the old create name', () => {
       const h = makeHarness(); plugin.apply(h.ctx as never)
@@ -152,7 +152,7 @@ describe('dsh-sessions plugin wiring edge cases', () => {
     }],
     ['keeps all tools before cleanup', () => {
       const h = makeHarness(); plugin.apply(h.ctx as never)
-      expect(h.tools).toHaveLength(4)
+      expect(h.tools).toHaveLength(5)
     }],
     ['keeps the command before cleanup', () => {
       const h = makeHarness(); plugin.apply(h.ctx as never)
@@ -174,8 +174,8 @@ describe('dsh-sessions plugin wiring edge cases', () => {
       const first = makeHarness(); const second = makeHarness()
       plugin.apply(first.ctx as never); plugin.apply(second.ctx as never)
       expect(first.tools).not.toBe(second.tools)
-      expect(first.tools).toHaveLength(4)
-      expect(second.tools).toHaveLength(4)
+      expect(first.tools).toHaveLength(5)
+      expect(second.tools).toHaveLength(5)
     }],
   ] as const
 
@@ -275,17 +275,17 @@ describe('dsh-sessions plugin wiring edge cases', () => {
     }],
     ['two cleanup calls leave disposal state consistent', async () => {
       const h = makeHarness(); plugin.apply(h.ctx as never); await h.effects[0]!(); await h.effects[0]!()
-      expect(h.events.filter(event => event.startsWith('dispose-tool'))).toHaveLength(8)
+      expect(h.events.filter(event => event.startsWith('dispose-tool'))).toHaveLength(10)
       expect(h.tools).toHaveLength(0)
     }],
     ['one context cleanup does not affect another context', async () => {
       const first = makeHarness(); const second = makeHarness()
       plugin.apply(first.ctx as never); plugin.apply(second.ctx as never); await first.effects[0]!()
-      expect(first.tools).toHaveLength(0); expect(second.tools).toHaveLength(4)
+      expect(first.tools).toHaveLength(0); expect(second.tools).toHaveLength(5)
     }],
     ['reapplying after cleanup restores the full registration set', async () => {
       const h = makeHarness(); plugin.apply(h.ctx as never); await h.effects[0]!(); plugin.apply(h.ctx as never)
-      expect(h.tools.map(tool => tool.name)).toEqual(['session_status', 'session_read', 'session_create', 'session_send'])
+      expect(h.tools.map(tool => tool.name)).toEqual(['session_status', 'session_read', 'session_create', 'session_send', 'session_open_sidechat'])
     }],
     ['direct registrar disposal is independent from command disposal', () => {
       const h = makeHarness(); const set = serviceSet(h.ctx)
@@ -311,7 +311,10 @@ describe('dsh-sessions plugin wiring edge cases', () => {
     }],
     ['cleanup records command disposal before tool disposal', async () => {
       const h = makeHarness(); plugin.apply(h.ctx as never); await h.effects[0]!()
-      expect(h.events.at(-5)).toBe('dispose-command:sessions')
+      const commandIndex = h.events.indexOf('dispose-command:sessions')
+      const firstToolIndex = h.events.findIndex(event => event.startsWith('dispose-tool'))
+      expect(commandIndex).toBeGreaterThanOrEqual(0)
+      expect(commandIndex).toBeLessThan(firstToolIndex)
     }],
     ['plugin exports both canonical and compatibility tool registrars', () => {
       expect(plugin.registerSessionTools).toBe(plugin.registerSessionsTool)
