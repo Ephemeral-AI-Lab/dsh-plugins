@@ -49,6 +49,9 @@ dsh plugin --profile web add dsh-loop@0.1.1
 npm install dsh-loop@0.1.1
 ```
 
+The `0.1.2` source release is prepared in this repository and is pending npm
+2FA publication. Until it is published, use the stable npm release above.
+
 ### 🧪 Mock — unstable
 
 `dsh-mock` is published for early testing. Its commands, API, and UI may
@@ -75,7 +78,7 @@ part of a profile.
 | Package | Status | What it adds | Docs |
 | --- | --- | --- | --- |
 | [`dsh-codex-shell`](./codex-shell/) | ✅ Published · `0.1.2` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-shell/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-shell) |
-| [`dsh-loop`](./loop/) | ✅ Published · `0.1.1` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
+| [`dsh-loop`](./loop/) | ✅ Published · `0.1.1` · source `0.1.2` pending npm publication | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
 | [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
 | [`codex-session-communication`](./codex-session-communication/) | 🛠️ Source-only | Cross-session tools for creating, messaging, waiting on, and inspecting DSH sessions. | [`SPEC`](./codex-session-communication/SPEC.md) |
 
