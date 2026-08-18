@@ -16,7 +16,6 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
   const loops = useMemo(() => [...(projection?.loops ?? [])].sort((a, b) => a.next_at - b.next_at), [projection?.loops])
   const [now, setNow] = useState(() => Date.now())
   const [expanded, setExpanded] = useState(false)
-  const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [awaiting, setAwaiting] = useState<AwaitingProjection | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -55,14 +54,13 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
   }, [expanded, loops.length])
 
   useEffect(() => {
-    const watchedId = awaiting?.id ?? pending ?? confirmingId
+    const watchedId = awaiting?.id ?? pending
     if (watchedId !== null && !loops.some(loop => loop.id === watchedId)) {
       setAwaiting(null)
       setPending(null)
-      setConfirmingId(null)
       setError(null)
     }
-  }, [awaiting, confirmingId, loops, pending])
+  }, [awaiting, loops, pending])
 
   const remove = async (id: string): Promise<void> => {
     setPending(id)
@@ -86,7 +84,7 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
     <section ref={rootRef} className={css.root} data-testid="loop-dock" data-loop-dock="" aria-label="Active loops">
       {loops.length >= 3 && (
         <div className={css.summary}>
-          <span className={css.glyph} aria-hidden>↻</span>
+          <LoopGlyph />
           <span className={css.summaryText}>{loops.length} active loops · {formatNext(nearest.next_at, now)}</span>
           <button
             type="button"
@@ -109,12 +107,6 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
               loop={loop}
               now={now}
               busy={pending === loop.id}
-              confirming={confirmingId === loop.id}
-              onAskDelete={() => {
-                setConfirmingId(loop.id)
-                setError(null)
-              }}
-              onCancelDelete={() => setConfirmingId(null)}
               onDelete={() => void remove(loop.id)}
             />
           ))}
@@ -126,19 +118,16 @@ export function LoopsView({ useProjection, execute }: LoopsViewProps) {
   )
 }
 
-function LoopRow({ loop, now, busy, confirming, onAskDelete, onCancelDelete, onDelete }: {
+function LoopRow({ loop, now, busy, onDelete }: {
   loop: LoopRecord
   now: number
   busy: boolean
-  confirming: boolean
-  onAskDelete: () => void
-  onCancelDelete: () => void
   onDelete: () => void
 }) {
   const overdue = loop.next_at <= now
   return (
     <li className={css.row} data-loop-id={loop.id}>
-      <span className={css.glyph} aria-hidden>↻</span>
+      <LoopGlyph />
       <span className={css.interval}>every {formatInterval(loop.time_in_seconds)}</span>
       <span
         className={overdue ? css.statusDue : css.status}
@@ -146,23 +135,38 @@ function LoopRow({ loop, now, busy, confirming, onAskDelete, onCancelDelete, onD
       >
         {overdue ? 'overdue' : formatNext(loop.next_at, now)}
       </span>
-      <span className={css.prompt} title={loop.prompt}>{loop.prompt}</span>
+      <span className={css.prompt} title={loop.prompt} aria-label={loop.prompt}>{loop.prompt}</span>
       <div className={css.actions}>
-        {confirming ? (
-          <>
-            <button type="button" className={css.button} onClick={onCancelDelete} disabled={busy}>Cancel</button>
-            <button type="button" className={css.dangerButton} onClick={onDelete} disabled={busy}>{busy ? 'Deleting…' : 'Delete loop'}</button>
-          </>
-        ) : (
-          <button type="button" className={css.dangerButton} onClick={onAskDelete} disabled={busy}>Delete</button>
-        )}
+        <button
+          type="button"
+          className={css.iconButton}
+          onClick={onDelete}
+          disabled={busy}
+          aria-label="Delete"
+          title="Delete"
+        >
+          <TrashGlyph />
+        </button>
       </div>
-      {confirming && (
-        <div className={css.confirmation} role="group" aria-label="Delete confirmation">
-          <p role="alert">Delete this loop? Future deliveries will stop.</p>
-        </div>
-      )}
     </li>
+  )
+}
+
+function LoopGlyph() {
+  return (
+    <span className={css.glyph} aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.92 1.05a6.95 6.95 0 0 1 5.8 3.12l1.01-1.01v3.18h-3.18l1.13-1.13A5.55 5.55 0 1 0 13.48 8h1.39a6.95 6.95 0 1 1-6.95-6.95Z" fill="currentColor" />
+      </svg>
+    </span>
+  )
+}
+
+function TrashGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M4.25 4.5h7.5l-.42 9.05H4.67L4.25 4.5ZM6 6v6.25h1V6H6Zm3 0v6.25h1V6H9ZM3 2.75h3.1l.58-1h2.64l.58 1H13v1H3v-1Z" fill="currentColor" />
+    </svg>
   )
 }
 

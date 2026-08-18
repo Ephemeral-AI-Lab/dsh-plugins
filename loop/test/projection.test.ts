@@ -14,9 +14,9 @@ describe('loop session projection', () => {
     const updated = { ...record, next_at: 10_000 }
     let state: LoopProjection = loopProjectionDefinition.init()
     state = applyLoopProjection(state, { type: 'message', seq: 0, time: 0, data: {} } as never)
-    state = applyLoopProjection(state, event({ version: 1, operation: 'update', loop: updated }))
+    expect(() => applyLoopProjection(state, event({ version: 1, operation: 'update', loop: updated }))).toThrow()
     state = applyLoopProjection(state, event({ version: 1, operation: 'create', loop: record }))
-    state = applyLoopProjection(state, event({ version: 1, operation: 'update', loop: { ...record, id: 'other' } }, 1))
+    expect(() => applyLoopProjection(state, event({ version: 1, operation: 'update', loop: { ...record, id: 'other' } }, 1))).toThrow()
     state = applyLoopProjection(state, event({ version: 1, operation: 'update', loop: updated }, 2))
     state = applyLoopProjection(state, event({ version: 1, operation: 'dispatch', id: 'loop_1', next_at: 20_000 }, 3))
     expect(state.loops).toEqual([{ ...updated, next_at: 20_000 }])

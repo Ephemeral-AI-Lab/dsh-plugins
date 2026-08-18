@@ -132,14 +132,13 @@ describe('loop dock', () => {
     expect(promptNode.className).toMatch(/prompt/u)
   })
 
-  it('requires confirmation and supports cancelling without executing a command', () => {
+  it('deletes from the first click without a confirmation step', async () => {
     const execute = vi.fn(async () => commandSuccess)
     renderLoops({ loops: [record()] }, execute)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(execute).not.toHaveBeenCalled()
-    expect(screen.getByText('Delete this loop? Future deliveries will stop.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(execute).toHaveBeenCalledWith('/loop delete loop_a'))
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
     expect(screen.queryByText('Delete this loop? Future deliveries will stop.')).toBeNull()
   })
 
@@ -149,8 +148,7 @@ describe('loop dock', () => {
     const view = renderLoops(projection, execute)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete loop' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Deleting…' })).toBeTruthy())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' }).hasAttribute('disabled')).toBe(true))
     expect(execute).toHaveBeenCalledOnce()
     expect(execute).toHaveBeenCalledWith('/loop delete loop_a')
     expect(screen.getByText(record().prompt)).toBeTruthy()
@@ -174,17 +172,15 @@ describe('loop dock', () => {
     const execute = vi.fn(async () => result)
     renderLoops({ loops: [record()] }, execute)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete loop' }))
     await waitFor(() => expect(screen.getByText(message)).toBeTruthy())
     expect(screen.getByText(record().prompt)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Delete loop' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
   })
 
   it('converts non-Error command failures to accessible text', async () => {
     const execute = vi.fn(async () => { throw 'remote failed' })
     renderLoops({ loops: [record()] }, execute)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete loop' }))
     await waitFor(() => expect(screen.getAllByRole('alert').some(node => node.textContent?.includes('remote failed'))).toBe(true))
   })
 

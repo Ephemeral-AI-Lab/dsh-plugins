@@ -6,6 +6,7 @@ import {
   createLoopRecord, flushPersistence, foldLoopEvents, LoopInputError, loopView,
   type LoopRuntime,
 } from './loop.js'
+import { LOOP_CHANGE_VERSION } from './types.js'
 
 interface LoopCreateArgs {
   prompt: string
@@ -46,9 +47,9 @@ export function registerLoopTools(
       output: { schema: LOOP_SCHEMA, render: renderJson },
       async execute(args: LoopCreateArgs, _exec) {
         return runtime.transact(async () => {
-          await flushPersistence(rootCtx, agent)
           const record = createLoopRecord(args.prompt, args.time_in_seconds, Date.now())
-          agent.session.append('loop/change', { version: 1, operation: 'create', loop: record })
+          await flushPersistence(rootCtx, agent)
+          agent.session.append('loop/change', { version: LOOP_CHANGE_VERSION, operation: 'create', loop: record })
           await flushPersistence(rootCtx, agent)
           runtime.requestDrive()
           return loopView(record)
@@ -80,7 +81,7 @@ export function registerLoopTools(
           await flushPersistence(rootCtx, agent)
           const folded = fold(agent.session)
           if (!folded.active.some(loop => loop.id === args.id)) throw new LoopInputError(`unknown loop id: ${args.id}`)
-          agent.session.append('loop/change', { version: 1, operation: 'delete', id: args.id })
+          agent.session.append('loop/change', { version: LOOP_CHANGE_VERSION, operation: 'delete', id: args.id })
           await flushPersistence(rootCtx, agent)
           runtime.requestDrive()
           return { deleted: true, id: args.id }

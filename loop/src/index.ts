@@ -14,7 +14,10 @@ export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersis
 
 // Resolve from the running DSH entry point so linked plugins mutate the host's
 // event catalog rather than a duplicate dependency under the plugin checkout.
-const sessionModulePath = createRequire(pathToFileURL(process.argv[1]!)).resolve('@deepseek-ai/dsh-session')
+const sessionModulePath = createRequire(
+  /* c8 ignore next */
+  process.argv[1] === undefined ? import.meta.url : pathToFileURL(process.argv[1]),
+).resolve('@deepseek-ai/dsh-session')
 const { KNOWN_SESSION_EVENT_TYPES } = await import(pathToFileURL(sessionModulePath).href) as {
   KNOWN_SESSION_EVENT_TYPES: typeof SessionEventTypes
 }
@@ -33,7 +36,11 @@ export function apply(ctx: Context): void {
       const attachedAgent = agent
       if (stopping || runtimes.has(attachedAgent) || !ctx.agents.roots().includes(attachedAgent)) return
 
-      const runtime = new LoopRuntime({ ctx, agent: attachedAgent })
+      const runtime = new LoopRuntime({
+        ctx,
+        agent: attachedAgent,
+        onError: error => ctx.logger.warn(`loop runtime failed at ${error.phase} for session "${attachedAgent.session.id}": ${error.message}`),
+      })
       const cleanup = attachedAgent.ctx.effect(() => {
         const disposeTools = registerLoopTools(ctx, attachedAgent.ctx, attachedAgent, runtime)
         runtime.start()

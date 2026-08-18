@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import type { LoopChange, LoopProjection, LoopRecord } from './types.js'
+import { applyLoopChange as applyValidatedLoopChange } from './loop.js'
+import type { LoopProjection } from './types.js'
 import type {} from '@deepseek-ai/dsh-session/types'
 
 interface LoopProjectionDefinition {
@@ -13,10 +14,10 @@ interface LoopProjectionDefinition {
 }
 
 const loopRecordSchema = z.object({
-  id: z.string(),
-  prompt: z.string(),
-  time_in_seconds: z.number().int().positive(),
-  next_at: z.number().int().nonnegative(),
+  id: z.string().min(1).refine(value => value.trim() === value),
+  prompt: z.string().refine(value => value.trim().length > 0),
+  time_in_seconds: z.number().int().positive().refine(Number.isSafeInteger),
+  next_at: z.number().int().nonnegative().refine(Number.isSafeInteger),
   // Accept records written by the previous plugin build, then hide its
   // removed fields from the current projection.
   title: z.string().optional(),
@@ -44,21 +45,6 @@ export function applyLoopProjection(state: LoopProjection, event: SessionEvent):
   return event.type === 'loop/change' ? applyLoopChange(state, event.data) : state
 }
 
-function applyLoopChange(state: LoopProjection, change: LoopChange): LoopProjection {
-  switch (change.operation) {
-    case 'create':
-      return { loops: [...state.loops.filter(loop => loop.id !== change.loop.id), normalizeRecord(change.loop)] }
-    case 'update':
-      return { loops: state.loops.map(loop => loop.id === change.loop.id ? normalizeRecord(change.loop) : loop) }
-    case 'delete':
-      return { loops: state.loops.filter(loop => loop.id !== change.id) }
-    case 'dispatch':
-      return { loops: state.loops.map(loop => loop.id === change.id ? { ...loop, next_at: change.next_at } : loop) }
-  }
-}
-
-function normalizeRecord(record: LoopRecord): LoopRecord {
-  const legacy = record as typeof record & { readonly title?: unknown; readonly allow_steer?: unknown }
-  const { title: _title, allow_steer: _allowSteer, ...current } = legacy
-  return current
+function applyLoopChange(state: LoopProjection, change: unknown): LoopProjection {
+  return { loops: [...applyValidatedLoopChange(state.loops, change)] }
 }

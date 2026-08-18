@@ -3,6 +3,7 @@ import {
   LoopInputError,
   LoopLogError,
   LoopRuntime,
+  LoopRuntimeError,
   createLoopRecord,
   foldLoopEvents,
   loopView,
@@ -93,9 +94,18 @@ describe('loop domain', () => {
 
   it.each([
     ['unsupported version', { version: 2, operation: 'delete', id: 'loop_1' }],
+    ['unknown operation', { version: 1, operation: 'rename', id: 'loop_1' }],
+    ['missing create record', { version: 1, operation: 'create' }],
+    ['missing delete id', { version: 1, operation: 'delete' }],
+    ['missing dispatch fields', { version: 1, operation: 'dispatch' }],
+    ['null record', { version: 1, operation: 'create', loop: null }],
+    ['unknown record field', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, next_at: 1000, extra: true } }],
+    ['invalid legacy title', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, next_at: 1000, title: 1 } }],
+    ['invalid legacy steer flag', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, next_at: 1000, allow_steer: 'no' } }],
     ['invalid record id', { version: 1, operation: 'create', loop: { id: ' ', prompt: 'check', time_in_seconds: 1, next_at: 1000 } }],
     ['invalid record prompt', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: ' ', time_in_seconds: 1, next_at: 1000 } }],
     ['invalid record interval', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 0, next_at: 1000 } }],
+    ['non-numeric record interval', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: '1', next_at: 1000 } }],
     ['invalid record next_at', { version: 1, operation: 'create', loop: { id: 'loop_1', prompt: 'check', time_in_seconds: 1, next_at: -1 } }],
   ])('fails closed for %s persisted data', (_name, data) => {
     expect(() => foldLoopEvents([event(data)])).toThrow(LoopLogError)
@@ -140,6 +150,11 @@ describe('loop domain', () => {
     await expect(flushPersistence(ctx, agent)).rejects.toThrow('Loop persistence did not complete')
   })
 
+  it('rejects an invalid seed boundary', () => {
+    expect(() => foldLoopEvents([], 1)).toThrow(LoopLogError)
+    expect(new LoopRuntimeError('runtime', 'text').message).toBe('text')
+  })
+
   it('does not restart a disposed runtime', async () => {
     const agent = { id: 'runtime', session: { events: [], header: {} } } as never
     const flush = vi.fn(async () => true)
@@ -150,6 +165,108 @@ describe('loop domain', () => {
     runtime.requestDrive()
 
     expect(flush).not.toHaveBeenCalled()
+    await expect(runtime.transact(async () => undefined)).rejects.toThrow('disposed')
+  })
+
+  it.each([
+    ['initial-flush', async () => false, () => undefined],
+    ['send', async () => true, () => { throw new Error('send failed') }],
+    ['dispatch-append', async () => true, () => undefined],
+    ['post-dispatch-flush', async () => true, () => undefined],
+  ] as const)('reports the %s drive failure phase', async (phase, flushResult, sendResult) => {
+    const record = createLoopRecord('check', 1, 0, 'loop_1')
+    const session = {
+      events: [event({ version: 1, operation: 'create', loop: record })],
+      header: {},
+      append: vi.fn(sendResult === undefined ? () => undefined : () => undefined),
+    }
+    const send = vi.fn(sendResult)
+    const flush = vi.fn(flushResult)
+    if (phase === 'dispatch-append') session.append.mockImplementation(() => { throw new Error('append failed') })
+    if (phase === 'post-dispatch-flush') flush.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error('flush failed'))
+    const agent = { id: 'runtime', session, status: 'idle', send } as never
+    const ctx = { agents: { get: vi.fn(() => agent) }, sessions: { flush } } as never
+    const runtime = new LoopRuntime({ ctx, agent })
+
+    runtime.requestDrive()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    expect(runtime.lastError?.phase).toBe(phase)
+    await runtime.dispose()
+  })
+
+  it('wraps malformed runtime failures and tolerates reporting failures', async () => {
+    const agent = {
+      id: 'runtime',
+      session: { events: [event({ version: 1, operation: 'rename', id: 'loop_1' })], header: {} },
+    } as never
+    const report = vi.fn(() => { throw new Error('reporting failed') })
+    const ctx = { agents: { get: vi.fn(() => agent) }, sessions: { flush: vi.fn(async () => true) } } as never
+    const runtime = new LoopRuntime({ ctx, agent, onError: report })
+
+    runtime.requestDrive()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    expect(runtime.lastError).toBeInstanceOf(LoopRuntimeError)
+    expect(runtime.lastError?.phase).toBe('runtime')
+    expect(report).toHaveBeenCalledOnce()
+    await runtime.dispose()
+  })
+
+  it('stops after the agent disappears before send', async () => {
+    const record = createLoopRecord('check', 1, 0, 'loop_1')
+    const agent = {
+      id: 'runtime',
+      session: { events: [event({ version: 1, operation: 'create', loop: record })], header: {} },
+      send: vi.fn(),
+    } as never
+    const getAgent = vi.fn()
+      .mockReturnValueOnce(agent)
+      .mockReturnValueOnce(agent)
+      .mockReturnValue(undefined)
+    const ctx = { agents: { get: getAgent }, sessions: { flush: vi.fn(async () => true) } } as never
+    const runtime = new LoopRuntime({ ctx, agent })
+
+    runtime.requestDrive()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    expect(agent.send).not.toHaveBeenCalled()
+    await runtime.dispose()
+  })
+
+  it('lets a queued delete commit before a blocked drive sends', async () => {
+    const record = createLoopRecord('check', 1, 0, 'loop_1')
+    const session = {
+      events: [event({ version: 1, operation: 'create', loop: record })],
+      header: {},
+      append: vi.fn(),
+    }
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const flushStarted = new Promise<void>(resolve => { started = resolve })
+    const flush = vi.fn(async () => {
+      started()
+      await gate
+      return true
+    })
+    const agent = { id: 'runtime', session, status: 'idle', send: vi.fn() } as never
+    const ctx = { agents: { get: vi.fn(() => agent) }, sessions: { flush } } as never
+    const runtime = new LoopRuntime({ ctx, agent })
+
+    runtime.requestDrive()
+    await flushStarted
+    const deleted = runtime.transact(async () => {
+      session.events.push(event({ version: 1, operation: 'delete', id: record.id }, 1))
+    })
+    release()
+    await deleted
+    await runtime.transact(async () => undefined)
+
+    expect(agent.send).not.toHaveBeenCalled()
+    expect(flush).toHaveBeenCalledTimes(2)
+    expect(foldLoopEvents(session.events).active).toEqual([])
+    await runtime.dispose()
   })
 
   it('stops before folding when the agent disappears during persistence', async () => {
