@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { LoopRuntime } from './loop.js';
@@ -10,7 +11,7 @@ export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersis
 // event catalog rather than a duplicate dependency under the plugin checkout.
 const sessionModulePath = createRequire(
 /* c8 ignore next */
-process.argv[1] === undefined ? import.meta.url : pathToFileURL(process.argv[1])).resolve('@deepseek-ai/dsh-session');
+process.argv[1] === undefined ? import.meta.url : pathToFileURL(realpathSync(process.argv[1]))).resolve('@deepseek-ai/dsh-session');
 const { KNOWN_SESSION_EVENT_TYPES } = await import(pathToFileURL(sessionModulePath).href);
 KNOWN_SESSION_EVENT_TYPES.add('loop/change');
 export function apply(ctx) {

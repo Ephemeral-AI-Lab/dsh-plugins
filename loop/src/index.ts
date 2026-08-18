@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
@@ -16,7 +17,7 @@ export const inject = ['tools', 'commands', 'agents', 'sessions', 'sessionPersis
 // event catalog rather than a duplicate dependency under the plugin checkout.
 const sessionModulePath = createRequire(
   /* c8 ignore next */
-  process.argv[1] === undefined ? import.meta.url : pathToFileURL(process.argv[1]),
+  process.argv[1] === undefined ? import.meta.url : pathToFileURL(realpathSync(process.argv[1])),
 ).resolve('@deepseek-ai/dsh-session')
 const { KNOWN_SESSION_EVENT_TYPES } = await import(pathToFileURL(sessionModulePath).href) as {
   KNOWN_SESSION_EVENT_TYPES: typeof SessionEventTypes
