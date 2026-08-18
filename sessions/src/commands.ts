@@ -1,29 +1,34 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
 import type { CreateSessionArgs, ListStatusArgs, ReadSessionArgs, SessionSendArgs, SessionSendMode, SessionStatusView } from './types.js'
+import { SideChatService } from './sidechat/sidechat-service.js'
+import type { SideChatOpenArgs } from './sidechat/sidechat-types.js'
 import { formatReadSessionOutput } from './read-format.js'
 import { SessionCreationService } from './creation-service.js'
 import { SessionSendService } from './send-service.js'
 import { SessionsService, parseReadSessionArgs, validateRecentN } from './service.js'
 
-const USAGE = 'Usage: /sessions status [SESSION_ID] [--recent N] | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | /sessions send SESSION_ID MESSAGE [--mode steer|followup]'
+const USAGE = 'Usage: /sessions status [SESSION_ID] [--recent N] | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | /sessions send SESSION_ID MESSAGE [--mode steer|followup] | /sessions sidechat "PROMPT"'
 
 export type SessionsCommand =
   | { kind: 'status'; args: ListStatusArgs }
   | { kind: 'read'; args: ReadSessionArgs }
   | { kind: 'create'; args: CreateSessionArgs }
   | { kind: 'send'; args: SessionSendArgs }
+  | { kind: 'sidechat'; args: SideChatOpenArgs }
+  | { kind: 'sidechat-send'; args: { subagent_id: string; message: string } }
 
 export function registerSessionsCommand(
   ctx: Context,
   service: SessionsService,
   creationService?: SessionCreationService,
   sendService?: SessionSendService,
+  sideChatService?: SideChatService,
 ): () => void {
   return ctx.commands.register({
     name: 'sessions',
     description: 'List session status, read, create, or send messages to sessions.',
-    input: { hint: 'status [SESSION_ID] [--recent N] | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | send SESSION_ID MESSAGE [--mode steer|followup]' },
+    input: { hint: 'status [SESSION_ID] [--recent N] | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | send SESSION_ID MESSAGE [--mode steer|followup] | sidechat "PROMPT"' },
     recordInput: false,
     handler: async ({ agent, rawInput, signal }): Promise<CommandResult> => {
       const command = parseSessionsCommand(rawInput)
@@ -47,6 +52,14 @@ export function registerSessionsCommand(
           if (sendService === undefined) return { kind: 'error', text: 'Session sending is unavailable.' }
           return { kind: 'success', text: JSON.stringify(await sendService.send(command.args, agent, signal)) }
         }
+        if (command.kind === 'sidechat') {
+          if (sideChatService === undefined) return { kind: 'error', text: 'Side-chat creation is unavailable.' }
+          return { kind: 'success', text: JSON.stringify(await sideChatService.open(command.args, agent, signal)) }
+        }
+        if (command.kind === 'sidechat-send') {
+          if (sideChatService === undefined) return { kind: 'error', text: 'Side-chat continuation is unavailable.' }
+          return { kind: 'success', text: JSON.stringify(await sideChatService.send(command.args.subagent_id, command.args.message, agent, signal)) }
+        }
         if (creationService === undefined) return { kind: 'error', text: 'Session creation is unavailable.' }
         return { kind: 'success', text: JSON.stringify(await creationService.createSession(command.args, agent, signal)) }
       } catch (error: unknown) {
@@ -58,6 +71,18 @@ export function registerSessionsCommand(
 
 export function parseSessionsCommand(rawInput: string): SessionsCommand | undefined {
   const input = rawInput.trim()
+
+  const sideChatMatch = /^sidechat(?:\s+([\s\S]*))?$/u.exec(input)
+  if (sideChatMatch !== null) {
+    const args = parseSideChatArgs(sideChatMatch[1] ?? '')
+    return args === undefined ? undefined : { kind: 'sidechat', args }
+  }
+
+  const sideChatSendMatch = /^sidechat-send(?:\s+([\s\S]*))?$/u.exec(input)
+  if (sideChatSendMatch !== null) {
+    const args = parseSideChatSendArgs(sideChatSendMatch[1] ?? '')
+    return args === undefined ? undefined : { kind: 'sidechat-send', args }
+  }
 
   const createMatch = /^create(?:\s+([\s\S]*))?$/u.exec(input)
   if (createMatch !== null) {
@@ -90,6 +115,22 @@ export function parseSessionsCommand(rawInput: string): SessionsCommand | undefi
   }
 
   return undefined
+}
+
+export function parseSideChatArgs(rawInput: string): SideChatOpenArgs | undefined {
+  const tokens = tokenize(rawInput.trim())
+  if (tokens === undefined || tokens.length === 0) return undefined
+  const prompt = tokens.join(' ')
+  return prompt.trim().length === 0 ? undefined : { prompt }
+}
+
+function parseSideChatSendArgs(rawInput: string): { subagent_id: string; message: string } | undefined {
+  const input = rawInput.trim()
+  const separator = /\s/u.exec(input)
+  if (separator === null) return undefined
+  const subagentId = input.slice(0, separator.index)
+  const message = input.slice(separator.index + separator[0].length).trim()
+  return subagentId.trim() === '' || message === '' ? undefined : { subagent_id: subagentId, message }
 }
 
 function parseStatusArgs(rawOptions: string): ListStatusArgs | undefined {

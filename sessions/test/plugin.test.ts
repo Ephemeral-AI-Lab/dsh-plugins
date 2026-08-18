@@ -40,6 +40,7 @@ describe('dsh-sessions plugin', () => {
       'session_read',
       'session_create',
       'session_send',
+      'session_open_sidechat',
     ])
     expect(commands.map(command => command.name)).toEqual(['sessions'])
 

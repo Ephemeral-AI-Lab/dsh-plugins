@@ -6,11 +6,17 @@ import type { CommandResult } from '@deepseek-ai/dsh-commands/types'
 import { SessionsPopupController } from './controller.js'
 import { SessionsResultPopup, type SessionsResultPopupInjected } from './SessionsResultPopup.js'
 import { sessionReadToolview } from './SessionReadRow.js'
+import { isSideChatResult } from '../sidechat/sidechat-types.js'
+import { SideChatPanel, type SideChatPanelInjected } from './sidechat/SideChatPanel.js'
+import type { SideChatConversationSnapshot } from '../sidechat/sidechat-types.js'
+import type { SideChatMessage } from '../sidechat/sidechat-types.js'
+import { SideChatStore } from './sidechat/sidechat-store.js'
 
-export const inject = ['slots', 'sessions']
+export const inject = ['slots', 'sessions', 'remote', 'remote.commands']
 
 export function apply(ctx: ClientContext): void {
-  ctx.inject(['slots', 'sessions'], (scope: ClientContext) => {
+  const sideChats = new SideChatStore()
+  ctx.inject(['slots', 'sessions', 'remote', 'remote.commands'], (scope: ClientContext) => {
     sessionReadToolview.apply(scope)
     const controllers = new Map<SessionId, SessionsPopupController>()
     const controllerFor = (sessionId: SessionId): SessionsPopupController => {
@@ -23,8 +29,62 @@ export function apply(ctx: ClientContext): void {
     }
 
     scope.on('command/executed', (sessionId: SessionId, commandName: string, result: CommandResult) => {
-      if (commandName === 'sessions') controllerFor(sessionId).show(result)
+      if (commandName !== 'sessions') return
+      const sideChat = parseSideChatResult(result)
+      if (sideChat !== undefined) {
+        sideChats.open(String(sessionId), sideChat)
+        return
+      }
+      controllerFor(sessionId).show(result)
     })
+
+    scope.slots.inject('shell.overlay', () => scope.slots.register({
+      name: 'shell.overlay',
+      id: 'sessions-sidechat-panel',
+      order: 20,
+      inject: (): SideChatPanelInjected => ({
+        store: sideChats,
+        sendMessage: async (mainSessionId, subagentId, message) => {
+          const result = await scope.remote.commands.execute(
+            mainSessionId as SessionId,
+            `/sessions sidechat-send ${subagentId} ${message}`,
+          )
+          if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+          if (result.value === undefined || result.value.result.kind === 'error') {
+            throw new Error(result.value?.result.text ?? 'side-chat continuation was not accepted')
+          }
+          sideChats.settle(mainSessionId, subagentId, 'running', 'live')
+        },
+        loadConversation: async (mainSessionId, subagentId) => {
+          const read = scope.sessions.readSubagentHistory
+          if (read === undefined) {
+            return {
+              messages: [],
+              status: 'error',
+              residency: 'cold',
+              canContinue: true,
+            } satisfies SideChatConversationSnapshot
+          }
+          const result = await read({
+            parentSessionId: mainSessionId as SessionId,
+            childSessionId: subagentId as SessionId,
+            mode: 'continuable',
+          }, { maxMessages: 100 })
+          if (!result.ok) {
+            return {
+              messages: [],
+              status: 'error',
+              residency: 'cold',
+              canContinue: true,
+            } satisfies SideChatConversationSnapshot
+          }
+          return {
+            messages: sideChatMessages(result.value.events),
+            ...sideChatState(result.value.events, result.value.activity),
+          }
+        },
+      }),
+    }, SideChatPanel))
 
     scope.slots.inject('conversation.input.overlay', () => scope.slots.register({
       name: 'conversation.input.overlay',
@@ -45,6 +105,58 @@ export function apply(ctx: ClientContext): void {
       key: 'sessions',
     }, () => null))
   })
+}
+
+function parseSideChatResult(result: CommandResult) {
+  if (result.kind !== 'success' || result.text === undefined) return undefined
+  try {
+    const value: unknown = JSON.parse(result.text)
+    return isSideChatResult(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function sideChatMessages(events: readonly import('@deepseek-ai/dsh-api-remotes/client').HistoryEntry[]): readonly SideChatMessage[] {
+  const messages: SideChatMessage[] = []
+  for (const entry of events) {
+    const event = entry.event
+    if (event.type !== 'user/message' && event.type !== 'assistant/message' && event.type !== 'tool/result') continue
+    const message = event.data.message
+    messages.push({
+      id: String(message.id ?? event.seq),
+      role: event.type === 'user/message' ? 'user' : event.type === 'tool/result' ? 'tool' : 'assistant',
+      text: contentText(message.content),
+    })
+  }
+  return messages
+}
+
+function sideChatState(
+  events: readonly import('@deepseek-ai/dsh-api-remotes/client').HistoryEntry[],
+  activity: 'running' | 'inactive' | undefined,
+): Pick<SideChatConversationSnapshot, 'status' | 'residency' | 'canContinue'> {
+  const ending = [...events].reverse().find(entry => entry.event.type === 'turn/end')?.event
+  if (ending?.type !== 'turn/end') {
+    return { status: 'running', residency: activity === 'running' ? 'live' : 'cold', canContinue: true }
+  }
+  const reason = ending.data.reason
+  const status = reason.kind === 'error'
+    ? 'error'
+    : reason.kind === 'aborted' && reason.reason.kind === 'parent'
+      ? 'finished'
+      : activity === 'running' ? 'idle' : 'finished'
+  return { status, residency: activity === 'running' ? 'live' : 'cold', canContinue: true }
+}
+
+function contentText(content: readonly unknown[]): string {
+  return content.map(block => {
+    if (typeof block !== 'object' || block === null) return String(block)
+    const record = block as Record<string, unknown>
+    if (typeof record.text === 'string') return record.text
+    if (record.type === 'tool-call' && typeof record.name === 'string') return `[${record.name}]`
+    return `[${String(record.type ?? 'content')}]`
+  }).join('')
 }
 
 export { SessionsPopupController } from './controller.js'
