@@ -25,25 +25,13 @@ export interface CreateSessionResult {
   cwd?: string
 }
 
-export interface ListSessionsArgs {
-  limit?: number
-}
-
 export type SessionStatus = 'running' | 'idle' | 'cold'
 
-export interface SessionView {
-  session_id: string
-  title?: string
-  status: SessionStatus
-  updated_at: string
-}
-
-export interface ListSessionsResult {
-  sessions: SessionView[]
-}
-
-export interface CheckSessionStatusArgs {
-  session_id: string
+export interface ListStatusArgs {
+  /** Exact session to inspect; omitted to list recent sessions. */
+  session_id?: string
+  /** Number of recent sessions to return when session_id is omitted. */
+  recent_n?: number
 }
 
 export type CheckedSessionStatus = SessionStatus | 'missing'
@@ -53,6 +41,11 @@ export interface SessionStatusView {
   title?: string
   status: CheckedSessionStatus
   updated_at?: string
+}
+
+export interface ListStatusResult {
+  /** One row per recent session, or one row for an exact session query. */
+  sessions: SessionStatusView[]
 }
 
 export interface ReadSessionArgs {

@@ -4,11 +4,10 @@ Session discovery and creation for DeepSeek Harness.
 
 It provides:
 
-- `list_sessions({ limit? })` for agent-facing session selection;
-- `check_session_status({ session_id })` for one exact session;
+- `list_status({ session_id?, recent_n? })` for recent session status or one exact session;
 - `read_session({ session_id, offset?, limit? })` for bounded reconstructed message reads;
 - `create_session({ prompt, preset?, model?, cwd? })` for a fresh session with an initial prompt;
-- `/sessions list [--limit N]`, `/sessions status SESSION_ID`,
+- `/sessions status [SESSION_ID] [--recent N]`,
   `/sessions read SESSION_ID [--offset N] [--limit N]`, and
   `/sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]`
   for human-readable views and session creation.
@@ -16,10 +15,14 @@ It provides:
 The slash command syntax is:
 
 ```text
-/sessions list [--limit N]
-/sessions status SESSION_ID
+/sessions status [SESSION_ID] [--recent N]
 /sessions read SESSION_ID [--offset N] [--limit N]
 ```
+
+`list_status` returns the 50 most recently updated sessions by default. Pass
+`recent_n` to change that count, or pass `session_id` to inspect one exact
+session. The exact-session form still returns a `sessions` array containing one
+row; a missing ID is reported with status `missing`.
 
 `create_session` queues the initial prompt and returns as soon as the new
 session accepts it. `preset` and `model` are optional: they inherit from the

@@ -2,10 +2,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { parseCreateSessionArgs, parseSessionsCommand, registerSessionsCommand } from '../src/commands.js'
 
 describe('sessions slash command', () => {
-  it('parses list, status, and read subcommands', () => {
-    expect(parseSessionsCommand('list')).toEqual({ kind: 'list', args: {} })
-    expect(parseSessionsCommand('list --limit 20')).toEqual({ kind: 'list', args: { limit: 20 } })
-    expect(parseSessionsCommand('status session-1')).toEqual({ kind: 'status', session_id: 'session-1' })
+  it('parses status and read subcommands', () => {
+    expect(parseSessionsCommand('status')).toEqual({ kind: 'status', args: {} })
+    expect(parseSessionsCommand('status --recent 20')).toEqual({ kind: 'status', args: { recent_n: 20 } })
+    expect(parseSessionsCommand('status session-1')).toEqual({ kind: 'status', args: { session_id: 'session-1' } })
+    expect(parseSessionsCommand('status session-1 --recent=20')).toEqual({
+      kind: 'status',
+      args: { session_id: 'session-1', recent_n: 20 },
+    })
     expect(parseSessionsCommand('read session-1')).toEqual({ kind: 'read', args: { session_id: 'session-1' } })
     expect(parseSessionsCommand('read session-1 --offset 3 --limit 20')).toEqual({
       kind: 'read',
@@ -37,8 +41,9 @@ describe('sessions slash command', () => {
 
   it('rejects invalid input', () => {
     expect(parseSessionsCommand('')).toBeUndefined()
-    expect(parseSessionsCommand('list 20')).toBeUndefined()
-    expect(parseSessionsCommand('list --limit 0')).toBeUndefined()
+    expect(parseSessionsCommand('list')).toBeUndefined()
+    expect(parseSessionsCommand('status --recent 0')).toBeUndefined()
+    expect(parseSessionsCommand('status --recent 1 --recent 2')).toBeUndefined()
     expect(parseSessionsCommand('read session-1 --offset 0')).toBeUndefined()
     expect(parseSessionsCommand('read session-1 --limit 201')).toBeUndefined()
     expect(parseSessionsCommand('read session-1 --offset 1 --offset 2')).toBeUndefined()
@@ -53,7 +58,7 @@ describe('sessions slash command', () => {
 
   it('renders the service result with title and id fallback', async () => {
     const service = {
-      listSessions: vi.fn(async () => ({
+      listStatus: vi.fn(async () => ({
         sessions: [
           { session_id: 'named-id', title: 'Named', status: 'idle', updated_at: '2026-01-01T00:00:00.000Z' },
           { session_id: 'fallback-id', status: 'cold', updated_at: '2026-01-02T00:00:00.000Z' },
@@ -71,11 +76,11 @@ describe('sessions slash command', () => {
     }
 
     registerSessionsCommand(ctx as never, service as never)
-    const result = await definition!.handler({ rawInput: 'list --limit 2', signal: new AbortController().signal }) as { kind: string; text: string }
+    const result = await definition!.handler({ rawInput: 'status --recent 2', signal: new AbortController().signal }) as { kind: string; text: string }
     expect(result.kind).toBe('success')
     expect(result.text).toContain('Named')
     expect(result.text).toContain('fallback-id')
-    expect(service.listSessions).toHaveBeenCalledWith({ limit: 2 }, expect.any(AbortSignal))
+    expect(service.listStatus).toHaveBeenCalledWith({ recent_n: 2 }, expect.any(AbortSignal))
   })
 
   it('creates a session through the shared creation service', async () => {

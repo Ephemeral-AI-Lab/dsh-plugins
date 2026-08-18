@@ -4,24 +4,26 @@ import { SessionId as makeSessionId, Session, type SessionEvent, type SessionHea
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionTitleObservationResult } from '@deepseek-ai/dsh-session-query'
 import type {
-  CheckSessionStatusArgs,
-  ListSessionsArgs,
-  ListSessionsResult,
+  ListStatusArgs,
+  ListStatusResult,
   ReadSessionArgs,
   ReadSessionMessage,
   ReadSessionResult,
   SessionStatus,
   SessionStatusView,
-  SessionView,
 } from './types.js'
 
 export const READ_SESSION_LIMIT = 200
+export const LIST_STATUS_DEFAULT_RECENT_N = 50
 
 export class SessionsService {
   constructor(private readonly ctx: Context) {}
 
-  async listSessions(args: ListSessionsArgs = {}, signal?: AbortSignal): Promise<ListSessionsResult> {
-    validateLimit(args.limit)
+  async listStatus(args: ListStatusArgs = {}, signal?: AbortSignal): Promise<ListStatusResult> {
+    validateRecentN(args.recent_n)
+    if (args.session_id !== undefined) {
+      return { sessions: [await this.readStatus(args.session_id, signal)] }
+    }
 
     const headers = await this.ctx.sessionPersistence.list(signal)
     const liveAgents = this.ctx.agents.list()
@@ -44,7 +46,7 @@ export class SessionsService {
         ...title === undefined ? {} : { title },
         status: statusOf(record.agent),
         updated_at: new Date(updatedAt).toISOString(),
-      } satisfies SessionView
+      } satisfies SessionStatusView
     })
 
     sessions.sort((left, right) => {
@@ -53,16 +55,16 @@ export class SessionsService {
     })
 
     return {
-      sessions: args.limit === undefined ? sessions : sessions.slice(0, args.limit),
+      sessions: sessions.slice(0, args.recent_n ?? LIST_STATUS_DEFAULT_RECENT_N),
     }
   }
 
-  async checkSessionStatus(
-    args: CheckSessionStatusArgs,
+  private async readStatus(
+    sessionId: string,
     signal?: AbortSignal,
   ): Promise<SessionStatusView> {
-    requireSessionId(args.session_id)
-    const id = args.session_id
+    requireSessionId(sessionId)
+    const id = sessionId.trim()
     const agent = this.ctx.agents.get(makeSessionId(id))
     const header = agent?.session.header ?? (await this.ctx.sessionPersistence.list(signal))
       .find(candidate => String(candidate.id) === id)
@@ -129,9 +131,9 @@ function latestEventTime(agent: Agent | undefined): number | undefined {
   return agent?.session.events.at(-1)?.time
 }
 
-export function validateLimit(limit: number | undefined): void {
-  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit <= 0)) {
-    throw new Error('limit must be a positive safe integer')
+export function validateRecentN(recentN: number | undefined): void {
+  if (recentN !== undefined && (!Number.isSafeInteger(recentN) || recentN <= 0)) {
+    throw new Error('recent_n must be a positive safe integer')
   }
 }
 

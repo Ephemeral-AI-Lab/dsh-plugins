@@ -36,9 +36,8 @@ describe('dsh-sessions plugin', () => {
 
     apply(ctx as never)
     expect(tools.map(tool => tool.name)).toEqual([
-      'list_sessions',
+      'list_status',
       'read_session',
-      'check_session_status',
       'create_session',
     ])
     expect(commands.map(command => command.name)).toEqual(['sessions'])

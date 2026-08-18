@@ -7,8 +7,8 @@ describe('sessions composer autocomplete', () => {
   })
 
   it('treats zero, one, or multiple spaces between command words alike', () => {
-    expect(previewForDraft('/sessionslist')).toEqual({ kind: 'list' })
-    expect(previewForDraft('/sessions  list')).toEqual({ kind: 'list' })
+    expect(previewForDraft('/sessionslist')).toBeUndefined()
+    expect(previewForDraft('/sessions  list')).toBeUndefined()
     expect(previewForDraft('  /sessions    status   ')).toEqual({ kind: 'status' })
     expect(previewForDraft('/sessions   read   session-123')).toMatchObject({
       kind: 'read-options',

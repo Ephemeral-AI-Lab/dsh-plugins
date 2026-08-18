@@ -1,9 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionCreationService } from '../creation-service.js'
 import { SessionsService } from '../service.js'
-import { registerCheckSessionStatusTool } from './check-session-status.js'
 import { registerCreateSessionTool } from './create-session.js'
-import { registerListSessionsTool } from './list-sessions.js'
+import { registerListStatusTool } from './list-status.js'
 import { registerReadSessionTool } from './read-session.js'
 
 export function registerSessionTools(
@@ -12,9 +11,8 @@ export function registerSessionTools(
   creationService?: SessionCreationService,
 ): () => void {
   const disposers = [
-    registerListSessionsTool(ctx, service),
+    registerListStatusTool(ctx, service),
     registerReadSessionTool(ctx, service),
-    registerCheckSessionStatusTool(ctx, service),
     ...creationService === undefined ? [] : [registerCreateSessionTool(ctx, creationService)],
   ]
 
@@ -23,7 +21,6 @@ export function registerSessionTools(
   }
 }
 
-export { registerCheckSessionStatusTool } from './check-session-status.js'
 export { registerCreateSessionTool } from './create-session.js'
-export { registerListSessionsTool } from './list-sessions.js'
+export { registerListStatusTool } from './list-status.js'
 export { registerReadSessionTool } from './read-session.js'

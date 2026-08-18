@@ -1,15 +1,14 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
-import type { CreateSessionArgs, ListSessionsArgs, ReadSessionArgs, SessionStatusView } from './types.js'
+import type { CreateSessionArgs, ListStatusArgs, ReadSessionArgs, SessionStatusView } from './types.js'
 import { formatReadSessionOutput } from './read-format.js'
 import { SessionCreationService } from './creation-service.js'
-import { SessionsService, parseReadSessionArgs, validateLimit } from './service.js'
+import { SessionsService, parseReadSessionArgs, validateRecentN } from './service.js'
 
-const USAGE = 'Usage: /sessions list [--limit N] | /sessions status SESSION_ID | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]'
+const USAGE = 'Usage: /sessions status [SESSION_ID] [--recent N] | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]'
 
 export type SessionsCommand =
-  | { kind: 'list'; args: ListSessionsArgs }
-  | { kind: 'status'; session_id: string }
+  | { kind: 'status'; args: ListStatusArgs }
   | { kind: 'read'; args: ReadSessionArgs }
   | { kind: 'create'; args: CreateSessionArgs }
 
@@ -20,19 +19,23 @@ export function registerSessionsCommand(
 ): () => void {
   return ctx.commands.register({
     name: 'sessions',
-    description: 'List, inspect, read, or create sessions.',
-    input: { hint: 'list [--limit N] | status SESSION_ID | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]' },
+    description: 'List session status, read, or create sessions.',
+    input: { hint: 'status [SESSION_ID] [--recent N] | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]' },
     recordInput: false,
     handler: async ({ agent, rawInput, signal }): Promise<CommandResult> => {
       const command = parseSessionsCommand(rawInput)
       if (command === undefined) return { kind: 'error', text: USAGE }
 
       try {
-        if (command.kind === 'list') {
-          return { kind: 'success', text: formatSessions(await service.listSessions(command.args, signal)) }
-        }
         if (command.kind === 'status') {
-          return { kind: 'success', text: formatStatus(await service.checkSessionStatus({ session_id: command.session_id }, signal)) }
+          const result = await service.listStatus(command.args, signal)
+          const session = result.sessions[0]
+          return {
+            kind: 'success',
+            text: command.args.session_id !== undefined && session !== undefined
+              ? formatStatus(session)
+              : formatSessions(result),
+          }
         }
         if (command.kind === 'read') {
           return { kind: 'success', text: formatReadSessionOutput(await service.readSession(command.args, signal)) }
@@ -48,7 +51,6 @@ export function registerSessionsCommand(
 
 export function parseSessionsCommand(rawInput: string): SessionsCommand | undefined {
   const input = rawInput.trim()
-  if (input === 'list') return { kind: 'list', args: {} }
 
   const createMatch = /^create(?:\s+([\s\S]*))?$/u.exec(input)
   if (createMatch !== null) {
@@ -56,19 +58,11 @@ export function parseSessionsCommand(rawInput: string): SessionsCommand | undefi
     return args === undefined ? undefined : { kind: 'create', args }
   }
 
-  const listMatch = /^list\s+--limit(?:\s+|=)(\d+)$/u.exec(input)
-  if (listMatch !== null) {
-    const limit = Number(listMatch[1])
-    try {
-      validateLimit(limit)
-    } catch {
-      return undefined
-    }
-    return { kind: 'list', args: { limit } }
+  const statusMatch = /^status(?:\s+([\s\S]*))?$/u.exec(input)
+  if (statusMatch !== null) {
+    const args = parseStatusArgs(statusMatch[1] ?? '')
+    return args === undefined ? undefined : { kind: 'status', args }
   }
-
-  const statusMatch = /^status\s+(\S+)$/u.exec(input)
-  if (statusMatch !== null) return { kind: 'status', session_id: statusMatch[1]! }
 
   const readMatch = /^read\s+(\S+)(?:\s+(.*))?$/u.exec(input)
   if (readMatch !== null) {
@@ -83,6 +77,38 @@ export function parseSessionsCommand(rawInput: string): SessionsCommand | undefi
   }
 
   return undefined
+}
+
+function parseStatusArgs(rawOptions: string): ListStatusArgs | undefined {
+  const tokens = rawOptions.trim() === '' ? [] : rawOptions.trim().split(/\s+/u)
+  let sessionId: string | undefined
+  let recentN: number | undefined
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]!
+    const equals = token.indexOf('=')
+    const name = equals < 0 ? token : token.slice(0, equals)
+    if (name === '--recent' || name === '--recent-n') {
+      if (recentN !== undefined) return undefined
+      const rawValue = equals < 0 ? tokens[index + 1] : token.slice(equals + 1)
+      if (rawValue === undefined || !/^\d+$/u.test(rawValue)) return undefined
+      if (equals < 0) index += 1
+      recentN = Number(rawValue)
+      continue
+    }
+    if (token.startsWith('--') || sessionId !== undefined) return undefined
+    sessionId = token
+  }
+
+  try {
+    validateRecentN(recentN)
+  } catch {
+    return undefined
+  }
+  return {
+    ...sessionId === undefined ? {} : { session_id: sessionId },
+    ...recentN === undefined ? {} : { recent_n: recentN },
+  }
 }
 
 /**
@@ -312,5 +338,5 @@ interface SessionRow {
   session_id: string
   title?: string
   status: string
-  updated_at: string
+  updated_at?: string
 }

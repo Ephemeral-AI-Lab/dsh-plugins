@@ -50,7 +50,7 @@ describe('SessionsService', () => {
       ],
     })
 
-    await expect(service.listSessions()).resolves.toEqual({
+    await expect(service.listStatus()).resolves.toEqual({
       sessions: [
         { session_id: 'live', title: 'Live task', status: 'running', updated_at: new Date(4000).toISOString() },
         { session_id: 'cold', title: 'Cold task', status: 'cold', updated_at: new Date(1000).toISOString() },
@@ -67,7 +67,7 @@ describe('SessionsService', () => {
       titles: [{ sessionId: missingTitle.id, status: 'rejected', reason: new Error('title unavailable') }],
     })
 
-    await expect(service.listSessions()).resolves.toEqual({
+    await expect(service.listStatus()).resolves.toEqual({
       sessions: [{ session_id: 'missing-title', status: 'cold', updated_at: new Date(1000).toISOString() }],
     })
   })
@@ -77,14 +77,25 @@ describe('SessionsService', () => {
     const second = header('second', 2000)
     const { service } = makeService({ headers: [first, second] })
 
-    await expect(service.listSessions({ limit: 1 })).resolves.toEqual({
+    await expect(service.listStatus({ recent_n: 1 })).resolves.toEqual({
       sessions: [{ session_id: 'second', status: 'cold', updated_at: new Date(2000).toISOString() }],
     })
   })
 
-  it('rejects invalid limits', async () => {
+  it('defaults to the 50 most recent sessions', async () => {
+    const headers = Array.from({ length: 51 }, (_, index) => header(`session-${index}`, index + 1))
+    const { service } = makeService({ headers })
+
+    const result = await service.listStatus()
+
+    expect(result.sessions).toHaveLength(50)
+    expect(result.sessions[0]?.session_id).toBe('session-50')
+    expect(result.sessions.at(-1)?.session_id).toBe('session-1')
+  })
+
+  it('rejects invalid recent counts', async () => {
     const { service } = makeService()
-    await expect(service.listSessions({ limit: 0 })).rejects.toThrow('limit must be a positive safe integer')
+    await expect(service.listStatus({ recent_n: 0 })).rejects.toThrow('recent_n must be a positive safe integer')
   })
 
   it('reads a live session using a 1-based offset and bounded limit', async () => {
@@ -148,14 +159,14 @@ describe('SessionsService', () => {
       titles: [{ sessionId: live.id, status: 'fulfilled', value: { session: live, title: { title: 'Live task' } } }],
     })
 
-    await expect(service.checkSessionStatus({ session_id: 'live' })).resolves.toMatchObject({
-      session_id: 'live', title: 'Live task', status: 'idle', updated_at: new Date(3000).toISOString(),
+    await expect(service.listStatus({ session_id: 'live' })).resolves.toMatchObject({
+      sessions: [{ session_id: 'live', title: 'Live task', status: 'idle', updated_at: new Date(3000).toISOString() }],
     })
-    await expect(service.checkSessionStatus({ session_id: 'cold' })).resolves.toMatchObject({
-      session_id: 'cold', status: 'cold', updated_at: new Date(1000).toISOString(),
+    await expect(service.listStatus({ session_id: 'cold' })).resolves.toMatchObject({
+      sessions: [{ session_id: 'cold', status: 'cold', updated_at: new Date(1000).toISOString() }],
     })
-    await expect(service.checkSessionStatus({ session_id: 'missing' })).resolves.toEqual({
-      session_id: 'missing', status: 'missing',
+    await expect(service.listStatus({ session_id: 'missing' })).resolves.toEqual({
+      sessions: [{ session_id: 'missing', status: 'missing' }],
     })
     expect(ctx.agents.get).toHaveBeenCalled()
   })

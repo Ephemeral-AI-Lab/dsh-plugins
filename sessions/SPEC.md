@@ -17,15 +17,11 @@ the two packages can be composed without duplicate session-management tools.
 
 ## 1. Package boundary
 
-The package lives at `dsh-plugins/sessions` and exposes four agent-facing tools
+The package lives at `dsh-plugins/sessions` and exposes three agent-facing tools
 and one human-facing slash command:
 
 ```ts
-list_sessions({ limit?: number }) -> { sessions: SessionView[] }
-```
-
-```ts
-check_session_status({ session_id: string }) -> SessionStatusView
+list_status({ session_id?: string, recent_n?: number }) -> { sessions: SessionStatusView[] }
 ```
 
 ```ts
@@ -48,8 +44,7 @@ create_session({
 ```
 
 ```text
-/sessions list [--limit N]
-/sessions status SESSION_ID
+/sessions status [SESSION_ID] [--recent N]
 /sessions read SESSION_ID [--offset N] [--limit N]
 /sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]
 ```
@@ -81,46 +76,33 @@ multiple spaces between `/sessions` and the subcommand equivalently.
 
 ## 2. Tool contract
 
-### `list_sessions`
+### `list_status`
 
-The argument may be empty:
-
-```ts
-list_sessions({})
-```
-
-An optional positive `limit` bounds the number of returned sessions. Results
-are ordered by `updated_at` descending when that value is available.
+The argument may be empty. With no `session_id`, the result contains the most
+recent sessions:
 
 ```ts
-interface SessionView {
-  session_id: string
-  /** Latest durable title, when a title event exists. */
-  title?: string
-  status: "running" | "idle" | "cold"
-  updated_at: string
-}
+list_status({})
 ```
 
-The output contains each session at most once. A live agent takes precedence
-over a persisted header with the same `session_id`.
-
-### `check_session_status`
-
-This targeted read checks one exact ID without loading it into an agent:
+`recent_n` is an optional positive safe integer and defaults to 50. Results are
+ordered by `updated_at` descending. When `session_id` is supplied, the result
+contains exactly one row for that ID instead of the recent-session list.
 
 ```ts
 interface SessionStatusView {
   session_id: string
+  /** Latest durable title, when a title event exists. */
   title?: string
   status: "running" | "idle" | "cold" | "missing"
   updated_at?: string
 }
 ```
 
-`missing` means no live agent and no persisted session header exist. A missing
-session has no `updated_at`. The command and tool share the same title and
-fallback rules as `list_sessions`.
+The output contains each recent session at most once. A live agent takes
+precedence over a persisted header with the same `session_id`. For an exact
+query, `missing` means no live agent and no persisted session header exist; a
+missing session has no `updated_at`.
 
 ### `read_session`
 
@@ -286,7 +268,9 @@ it has recent history.
 ## 4. Validation and errors
 
 - Empty arguments are valid.
-- `limit`, when supplied, must be a positive safe integer.
+- `list_status.recent_n`, when supplied, must be a positive safe integer and
+  defaults to 50.
+- `list_status.session_id`, when supplied, must be a non-empty string.
 - `read_session.offset`, when supplied, must be a positive safe integer.
 - `read_session.limit`, when supplied, must be a positive safe integer no greater than 200.
 - `create_session.prompt`, `model.provider`, `model.model`, and `preset`, when
@@ -326,9 +310,13 @@ second scheduler.
 - Applies `limit` after merging and ordering.
 - Rejects invalid limits and unknown properties.
 - Does not mutate session persistence or agent state.
-- `/sessions list` lists the same data as `list_sessions`.
-- `/sessions list --limit N` applies the same positive-integer validation.
-- `/sessions status SESSION_ID` lists the same data as `check_session_status`.
+- `list_status({})` returns the 50 most recently updated sessions by default.
+- `list_status({ recent_n: N })` applies the same positive-integer validation.
+- `list_status({ session_id })` returns one exact status row, including
+  `missing` when the ID does not exist.
+- `/sessions status` lists the same data as `list_status({})`.
+- `/sessions status --recent N` passes `recent_n: N`.
+- `/sessions status SESSION_ID` passes `session_id` and renders its exact row.
 - `/sessions read SESSION_ID` returns the same bounded message window as `read_session`.
 - `read_session` does not prefix messages with generated line numbers.
 - `create_session` queues an initial prompt and returns a queued result.

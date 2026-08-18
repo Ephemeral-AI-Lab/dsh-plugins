@@ -25,6 +25,6 @@ export function apply(ctx: Context): void {
 
 export { registerSessionsCommand, parseSessionsCommand } from './commands.js'
 export { SessionCreationService } from './creation-service.js'
-export { READ_SESSION_LIMIT, SessionsService, parseReadSessionArgs, validateLimit } from './service.js'
+export { LIST_STATUS_DEFAULT_RECENT_N, READ_SESSION_LIMIT, SessionsService, parseReadSessionArgs, validateRecentN } from './service.js'
 export { registerSessionTools, registerSessionTools as registerSessionsTool } from './tools/index.js'
 export * from './types.js'

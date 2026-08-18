@@ -6,7 +6,7 @@ export interface ReadOption {
 }
 
 export type SessionsPreview =
-  | { readonly kind: 'list' | 'status' | 'read' }
+  | { readonly kind: 'status' | 'read' }
   | { readonly kind: 'read-options'; readonly sessionId: string; readonly options: readonly ReadOption[] }
 
 export const READ_OPTIONS: readonly ReadOption[] = [
@@ -20,7 +20,6 @@ export const READ_OPTIONS: readonly ReadOption[] = [
  */
 export function previewForDraft(draft: string): SessionsPreview | undefined {
   const input = draft.trim()
-  if (/^\/sessions\s*list\s*$/u.test(input)) return { kind: 'list' }
   if (/^\/sessions\s*status\s*$/u.test(input)) return { kind: 'status' }
   if (/^\/sessions\s*read\s*$/u.test(input)) return { kind: 'read' }
 
