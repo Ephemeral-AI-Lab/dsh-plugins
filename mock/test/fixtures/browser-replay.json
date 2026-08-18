@@ -1,0 +1,12 @@
+{
+  "type": "dsh-mock-script",
+  "version": 1,
+  "steps": [
+    {
+      "tool": "exec_command",
+      "args": {
+        "cmd": "Write-Output MOCK_REPLAY_BROWSER"
+      }
+    }
+  ]
+}

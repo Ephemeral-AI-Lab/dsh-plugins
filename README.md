@@ -1,7 +1,7 @@
 # 🧩 DSH Harness Plugins
 
 <p align="center">
-  <img src="./assets/dsh-plugins-icon.png" alt="DSH Plugins icon" width="220">
+  <img src="./assets/whale-boy.png" alt="Whale Boy icon" width="220">
 </p>
 
 <p align="center">
@@ -12,6 +12,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
   <a href="https://www.npmjs.com/package/dsh-codex-shell"><img src="https://img.shields.io/npm/v/dsh-codex-shell?logo=npm&logoColor=white&style=flat-square" alt="dsh-codex-shell on npm"></a>
   <a href="https://www.npmjs.com/package/dsh-loop"><img src="https://img.shields.io/npm/v/dsh-loop?logo=npm&logoColor=white&style=flat-square" alt="dsh-loop on npm"></a>
+  <a href="https://www.npmjs.com/package/dsh-mock"><img src="https://img.shields.io/npm/v/dsh-mock?logo=npm&logoColor=white&style=flat-square" alt="dsh-mock on npm"></a>
 </p>
 
 <p align="center">
@@ -31,18 +32,43 @@ examples below target the `web` profile; replace `web` with the profile you use.
 ### 🐚 Codex Shell
 
 ```powershell
+# With the DSH CLI:
 dsh plugin --profile web add dsh-codex-shell@0.1.2
+
+# Without the `dsh` CLI:
+npm install dsh-codex-shell@0.1.2
 ```
 
 ### ⏰ Loop
 
 ```powershell
+# With the DSH CLI:
 dsh plugin --profile web add dsh-loop@0.1.0
+
+# Without the `dsh` CLI:
+npm install dsh-loop@0.1.0
+```
+
+### 🧪 Mock — unstable
+
+`dsh-mock` is published for early testing. Its commands, API, and UI may
+change before a stable release.
+
+```powershell
+# With the DSH CLI:
+dsh plugin --profile web add dsh-mock@0.1.0
+
+# Without the `dsh` CLI:
+npm install dsh-mock@0.1.0
 ```
 
 Restart DSH and create a new session after installing a plugin. If `dsh` is not
 on your PATH, run the same command from a DeepSeek Harness source checkout with
 `pnpm dsh` instead.
+
+Direct npm installation downloads the package for use by your project. DSH
+profile installation is still required when you want DSH to load the plugin as
+part of a profile.
 
 ## 📦 Packages
 
@@ -50,6 +76,7 @@ on your PATH, run the same command from a DeepSeek Harness source checkout with
 | --- | --- | --- | --- |
 | [`dsh-codex-shell`](./codex-shell/) | ✅ Published · `0.1.2` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-shell/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-shell) |
 | [`dsh-loop`](./loop/) | ✅ Published · `0.1.0` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
+| [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
 | [`codex-session-communication`](./codex-session-communication/) | 🛠️ Source-only | Cross-session tools for creating, messaging, waiting on, and inspecting DSH sessions. | [`SPEC`](./codex-session-communication/SPEC.md) |
 
 ### 🐚 `dsh-codex-shell`
@@ -63,6 +90,20 @@ by default with a configured pipe fallback when PTY allocation is unavailable.
 Create durable, session-local recurring prompts that can be managed through
 agent tools, `/loop` commands, and the web UI. Loops resume with the session
 and keep each alarm independent from the others.
+
+### 🧪 `dsh-mock`
+
+Exercise deterministic mock model turns through `/mock run` and `/mock replay`
+while preserving the real DSH AgentLoop, ToolRuntime, policy, and event flow.
+
+> ⚠️ **Unstable:** published as `dsh-mock@0.1.0` for early testing. The command,
+> API, and UI surface may change before a stable release.
+
+Install it into the DSH `web` profile with one command:
+
+```powershell
+dsh plugin --profile web add dsh-mock@0.1.0
+```
 
 ### 🔗 `codex-session-communication`
 
@@ -88,6 +129,8 @@ DSH composes plugins through profile-scoped installation and patch layers.
 
 - [Codex Shell documentation](./codex-shell/README.md)
 - [Loop documentation](./loop/README.md)
+- [Mock documentation](./mock/README.md)
+- [Mock implementation specification](./mock/SPEC.md)
 - [Session communication specification](./codex-session-communication/SPEC.md)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 

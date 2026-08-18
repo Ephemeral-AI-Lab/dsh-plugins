@@ -1,0 +1,8 @@
+{
+  "type": "dsh-mock-script",
+  "version": 1,
+  "steps": [
+    { "tool": "not_registered", "args": {} },
+    { "tool": "probe_tool", "args": { "value": "must-not-run" } }
+  ]
+}

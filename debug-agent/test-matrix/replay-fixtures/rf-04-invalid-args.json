@@ -1,8 +1,0 @@
-{
-  "type": "dsh-debug-script",
-  "version": 1,
-  "steps": [
-    { "tool": "needs_value", "args": {} },
-    { "tool": "probe_tool", "args": { "value": "must-not-run" } }
-  ]
-}

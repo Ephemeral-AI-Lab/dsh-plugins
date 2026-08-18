@@ -1,0 +1,9 @@
+{
+  "type": "dsh-mock-script",
+  "version": 1,
+  "steps": [
+    { "tool": "probe_tool", "args": { "value": "persisted-first" } },
+    { "wait": 100 },
+    { "tool": "probe_tool", "args": { "value": "persisted-second" } }
+  ]
+}

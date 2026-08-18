@@ -1,0 +1,7 @@
+{
+  "type": "dsh-mock-script",
+  "version": 1,
+  "steps": [
+    { "tool": "probe_tool", "args": { "value": "smoke" } }
+  ]
+}

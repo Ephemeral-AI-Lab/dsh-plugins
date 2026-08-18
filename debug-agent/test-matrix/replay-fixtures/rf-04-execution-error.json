@@ -1,9 +1,0 @@
-{
-  "type": "dsh-debug-script",
-  "version": 1,
-  "steps": [
-    { "tool": "probe_tool", "args": { "value": "before-error" } },
-    { "tool": "throws_tool", "args": { "message": "fixture failure" } },
-    { "tool": "probe_tool", "args": { "value": "must-not-run" } }
-  ]
-}

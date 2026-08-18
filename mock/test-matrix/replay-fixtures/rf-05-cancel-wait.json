@@ -1,0 +1,9 @@
+{
+  "type": "dsh-mock-script",
+  "version": 1,
+  "steps": [
+    { "tool": "probe_tool", "args": { "value": "started" } },
+    { "wait": 250 },
+    { "tool": "probe_tool", "args": { "value": "must-not-run" } }
+  ]
+}

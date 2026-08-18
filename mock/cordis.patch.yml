@@ -1,0 +1,11 @@
+- id: directory-picker
+  disabled: true
+- insert:
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
+    - id: codex-shell
+      name: 'file:///C:/Users/yifan/code/Ephemeral-AI-Lab/dsh-plugins/codex-shell/lib/index.js'
+    - id: mock
+      name: 'dsh-mock'
