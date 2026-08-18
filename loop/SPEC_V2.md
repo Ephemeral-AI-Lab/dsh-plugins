@@ -371,7 +371,6 @@ New code emits the v2 `schedule` shape and `loop_id` field. The old
 `loop_delete({ id })` form may remain temporarily as a deprecated alias, but
 the canonical form is `loop_delete({ loop_id })`.
 
-The unfinished `dsh-plugins/cronjob` package is not part of the v2 runtime.
 Cron support is implemented by `dsh-loop` so every schedule type shares the
 same registry, tools, UI, and session-targeting behavior.
 
