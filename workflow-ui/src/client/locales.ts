@@ -1,0 +1,62 @@
+/** Browser copy for the workflow workspace. */
+export const NS = 'workflowDashboard'
+
+export const zh = {
+  'view.workflow': '工作流',
+  'workspace.title': 'Workflows',
+  'workspace.eyebrow': 'Session workspace',
+  'workspace.open': 'Open workflows',
+  'workspace.close': 'Close workflows',
+  'workspace.empty': 'No workflow runs in this Session.',
+  'workspace.emptyHint': 'Start a workflow in this Session to see its live progress here.',
+  'workspace.noMatches': 'No runs match this filter.',
+  'workspace.loading': 'Loading workflow history…',
+  'workspace.runs': 'Runs',
+  'workspace.agents': 'Agents',
+  'filter.all': 'All',
+  'filter.running': 'Running',
+  'filter.failed': 'Failed',
+  'run.navigator': 'Run navigator',
+  'run.phase': 'Current phase',
+  'run.noPhase': 'No phase',
+  'run.noMembers': 'No members started',
+  'run.agents': '{completed}/{total} agents',
+  'run.progress': '{completed} of {total} complete',
+  'detail.phases': 'Phases',
+  'detail.entries': 'entries',
+  'detail.loadingMessages': 'Loading full message history…',
+  'detail.noMessages': 'No messages recorded for this agent yet.',
+  'detail.messageStream': 'Scrollable agent message stream',
+  'detail.unnamedAgent': 'Unnamed agent',
+  'detail.logs': 'Logs',
+  'detail.result': 'Result',
+  'detail.error': 'Error',
+  'detail.overview': 'Run overview',
+  'detail.members': '{count} members',
+  'detail.noPhase': 'No phases recorded yet.',
+  'detail.interruptedHint': 'The Session ended before this workflow emitted a terminal event.',
+  'detail.cancelledHint': 'This workflow was cancelled before all members completed.',
+  'detail.child': 'Open child Session',
+  'detail.noLogs': 'No log messages.',
+  'detail.noResult': 'No structured result.',
+  'status.running': 'Running',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.cancelled': 'Cancelled',
+  'status.interrupted': 'Interrupted',
+  'member.running': 'Running',
+  'member.completed': 'Completed',
+  'member.failed': 'Failed',
+  'member.cancelled': 'Cancelled',
+  'member.interrupted': 'Interrupted',
+  'message.assistant': 'Agent',
+  'message.reasoning': 'Reasoning',
+  'message.tool': 'Tool',
+  'message.user': 'Prompt',
+} as const
+
+export const en: Record<WorkflowDashboardKey, string> = { ...zh }
+
+en['view.workflow'] = 'Workflow'
+
+export type WorkflowDashboardKey = keyof typeof zh

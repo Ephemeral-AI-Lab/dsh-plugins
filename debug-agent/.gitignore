@@ -1,0 +1,6 @@
+lib/
+node_modules/
+coverage/
+*.tsbuildinfo
+.vitest/
+.dsh-home/

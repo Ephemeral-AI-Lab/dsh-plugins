@@ -1,0 +1,10 @@
+{
+  "type": "dsh-debug-script",
+  "version": 1,
+  "steps": [
+    { "tool": "probe_tool", "args": { "value": "first" } },
+    { "wait": 150 },
+    { "tool": "ordered_tool", "args": { "label": "middle", "delayMs": 0 } },
+    { "tool": "probe_tool", "args": { "value": "last" } }
+  ]
+}

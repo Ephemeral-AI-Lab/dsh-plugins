@@ -1,72 +1,102 @@
-# DSH Harness Plugins
+# 🧩 DSH Harness Plugins
 
-Plugins for extending [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) with Codex-style agent capabilities.
+<p align="center">
+  <img src="./assets/dsh-plugins-icon.png" alt="DSH Plugins icon" width="220">
+</p>
 
-## Plugin overview
+<p align="center">
+  Small, focused plugins that make <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> more capable, expressive, and pleasant to use.
+</p>
 
-| Plugin | Status | What it does | Documentation |
+<p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
+  <a href="https://www.npmjs.com/package/dsh-codex-shell"><img src="https://img.shields.io/npm/v/dsh-codex-shell?logo=npm&logoColor=white&style=flat-square" alt="dsh-codex-shell on npm"></a>
+  <a href="https://www.npmjs.com/package/dsh-loop"><img src="https://img.shields.io/npm/v/dsh-loop?logo=npm&logoColor=white&style=flat-square" alt="dsh-loop on npm"></a>
+</p>
+
+<p align="center">
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-packages">Packages</a> ·
+  <a href="#-development">Development</a> ·
+  <a href="#-documentation">Documentation</a>
+</p>
+
+> 🧠 Give your DSH sessions better tools, durable workflows, and a cleaner path from idea to execution.
+
+## ⚡ Quick start
+
+Published plugins install directly into a DSH profile with one command. The
+examples below target the `web` profile; replace `web` with the profile you use.
+
+### 🐚 Codex Shell
+
+```powershell
+dsh plugin --profile web add dsh-codex-shell@0.1.2
+```
+
+### ⏰ Loop
+
+```powershell
+dsh plugin --profile web add dsh-loop@0.1.0
+```
+
+Restart DSH and create a new session after installing a plugin. If `dsh` is not
+on your PATH, run the same command from a DeepSeek Harness source checkout with
+`pnpm dsh` instead.
+
+## 📦 Packages
+
+| Package | Status | What it adds | Docs |
 | --- | --- | --- | --- |
-| [`codex-shell`](./codex-shell/) | **Ready** | Adds Codex-compatible `exec_command` and `write_stdin` tools. Agents can start shell commands, keep long-running processes alive, and send input to them later. | [`codex-shell/README.md`](./codex-shell/README.md) |
-| [`codex-session-communication`](./codex-session-communication/) | **Under construction** | Adds cross-session tools so an agent can create another DSH session, send it a message, wait for it, inspect its transcript, and list available sessions. | [`codex-session-communication/SPEC.md`](./codex-session-communication/SPEC.md) |
-| [`loop`](./loop/) | **Under construction** | Adds durable, session-scoped recurring prompts through loop tools and the `/loop` slash command. | [`loop/README.md`](./loop/README.md) |
+| [`dsh-codex-shell`](./codex-shell/) | ✅ Published · `0.1.2` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-shell/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-shell) |
+| [`dsh-loop`](./loop/) | ✅ Published · `0.1.0` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
+| [`codex-session-communication`](./codex-session-communication/) | 🛠️ Source-only | Cross-session tools for creating, messaging, waiting on, and inspecting DSH sessions. | [`SPEC`](./codex-session-communication/SPEC.md) |
 
-## Plugins
+### 🐚 `dsh-codex-shell`
 
-### [`codex-shell`](https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/codex-shell) — Ready
+Run shell commands like a Codex-style agent: start long-running processes,
+poll for output, and send input to persistent sessions. PTY transport is used
+by default with a configured pipe fallback when PTY allocation is unavailable.
 
-`codex-shell` provides the two shell tools commonly used by Codex-style agents:
+### ⏰ `dsh-loop`
 
-- `exec_command` starts a shell command and returns its output. It can leave a long-running process alive.
-- `write_stdin` sends input to a running command and polls for more output.
+Create durable, session-local recurring prompts that can be managed through
+agent tools, `/loop` commands, and the web UI. Loops resume with the session
+and keep each alarm independent from the others.
 
-The plugin uses PTY transport by default, with a configured pipe fallback when PTY allocation is unavailable. It is designed for interactive commands and persistent command sessions.
+### 🔗 `codex-session-communication`
 
-Install it into a DSH profile with:
+Coordinate multiple DSH sessions from one agent: delegate work, send messages,
+wait for progress, inspect transcripts, and list visible sessions. This package
+is still experimental and is not published to npm yet.
 
-```bash
-dsh plugin --profile web add dsh-codex-shell
+## 🛠️ Development
+
+Each plugin is independently installable and testable. For example:
+
+```powershell
+cd loop
+pnpm install
+pnpm test
+pnpm build
 ```
 
-See the [`codex-shell` README](./codex-shell/README.md) for installation, profile scope, configuration, and troubleshooting.
+The source tree intentionally stays outside the DeepSeek Harness repository;
+DSH composes plugins through profile-scoped installation and patch layers.
 
-### [`codex-session-communication`](https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/codex-session-communication) — Under construction
+## 📚 Documentation
 
-`codex-session-communication` is an experimental cross-session communication plugin. It gives an agent a small set of tools for coordinating with other DSH sessions:
+- [Codex Shell documentation](./codex-shell/README.md)
+- [Loop documentation](./loop/README.md)
+- [Session communication specification](./codex-session-communication/SPEC.md)
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
-- `create_session({ prompt })` — create a new session and return its `session_id`.
-- `send_message_to_session({ session_id, message })` — send a message to an existing session.
-- `wait_sessions({ session_ids, ... })` — wait for one or more sessions to make progress or finish.
-- `read_session({ session_id, ... })` — read a session's transcript or current state.
-- `list_sessions({ ... })` — list sessions visible to the current DSH runtime.
+## 🤝 Contributing
 
-Typical use cases include asking a fresh agent session to handle a separate task, delegating research or implementation work, and reading the result back from the parent session.
+Issues, ideas, and pull requests are welcome. Keep plugins focused, document
+their runtime contracts, and include tests for changes to tools, persistence,
+or UI behavior.
 
-The plugin is currently under construction. Its API, persistence behavior, and session lifecycle rules may still change before a stable release. The current design and tool contracts are documented in [`codex-session-communication/SPEC.md`](./codex-session-communication/SPEC.md).
+## 📄 License
 
-### [`loop`](https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/loop) — Under construction
-
-`loop` schedules a prompt to be delivered repeatedly to the current DSH agent session. The plugin exposes these tools:
-
-- `loop_create({ prompt, time_in_seconds })` — create a recurring loop.
-- `loop_list({})` — list loops in the current session.
-- `loop_delete({ id })` — remove a loop.
-
-The same operations are available through the slash command surface:
-
-```text
-/loop <seconds> <prompt>
-/loop list
-/loop delete <loop_id>
-```
-
-The loop plugin is currently under construction. Its UI, message-delivery behavior, and API details may still change before a stable release. See the [`loop` README](./loop/README.md) and [`loop/SPEC.md`](./loop/SPEC.md) for the current implementation and contract.
-
-## Repository status
-
-This repository currently contains three plugins:
-
-1. [`codex-shell`](./codex-shell/) — ready for use.
-2. [`codex-session-communication`](./codex-session-communication/) — experimental and under construction.
-3. [`loop`](./loop/) — experimental and under construction.
-
-The plugins are intentionally kept outside the DeepSeek Harness source repository. They are installed and composed through DSH's profile and plugin mechanisms.
+Released under the [MIT License](./LICENSE).

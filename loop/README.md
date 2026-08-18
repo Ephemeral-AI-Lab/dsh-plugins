@@ -1,19 +1,25 @@
-# dsh-loop
+# ⏰ dsh-loop
 
 Adds session-scoped recurring alarms to DeepSeek Harness.
 
-## Release: 0.1.0
+## 🚀 Release: 0.1.0
 
 This initial release lets an agent set recurring self-prompts, deliver them
 through the active session, and manage them from the web UI. Alarms are
 session-local and durable across session resume.
 
-## 1. Install the plugin
+## 1. 📦 Install the plugin
 
 Install it into the DSH profile you use:
 
 ~~~powershell
 dsh plugin --profile web add dsh-loop@0.1.0
+~~~
+
+To install the published package directly from npm:
+
+~~~powershell
+npm install dsh-loop@0.1.0
 ~~~
 
 From a DeepSeek Harness source checkout:
@@ -27,7 +33,7 @@ pnpm dsh plugin --profile web add dsh-loop@0.1.0
 The plugin is installed into the selected DSH profile. Restart DSH and create
 a new session after installing it.
 
-## 2. Set recurring alarms
+## 2. ⏱️ Set recurring alarms
 
 The simplest user-facing request is natural language:
 
@@ -54,7 +60,7 @@ Set up four independent recurring alarms for this session:
 Each alarm is independent. It has its own interval, prompt, next-delivery
 countdown, and ID, so one alarm can be removed while the others continue.
 
-## 3. Agent tools and command interface
+## 3. 🛠️ Agent tools and command interface
 
 The plugin exposes three agent-local tools:
 
@@ -70,7 +76,7 @@ It also registers the /loop command for direct command-driven sessions:
 
 Both interfaces use the same validation, persistence, and scheduling path.
 
-## 4. Web UI
+## 4. 🖥️ Web UI
 
 The web client adds a compact Loop dock for the current session. It shows:
 
@@ -83,7 +89,7 @@ The web client adds a compact Loop dock for the current session. It shows:
 Deleting an alarm sends the normal delete operation and removes the row when
 the projected session state confirms the change.
 
-## 5. How delivery works
+## 5. 🔄 How delivery works
 
 time_in_seconds is the only time unit. When an alarm is due, its prompt is
 delivered as a normal user message through the session inbox with
@@ -110,7 +116,7 @@ events. Timers are disposable and recreated when the session resumes. The
 runtime is session-local: a stopped or cold process cannot run timers or wake
 itself.
 
-## 6. Verify locally
+## 6. ✅ Verify locally
 
 Run the full Loop test suite:
 
@@ -136,14 +142,14 @@ The reusable agent-facing scenarios are in
 [e2e-test-prompt.md](./e2e-test-prompt.md). The executable test runner remains
 in the source repository at test/e2e.test.ts.
 
-## 7. Package scope
+## 7. 📦 Package scope
 
 This plugin uses public DSH and Cordis APIs only; it does not modify
 deepseek-harness. The implementation contract is documented in
 [SPEC.md](./SPEC.md), and the web UI contract is documented in
 [ui.md](./ui.md).
 
-## Documentation
+## 📚 Documentation
 
 - [Implementation specification](./SPEC.md)
 - [Web UI contract](./ui.md)
