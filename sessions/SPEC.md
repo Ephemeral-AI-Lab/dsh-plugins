@@ -10,26 +10,32 @@ is `dsh-plugins/sessions`.
 
 This is an adapter over DSH's built-in session services. It is not a second
 implementation of `@deepseek-ai/dsh-session`, and it must not duplicate the
-session store or persistence backend. `dsh-sessions` owns session inspection
-and fresh-session creation. The companion
-`codex-session-communication` plugin owns only message sending and waiting, so
-the two packages can be composed without duplicate session-management tools.
+session store or persistence backend. `dsh-sessions` owns session inspection,
+fresh-session creation, and message delivery.
 
 ## 1. Package boundary
 
-The package lives at `dsh-plugins/sessions` and exposes three agent-facing tools
+The package lives at `dsh-plugins/sessions` and exposes four agent-facing tools
 and one human-facing slash command:
 
 ```ts
-list_status({ session_id?: string, recent_n?: number }) -> { sessions: SessionStatusView[] }
+session_status({ session_id?: string, recent_n?: number }) -> { sessions: SessionStatusView[] }
 ```
 
 ```ts
-read_session({ session_id: string, offset?: number, limit?: number }) -> ReadSessionResult
+session_read({ session_id: string, offset?: number, limit?: number }) -> ReadSessionResult
 ```
 
 ```ts
-create_session({
+session_send({
+  session_id: string,
+  message: string,
+  mode?: "steer" | "followup",
+}) -> { message_id: string }
+```
+
+```ts
+session_create({
   prompt: string,
   preset?: string,
   model?: { provider: string, model: string, reasoningEffort?: string },
@@ -46,11 +52,12 @@ create_session({
 ```text
 /sessions status [SESSION_ID] [--recent N]
 /sessions read SESSION_ID [--offset N] [--limit N]
-/sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]
+/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
+/sessions send SESSION_ID MESSAGE [--mode steer|followup]
 ```
 
 It does not resume, delete, or send follow-up messages to sessions. A
-`create_session` call creates a fresh session and queues only its initial
+`session_create` call creates a fresh session and queues only its initial
 prompt. It may bind the session to an existing absolute directory with `cwd`.
 
 The slash command uses the same service as the tool. It renders one compact
@@ -76,13 +83,13 @@ multiple spaces between `/sessions` and the subcommand equivalently.
 
 ## 2. Tool contract
 
-### `list_status`
+### `session_status`
 
 The argument may be empty. With no `session_id`, the result contains the most
 recent sessions:
 
 ```ts
-list_status({})
+session_status({})
 ```
 
 `recent_n` is an optional positive safe integer and defaults to 50. Results are
@@ -104,7 +111,7 @@ precedence over a persisted header with the same `session_id`. For an exact
 query, `missing` means no live agent and no persisted session header exist; a
 missing session has no `updated_at`.
 
-### `read_session`
+### `session_read`
 
 This bounded read returns reconstructed conversation message blocks without
 resuming the session or starting generation. The projection uses the same
@@ -142,7 +149,19 @@ the window and total, for example:
 An offset beyond a non-empty session is rejected like the built-in `read` tool.
 Reading a cold session uses inspection only; it does not resume or mutate it.
 
-### `create_session`
+### `session_send`
+
+Sends a message to an existing session. `session_id` and `message` are required
+and must be non-empty. `mode` defaults to `steer`, which wakes an idle agent
+and targets the nearest step of a running agent. `followup` queues an ordinary
+next-turn message instead.
+
+A cold session is resumed only for this explicit delivery request. The target's
+persisted preset is restored, and an agent caller's route is inherited for the
+resume. Missing sessions are not created. The result's `message_id` identifies
+accepted inbox work; it does not identify completed model output.
+
+### `session_create`
 
 Creates a fresh session and queues its initial prompt. `prompt` is required and
 must be non-empty. `preset` is an optional preset ID. `model` is an optional
@@ -215,13 +234,25 @@ The human-facing command calls the same creation service as the tool and passes
 the current agent as the inheritance source:
 
 ```text
-/sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]
+/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
 ```
 
 `PROMPT` may be quoted when it contains spaces. The equivalent expanded model
 form is `--provider PROVIDER --model MODEL --effort LEVEL`. For automation, the
-command also accepts a JSON object with the same fields as `create_session`;
+command also accepts a JSON object with the same fields as `session_create`;
 unknown fields, including `workspace_id`, are rejected.
+
+### `/sessions send`
+
+The command calls the same `session_send` service as the tool:
+
+```text
+/sessions send SESSION_ID MESSAGE [--mode steer|followup]
+```
+
+`MESSAGE` may be quoted when it contains spaces. The mode defaults to `steer`;
+`--mode followup` queues an ordinary next turn. Missing sessions are not
+created, and the command returns the accepted `message_id` as JSON.
 
 ### Title resolution
 
@@ -268,16 +299,18 @@ it has recent history.
 ## 4. Validation and errors
 
 - Empty arguments are valid.
-- `list_status.recent_n`, when supplied, must be a positive safe integer and
+- `session_status.recent_n`, when supplied, must be a positive safe integer and
   defaults to 50.
-- `list_status.session_id`, when supplied, must be a non-empty string.
-- `read_session.offset`, when supplied, must be a positive safe integer.
-- `read_session.limit`, when supplied, must be a positive safe integer no greater than 200.
-- `create_session.prompt`, `model.provider`, `model.model`, and `preset`, when
+- `session_status.session_id`, when supplied, must be a non-empty string.
+- `session_read.offset`, when supplied, must be a positive safe integer.
+- `session_read.limit`, when supplied, must be a positive safe integer no greater than 200.
+- `session_send.session_id` and `session_send.message` must be non-empty strings.
+- `session_send.mode`, when supplied, must be `steer` or `followup`.
+- `session_create.prompt`, `model.provider`, `model.model`, and `preset`, when
   supplied, must be non-empty strings.
-- `create_session.model.reasoningEffort`, when supplied, must be a non-empty
+- `session_create.model.reasoningEffort`, when supplied, must be a non-empty
   effort identifier supported by the selected provider/model.
-- `create_session.cwd`, when supplied, must be a non-empty string that resolves
+- `session_create.cwd`, when supplied, must be a non-empty string that resolves
   to an existing absolute directory.
 - The create command rejects unknown flags and malformed model arguments.
 - Unknown properties are rejected.
@@ -310,19 +343,21 @@ second scheduler.
 - Applies `limit` after merging and ordering.
 - Rejects invalid limits and unknown properties.
 - Does not mutate session persistence or agent state.
-- `list_status({})` returns the 50 most recently updated sessions by default.
-- `list_status({ recent_n: N })` applies the same positive-integer validation.
-- `list_status({ session_id })` returns one exact status row, including
+- `session_status({})` returns the 50 most recently updated sessions by default.
+- `session_status({ recent_n: N })` applies the same positive-integer validation.
+- `session_status({ session_id })` returns one exact status row, including
   `missing` when the ID does not exist.
-- `/sessions status` lists the same data as `list_status({})`.
+- `/sessions status` lists the same data as `session_status({})`.
 - `/sessions status --recent N` passes `recent_n: N`.
 - `/sessions status SESSION_ID` passes `session_id` and renders its exact row.
-- `/sessions read SESSION_ID` returns the same bounded message window as `read_session`.
-- `read_session` does not prefix messages with generated line numbers.
-- `create_session` queues an initial prompt and returns a queued result.
+- `/sessions read SESSION_ID` returns the same bounded message window as `session_read`.
+- `session_read` does not prefix messages with generated line numbers.
+- `session_send` defaults to `steer` and dispatches the matching agent method.
+- `session_send` wakes idle agents in both `steer` and `followup` modes.
+- `session_create` queues an initial prompt and returns a queued result.
 - A child created without explicit preset/model inherits the caller's preset and
   route; a root create uses deployment defaults.
-- `create_session` resolves model and preset independently for all four
+- `session_create` resolves model and preset independently for all four
   explicit/omitted combinations.
 - A child whose caller has no composed preset falls back to the deployment's
   default preset when one is configured.
@@ -331,6 +366,6 @@ second scheduler.
 - A child explicitly naming the same preset as its caller joins the caller's
   standing composition rather than mounting a second generation.
 - `/sessions create` uses the same model/preset/location resolution as
-  `create_session` and returns the queued result as JSON.
+  `session_create` and returns the queued result as JSON.
 - An explicit `model.reasoningEffort` is validated before session creation and
   is applied to the first model request.

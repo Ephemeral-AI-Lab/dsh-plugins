@@ -1,5 +1,17 @@
 import type { JsonValue } from '@deepseek-ai/dsh-session'
 
+export type SessionSendMode = 'steer' | 'followup'
+
+export interface SessionSendArgs {
+  session_id: string
+  message: string
+  mode?: SessionSendMode
+}
+
+export interface SessionSendResult {
+  message_id: string
+}
+
 export interface CreateSessionModel {
   provider: string
   model: string

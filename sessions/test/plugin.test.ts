@@ -36,11 +36,15 @@ describe('dsh-sessions plugin', () => {
 
     apply(ctx as never)
     expect(tools.map(tool => tool.name)).toEqual([
-      'list_status',
-      'read_session',
-      'create_session',
+      'session_status',
+      'session_read',
+      'session_create',
+      'session_send',
     ])
     expect(commands.map(command => command.name)).toEqual(['sessions'])
+
+    const sendTool = tools.find(tool => tool.name === 'session_send')
+    expect(sendTool).toBeDefined()
 
     cleanups[0]!()
     expect(tools).toHaveLength(0)

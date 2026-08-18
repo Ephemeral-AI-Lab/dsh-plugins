@@ -12,11 +12,11 @@ const userMessage = {
 const assistantMessage = {
   id: 'message-2',
   role: 'assistant',
-  content: [{ type: 'tool-call', id: 'call-1', name: 'read_session', arguments: '{"session_id":"other"}' }],
+  content: [{ type: 'tool-call', id: 'call-1', name: 'session_read', arguments: '{"session_id":"other"}' }],
   source: { kind: 'model', provider: 'mock', model: 'mock' },
 } as ReadSessionMessage
 
-describe('read_session output', () => {
+describe('session_read output', () => {
   it('renders reconstructed message blocks without XML or event lines', () => {
     const output = formatReadSessionOutput({
       session_id: 'session-1',
@@ -30,7 +30,7 @@ describe('read_session output', () => {
 
     expect(output).toContain('Session session-1')
     expect(output).toContain('[USER]\nhello')
-    expect(output).toContain('[ASSISTANT]\nTool call: read_session')
+    expect(output).toContain('[ASSISTANT]\nTool call: session_read')
     expect(output).toContain('(Showing messages 2-3 of 4)')
     expect(output).not.toContain('<path>')
     expect(output).not.toContain('<content>')

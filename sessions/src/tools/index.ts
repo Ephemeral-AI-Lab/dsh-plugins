@@ -1,19 +1,23 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionCreationService } from '../creation-service.js'
+import { SessionSendService } from '../send-service.js'
 import { SessionsService } from '../service.js'
-import { registerCreateSessionTool } from './create-session.js'
-import { registerListStatusTool } from './list-status.js'
-import { registerReadSessionTool } from './read-session.js'
+import { registerSessionCreateTool } from './session-create.js'
+import { registerSessionStatusTool } from './session-status.js'
+import { registerSessionReadTool } from './session-read.js'
+import { registerSessionSendTool } from './session-send.js'
 
 export function registerSessionTools(
   ctx: Context,
   service: SessionsService,
   creationService?: SessionCreationService,
+  sendService?: SessionSendService,
 ): () => void {
   const disposers = [
-    registerListStatusTool(ctx, service),
-    registerReadSessionTool(ctx, service),
-    ...creationService === undefined ? [] : [registerCreateSessionTool(ctx, creationService)],
+    registerSessionStatusTool(ctx, service),
+    registerSessionReadTool(ctx, service),
+    ...creationService === undefined ? [] : [registerSessionCreateTool(ctx, creationService)],
+    ...sendService === undefined ? [] : [registerSessionSendTool(ctx, sendService)],
   ]
 
   return () => {
@@ -21,6 +25,7 @@ export function registerSessionTools(
   }
 }
 
-export { registerCreateSessionTool } from './create-session.js'
-export { registerListStatusTool } from './list-status.js'
-export { registerReadSessionTool } from './read-session.js'
+export { registerSessionCreateTool } from './session-create.js'
+export { registerSessionStatusTool } from './session-status.js'
+export { registerSessionReadTool } from './session-read.js'
+export { registerSessionSendTool } from './session-send.js'

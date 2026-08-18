@@ -1,26 +1,29 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
-import type { CreateSessionArgs, ListStatusArgs, ReadSessionArgs, SessionStatusView } from './types.js'
+import type { CreateSessionArgs, ListStatusArgs, ReadSessionArgs, SessionSendArgs, SessionSendMode, SessionStatusView } from './types.js'
 import { formatReadSessionOutput } from './read-format.js'
 import { SessionCreationService } from './creation-service.js'
+import { SessionSendService } from './send-service.js'
 import { SessionsService, parseReadSessionArgs, validateRecentN } from './service.js'
 
-const USAGE = 'Usage: /sessions status [SESSION_ID] [--recent N] | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]'
+const USAGE = 'Usage: /sessions status [SESSION_ID] [--recent N] | /sessions read SESSION_ID [--offset N] [--limit N] | /sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | /sessions send SESSION_ID MESSAGE [--mode steer|followup]'
 
 export type SessionsCommand =
   | { kind: 'status'; args: ListStatusArgs }
   | { kind: 'read'; args: ReadSessionArgs }
   | { kind: 'create'; args: CreateSessionArgs }
+  | { kind: 'send'; args: SessionSendArgs }
 
 export function registerSessionsCommand(
   ctx: Context,
   service: SessionsService,
   creationService?: SessionCreationService,
+  sendService?: SessionSendService,
 ): () => void {
   return ctx.commands.register({
     name: 'sessions',
-    description: 'List session status, read, or create sessions.',
-    input: { hint: 'status [SESSION_ID] [--recent N] | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--model PROVIDER/MODEL] [--effort LEVEL] [--cwd PATH]' },
+    description: 'List session status, read, create, or send messages to sessions.',
+    input: { hint: 'status [SESSION_ID] [--recent N] | read SESSION_ID [--offset N] [--limit N] | create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH] | send SESSION_ID MESSAGE [--mode steer|followup]' },
     recordInput: false,
     handler: async ({ agent, rawInput, signal }): Promise<CommandResult> => {
       const command = parseSessionsCommand(rawInput)
@@ -39,6 +42,10 @@ export function registerSessionsCommand(
         }
         if (command.kind === 'read') {
           return { kind: 'success', text: formatReadSessionOutput(await service.readSession(command.args, signal)) }
+        }
+        if (command.kind === 'send') {
+          if (sendService === undefined) return { kind: 'error', text: 'Session sending is unavailable.' }
+          return { kind: 'success', text: JSON.stringify(await sendService.send(command.args, agent, signal)) }
         }
         if (creationService === undefined) return { kind: 'error', text: 'Session creation is unavailable.' }
         return { kind: 'success', text: JSON.stringify(await creationService.createSession(command.args, agent, signal)) }
@@ -76,6 +83,12 @@ export function parseSessionsCommand(rawInput: string): SessionsCommand | undefi
     return { kind: 'read', args }
   }
 
+  const sendMatch = /^send(?:\s+([\s\S]*))?$/u.exec(input)
+  if (sendMatch !== null) {
+    const args = parseSendSessionArgs(sendMatch[1] ?? '')
+    return args === undefined ? undefined : { kind: 'send', args }
+  }
+
   return undefined
 }
 
@@ -111,12 +124,49 @@ function parseStatusArgs(rawOptions: string): ListStatusArgs | undefined {
   }
 }
 
+export function parseSendSessionArgs(rawInput: string): SessionSendArgs | undefined {
+  const tokens = tokenize(rawInput.trim())
+  if (tokens === undefined || tokens.length < 2) return undefined
+
+  const sessionId = tokens[0]!
+  const messageParts: string[] = []
+  let mode: SessionSendMode | undefined
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index]!
+    if (token === '--') {
+      messageParts.push(...tokens.slice(index + 1))
+      break
+    }
+
+    const equals = token.indexOf('=')
+    const name = equals < 0 ? token : token.slice(0, equals)
+    if (name === '--mode') {
+      if (mode !== undefined) return undefined
+      const value = equals < 0 ? tokens[index + 1] : token.slice(equals + 1)
+      if (value === undefined || value.length === 0 || (equals < 0 && value.startsWith('--'))) return undefined
+      if (value !== 'steer' && value !== 'followup') return undefined
+      if (equals < 0) index += 1
+      mode = value
+      continue
+    }
+    if (token.startsWith('--')) return undefined
+    messageParts.push(token)
+  }
+
+  const message = messageParts.join(' ')
+  if (message.trim().length === 0) return undefined
+  return {
+    session_id: sessionId,
+    message,
+    ...mode === undefined ? {} : { mode },
+  }
+}
+
 /**
- * Parse the human-facing create form. The model can be written as
- * `PROVIDER/MODEL`, while `--provider PROVIDER --model MODEL` is also
- * accepted for callers that prefer one flag per model field. A JSON object
- * with the same shape as the tool arguments is accepted as a convenient
- * machine-friendly form.
+ * Parse the human-facing create form. Model routing uses separate
+ * `--provider PROVIDER --model MODEL` flags. A JSON object with the same shape
+ * as the tool arguments is accepted as a convenient machine-friendly form.
  */
 export function parseCreateSessionArgs(rawInput: string): CreateSessionArgs | undefined {
   const input = rawInput.trim()
@@ -178,18 +228,11 @@ export function parseCreateSessionArgs(rawInput: string): CreateSessionArgs | un
   const args: CreateSessionArgs = { prompt }
   if (preset !== undefined) args.preset = preset
   if (cwd !== undefined) args.cwd = cwd
-  if (modelName !== undefined) {
-    let modelProvider = provider
-    let model = modelName
-    if (modelProvider === undefined) {
-      const separator = modelName.indexOf('/')
-      if (separator <= 0 || separator === modelName.length - 1) return undefined
-      modelProvider = modelName.slice(0, separator)
-      model = modelName.slice(separator + 1)
-    }
+  if (modelName !== undefined || provider !== undefined) {
+    if (modelName === undefined || provider === undefined) return undefined
     args.model = {
-      provider: modelProvider,
-      model,
+      provider,
+      model: modelName,
       ...reasoningEffort === undefined ? {} : { reasoningEffort },
     }
   } else if (provider !== undefined || reasoningEffort !== undefined) {
