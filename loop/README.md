@@ -2,11 +2,11 @@
 
 Adds session-scoped recurring alarms to DeepSeek Harness.
 
-## 🚀 Release: 0.1.2
+## 🚀 Release: 0.1.3
 
-This initial release lets an agent set recurring self-prompts, deliver them
-through the active session, and manage them from the web UI. Alarms are
-session-local and durable across session resume.
+This patch release fixes the web client bundle registration so the published
+package loads correctly in DSH Web. It also includes the session-scoped
+recurring self-prompts, active-session delivery, and web UI from 0.1.2.
 
 ## 1. 📦 Install the plugin
 
@@ -14,10 +14,10 @@ The stable npm release is available through both DSH and npm:
 
 ~~~powershell
 # With the DSH CLI:
-dsh plugin --profile web add dsh-loop@0.1.2
+dsh plugin --profile web add dsh-loop@0.1.3
 
 # Without the `dsh` CLI:
-npm install dsh-loop@0.1.2
+npm install dsh-loop@0.1.3
 ~~~
 
 For a pinned Git-source install, the marketplace can pin a full Git commit and

@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, relative, resolve } from 'node:path'
 import { transform } from 'lightningcss'
 
-const packageId = 'loop'
-const cssPrefix = '\0loop-css:'
+const packageId = 'dsh-loop'
+const cssPrefix = '\0dsh-loop-css:'
 const cssSuffix = '.mjs'
 const externals = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client']
 const cssFiles = new Map<string, string>()
