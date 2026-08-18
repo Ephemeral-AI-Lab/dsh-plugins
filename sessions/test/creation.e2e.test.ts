@@ -7,8 +7,8 @@ interface RegisteredCreateTool {
   execute(args: unknown, exec: { agent?: unknown; signal: AbortSignal }): Promise<unknown>
 }
 
-describe('create_session plugin boundary', () => {
-  it('registers and executes create_session through the public tool entrypoint', async () => {
+describe('session_create plugin boundary', () => {
+  it('registers and executes session_create through the public tool entrypoint', async () => {
     const registered: RegisteredCreateTool[] = []
     const cleanups: Array<() => void | Promise<void>> = []
     const followup = vi.fn()
@@ -52,7 +52,7 @@ describe('create_session plugin boundary', () => {
     }
 
     apply(ctx as never)
-    const tool = registered.find(candidate => candidate.name === 'create_session')
+    const tool = registered.find(candidate => candidate.name === 'session_create')
     expect(tool).toBeDefined()
     expect(tool!.parameters).toMatchObject({
       properties: expect.not.objectContaining({ workspace_id: expect.anything() }),

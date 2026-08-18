@@ -3,6 +3,7 @@ export {
   registerSessionTools,
   registerSessionTools as registerSessionsTool,
 } from './tools/index.js'
-export * from './tools/create-session.js'
-export * from './tools/list-status.js'
-export * from './tools/read-session.js'
+export * from './tools/session-create.js'
+export * from './tools/session-status.js'
+export * from './tools/session-read.js'
+export * from './tools/session-send.js'

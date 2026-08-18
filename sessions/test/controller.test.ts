@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SessionsPopupController } from '../src/ui/controller.js'
 
 describe('SessionsPopupController', () => {
-  it('keeps read_session output as a content popup', () => {
+  it('keeps session_read output as a content popup', () => {
     const controller = new SessionsPopupController()
     controller.show({
       kind: 'success',

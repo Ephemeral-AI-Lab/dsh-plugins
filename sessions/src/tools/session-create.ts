@@ -16,9 +16,9 @@ const CREATE_SESSION_RESULT_SCHEMA = {
   },
 } as const
 
-export function registerCreateSessionTool(ctx: Context, service: SessionCreationService): () => void {
+export function registerSessionCreateTool(ctx: Context, service: SessionCreationService): () => void {
   return ctx.tools.register(defineTool({
-    name: 'create_session',
+    name: 'session_create',
     description: 'Create a fresh session and queue its initial prompt. Preset and model are optional; omitted values inherit from the caller or deployment defaults. Optionally bind the session to an existing directory with cwd.',
     parameters: {
       prompt: { type: 'string', required: true, description: 'Initial prompt for the new session.' },

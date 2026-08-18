@@ -15,9 +15,9 @@ const SESSION_STATUS_VIEW_SCHEMA = {
   },
 } as const
 
-export function registerListStatusTool(ctx: Context, service: SessionsService): () => void {
+export function registerSessionStatusTool(ctx: Context, service: SessionsService): () => void {
   return ctx.tools.register(defineTool({
-    name: 'list_status',
+    name: 'session_status',
     description: 'List recent sessions or check one exact session without resuming or changing it.',
     parameters: {
       session_id: { type: 'string', description: 'Optional exact session ID to inspect.' },

@@ -105,7 +105,7 @@ export class SessionCreationService {
     const defaultModel = this.ctx.get('agentDefaultModel')
     const selection = defaultModel?.currentSelection()
     if (selection === undefined) {
-      throw new Error('create_session requires model.provider and model.model when no model default is configured')
+      throw new Error('session_create requires model.provider and model.model when no model default is configured')
     }
     return selection
   }
@@ -117,7 +117,7 @@ export class SessionCreationService {
     if (explicit !== undefined) {
       requireText(explicit, 'preset')
       const presets = this.ctx.get('agentPresets')
-      if (presets === undefined) throw new Error('create_session.preset requires agent presets to be configured')
+      if (presets === undefined) throw new Error('session_create.preset requires agent presets to be configured')
       const resolved = await presets.resolve(explicit.trim())
       if (parent !== undefined) {
         const parentPresets = parent.ctx.get('agentPresets')

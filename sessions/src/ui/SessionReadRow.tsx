@@ -52,7 +52,7 @@ export const sessionReadToolview = {
   inject: ['slots'],
   apply(ctx: ClientContext): void {
     ctx.slots.inject('tool.call.toolview', () =>
-      ctx.slots.register({ name: 'tool.call.toolview', key: 'read_session', locale: 'conversation' }, SessionReadRow))
+      ctx.slots.register({ name: 'tool.call.toolview', key: 'session_read', locale: 'conversation' }, SessionReadRow))
   },
 }
 
@@ -77,7 +77,7 @@ function resultText(block: Extract<ToolCallBlock, { kind: 'tool-result' }>): str
 function normalizeReadOutput(output: string): string {
   const legacy = /^<path>([^\n]+)<\/path>\n<type>session<\/type>\n<content>[\s\S]*<\/content>$/u.exec(output)
   if (legacy !== null) {
-    return `Legacy read_session result for ${legacy[1]}. Run read_session again to view reconstructed message blocks.`
+    return `Legacy session_read result for ${legacy[1]}. Run session_read again to view reconstructed message blocks.`
   }
   return output
 }

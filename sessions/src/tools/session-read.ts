@@ -9,9 +9,9 @@ const READ_SESSION_MESSAGE_SCHEMA = {
   additionalProperties: true,
 } as const
 
-export function registerReadSessionTool(ctx: Context, service: SessionsService): () => void {
+export function registerSessionReadTool(ctx: Context, service: SessionsService): () => void {
   return ctx.tools.register(defineTool({
-    name: 'read_session',
+    name: 'session_read',
     description: 'Read a bounded window of reconstructed message blocks from one session without resuming or changing it. Trace events, token deltas, and lifecycle records are omitted.',
     parameters: {
       session_id: { type: 'string', required: true, description: 'Exact session ID to read.' },
