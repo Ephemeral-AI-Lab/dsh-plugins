@@ -2,6 +2,27 @@
 
 Session discovery and creation for DeepSeek Harness.
 
+## Release: 0.1.0
+
+The first npm release provides read-only session status and message inspection,
+fresh-session creation, and the `/sessions` command interface.
+
+## Install
+
+Install the published package with npm:
+
+```powershell
+npm install dsh-sessions@0.1.0
+```
+
+Or add it to a DSH profile with the DSH CLI:
+
+```powershell
+dsh plugin --profile web add dsh-sessions@0.1.0
+```
+
+Restart DSH and create a new session after installing the plugin.
+
 It provides:
 
 - `list_status({ session_id?, recent_n? })` for recent session status or one exact session;
@@ -54,3 +75,23 @@ numeric value can be entered immediately. A partially typed option is filtered
 and replaced when selected; the draft is never sent while the popup is shown.
 The local hint matcher ignores leading, trailing, and repeated whitespace
 between `/sessions` and its subcommand.
+
+## Verify locally
+
+Run the package checks and build the published artifacts:
+
+```powershell
+pnpm typecheck
+pnpm test -- --runInBand
+pnpm build
+```
+
+The npm package includes the generated `lib` directory, the plugin manifest
+patch, and this README. The development dependencies are not included in the
+published package.
+
+## Package scope
+
+The plugin uses public DeepSeek Harness and Cordis APIs. It does not modify
+DeepSeek Harness source code. Session messaging and waiting remain owned by the
+companion `codex-session-communication` plugin.
