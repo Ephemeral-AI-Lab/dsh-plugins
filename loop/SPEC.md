@@ -6,7 +6,7 @@ Status: backend v1 implemented; inline-dock UI migration specified in
 This document is the backend contract and implementation plan for the
 `loop` DeepSeek Harness (DSH) plugin. The plugin is external to
 DSH and must not modify
-`/Users/yifanxu/Ephemeral-AI-Lab/deepseek-harness`.
+the separate DeepSeek Harness source checkout.
 
 `ui.md` is the current UI source of truth. The final UI is an inline loop dock
 above the composer, not a separate Loops page. The current page implementation

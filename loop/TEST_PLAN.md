@@ -157,7 +157,7 @@ The compiled host entry should also import without starting an agent:
 node --input-type=module -e "import('./lib/index.js').then(m => { if (m.name !== 'loop' || typeof m.apply !== 'function') process.exit(1) })"
 ```
 
-No check may modify `/Users/yifanxu/Ephemeral-AI-Lab/deepseek-harness`.
+No check may modify the separate DeepSeek Harness source checkout.
 
 ## Manual smoke check
 

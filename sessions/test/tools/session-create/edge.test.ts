@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { join } from 'node:path'
 import { SessionCreationService } from '../../../src/creation-service.js'
 import { registerSessionCreateTool } from '../../../src/tools/session-create.js'
 
@@ -292,11 +293,11 @@ describe('session_create tool edge cases — MEDIUM (20)', () => {
   })
 
   it('rejects a missing cwd directory', async () => {
-    await expect(invoke(makeFixture().tool, { prompt: 'cwd', cwd: `${cwd}\\missing-session-create-directory` })).rejects.toThrow()
+    await expect(invoke(makeFixture().tool, { prompt: 'cwd', cwd: join(cwd, 'missing-session-create-directory') })).rejects.toThrow()
   })
 
   it('rejects a cwd that points to a file', async () => {
-    await expect(invoke(makeFixture().tool, { prompt: 'cwd', cwd: `${cwd}\\package.json` })).rejects.toThrow(/is not a directory/)
+    await expect(invoke(makeFixture().tool, { prompt: 'cwd', cwd: join(cwd, 'package.json') })).rejects.toThrow(/is not a directory/)
   })
 
   it('does not create an agent when model resolution fails', async () => {

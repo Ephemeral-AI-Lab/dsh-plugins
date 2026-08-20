@@ -1,6 +1,6 @@
 {
   "name": "dsh-mock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic mock LLM adapter for DeepSeek Harness",
   "type": "module",
   "main": "lib/index.js",
@@ -68,6 +68,7 @@
     "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
+    "lightningcss": "^1.33.0",
     "react": "^18.2.0",
     "tsdown": "^0.22.14",
     "typescript": "^6.0.3",

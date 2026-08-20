@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
@@ -56,7 +57,7 @@ describe('mock plugin lifecycle', () => {
     try {
       const idle = waitForIdle(ctx, agent)
       agent.followup(createUserMessage({
-        content: [{ type: 'text', text: '/mock replay C:/does-not-exist/mock.jsonl' }],
+        content: [{ type: 'text', text: `/mock replay ${resolve('does-not-exist/mock.jsonl')}` }],
         source: { kind: 'user' },
       }))
       await idle

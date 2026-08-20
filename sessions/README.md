@@ -3,7 +3,7 @@
 Adds session discovery, bounded message inspection, fresh-session creation,
 message delivery, and durable side chats to DeepSeek Harness.
 
-## 1. Release: 0.1.1
+## 1. Release: 0.1.2
 
 This release provides five public agent tools:
 
@@ -27,10 +27,10 @@ Install the published package into a DSH profile:
 
 ~~~powershell
 # With the DSH CLI:
-dsh plugin --profile web add dsh-sessions@0.1.1
+dsh plugin --profile web add dsh-sessions@0.1.2
 
 # Without the `dsh` CLI:
-npm install dsh-sessions@0.1.1
+npm install dsh-sessions@0.1.2
 ~~~
 
 The DSH profile installation is required for Harness to load the plugin. After

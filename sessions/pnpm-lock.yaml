@@ -36,6 +36,9 @@ importers:
       '@deepseek-ai/dsh-api-remotes':
         specifier: link:../../deepseek-harness/packages/api/remotes
         version: link:../../deepseek-harness/packages/api/remotes
+      '@deepseek-ai/dsh-client-connection':
+        specifier: link:../../deepseek-harness/packages/client/connection
+        version: link:../../deepseek-harness/packages/client/connection
       '@deepseek-ai/dsh-client-runtime':
         specifier: link:../../deepseek-harness/packages/client/runtime
         version: link:../../deepseek-harness/packages/client/runtime

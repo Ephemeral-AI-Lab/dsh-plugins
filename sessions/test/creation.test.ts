@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SessionCreationService } from '../src/creation-service.js'
@@ -322,9 +322,10 @@ describe('SessionCreationService', () => {
   it('canonicalizes cwd and reports its registered workspace when one owns it', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dsh-sessions-'))
     try {
+      const canonical = await realpath(directory)
       const handle = { agent: { followup: vi.fn() }, dispose: vi.fn(async () => {}) }
       const agents = { create: vi.fn(async () => handle) }
-      const workspace = { id: 'workspace-2', path: directory, attachSession: vi.fn(async () => {}) }
+      const workspace = { id: 'workspace-2', path: canonical, attachSession: vi.fn(async () => {}) }
       const registry = {
         resolveByPath: vi.fn(async () => workspace),
       }
@@ -339,8 +340,8 @@ describe('SessionCreationService', () => {
 
       const service = new SessionCreationService(ctx as never)
       await expect(service.createSession({ prompt: 'cwd task', cwd: directory }))
-        .resolves.toMatchObject({ workspace_id: 'workspace-2', cwd: directory })
-      expect(registry.resolveByPath).toHaveBeenCalledWith(directory)
+        .resolves.toMatchObject({ workspace_id: 'workspace-2', cwd: canonical })
+      expect(registry.resolveByPath).toHaveBeenCalledWith(canonical)
     } finally {
       await rm(directory, { recursive: true, force: true })
     }

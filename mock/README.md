@@ -1,6 +1,6 @@
 # 🧪 dsh-mock
 
-> ⚠️ **Unstable release:** `dsh-mock@0.1.0` is available for early testing.
+> ⚠️ **Unstable release:** `dsh-mock@0.1.1` is available for early testing.
 > The command, API, and UI surface may change before a stable release.
 
 ## 📦 Install
@@ -8,13 +8,13 @@
 Add the plugin to the DSH `web` profile with one command:
 
 ```powershell
-dsh plugin --profile web add dsh-mock@0.1.0
+dsh plugin --profile web add dsh-mock@0.1.1
 ```
 
 Or install the npm package directly:
 
 ```powershell
-npm install dsh-mock@0.1.0
+npm install dsh-mock@0.1.1
 ```
 
 This is an external Cordis plugin. It registers the internal per-turn provider

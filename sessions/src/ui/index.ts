@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { ConnectionHandle, HistoryEntry, SubagentListEntry } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -12,11 +13,11 @@ import type { SideChatConversationSnapshot } from '../sidechat/sidechat-types.js
 import type { SideChatMessage } from '../sidechat/sidechat-types.js'
 import { SideChatStore } from './sidechat/sidechat-store.js'
 
-export const inject = ['slots', 'sessions', 'remote', 'remote.commands']
+export const inject = ['slots', 'sessions', 'connection', 'remote', 'remote.commands']
 
 export function apply(ctx: ClientContext): void {
   const sideChats = new SideChatStore()
-  ctx.inject(['slots', 'sessions', 'remote', 'remote.commands'], (scope: ClientContext) => {
+  ctx.inject(['slots', 'sessions', 'connection', 'remote', 'remote.commands'], (scope: ClientContext) => {
     sessionReadToolview.apply(scope)
     const controllers = new Map<SessionId, SessionsPopupController>()
     const controllerFor = (sessionId: SessionId): SessionsPopupController => {
@@ -48,6 +49,7 @@ export function apply(ctx: ClientContext): void {
           const result = await scope.remote.commands.execute(
             mainSessionId as SessionId,
             `/sessions sidechat-send ${subagentId} ${message}`,
+            [],
           )
           if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
           if (result.value === undefined || result.value.result.kind === 'error') {
@@ -56,21 +58,13 @@ export function apply(ctx: ClientContext): void {
           sideChats.settle(mainSessionId, subagentId, 'running', 'live')
         },
         loadConversation: async (mainSessionId, subagentId) => {
-          const read = scope.sessions.readSubagentHistory
-          if (read === undefined) {
-            return {
-              messages: [],
-              status: 'error',
-              residency: 'cold',
-              canContinue: true,
-            } satisfies SideChatConversationSnapshot
-          }
-          const result = await read({
+          const response = await (scope.get('connection') as ConnectionHandle).api.subagents.history({
             parentSessionId: mainSessionId as SessionId,
             childSessionId: subagentId as SessionId,
             mode: 'continuable',
-          }, { maxMessages: 100 })
-          if (!result.ok) {
+            maxMessages: 100,
+          })
+          if (!response.result.ok) {
             return {
               messages: [],
               status: 'error',
@@ -79,8 +73,8 @@ export function apply(ctx: ClientContext): void {
             } satisfies SideChatConversationSnapshot
           }
           return {
-            messages: sideChatMessages(result.value.events),
-            ...sideChatState(result.value.events, result.value.activity),
+            messages: sideChatMessages(response.result.value.events),
+            ...sideChatState(response.result.value.events, subagentActivity(scope, mainSessionId, subagentId)),
           }
         },
       }),
@@ -107,6 +101,20 @@ export function apply(ctx: ClientContext): void {
   })
 }
 
+function subagentActivity(
+  scope: ClientContext,
+  mainSessionId: string,
+  subagentId: string,
+): 'running' | 'inactive' | undefined {
+  const catalog = scope.sessions.list.getSnapshot()
+    .subagentsByParent[mainSessionId as SessionId] as unknown as {
+      readonly entries?: readonly SubagentListEntry[]
+  } | undefined
+  const entries = catalog?.entries ?? []
+  return entries.find((entry): entry is Extract<SubagentListEntry, { kind: 'child' }> =>
+    entry.kind === 'child' && entry.id === subagentId)?.activity
+}
+
 function parseSideChatResult(result: CommandResult) {
   if (result.kind !== 'success' || result.text === undefined) return undefined
   try {
@@ -117,12 +125,12 @@ function parseSideChatResult(result: CommandResult) {
   }
 }
 
-function sideChatMessages(events: readonly import('@deepseek-ai/dsh-api-remotes/client').HistoryEntry[]): readonly SideChatMessage[] {
+function sideChatMessages(events: readonly HistoryEntry[]): readonly SideChatMessage[] {
   const messages: SideChatMessage[] = []
   for (const entry of events) {
     const event = entry.event
     if (event.type !== 'user/message' && event.type !== 'assistant/message' && event.type !== 'tool/result') continue
-    const message = event.data.message
+    const message = event.type === 'user/message' ? event.data : event.data.message
     messages.push({
       id: String(message.id ?? event.seq),
       role: event.type === 'user/message' ? 'user' : event.type === 'tool/result' ? 'tool' : 'assistant',
@@ -133,7 +141,7 @@ function sideChatMessages(events: readonly import('@deepseek-ai/dsh-api-remotes/
 }
 
 function sideChatState(
-  events: readonly import('@deepseek-ai/dsh-api-remotes/client').HistoryEntry[],
+  events: readonly HistoryEntry[],
   activity: 'running' | 'inactive' | undefined,
 ): Pick<SideChatConversationSnapshot, 'status' | 'residency' | 'canContinue'> {
   const ending = [...events].reverse().find(entry => entry.event.type === 'turn/end')?.event

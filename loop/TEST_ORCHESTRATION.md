@@ -201,5 +201,5 @@ node node_modules/tsdown/dist/run.mjs
 git diff --check
 ```
 
-The final audit must show no changed file below
-`/Users/yifanxu/Ephemeral-AI-Lab/deepseek-harness`.
+The final audit must show no changed file below the separate DeepSeek Harness
+source checkout.

@@ -7,7 +7,7 @@ describe('DSH bundle contract', () => {
     const patch = await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
 
     expect(manifest.name).toBe('dsh-loop')
-    expect(manifest.version).toBe('0.1.3')
+    expect(manifest.version).toBe('0.1.4')
     expect(manifest.license).toBe('MIT')
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.exports['./client'].types).toBe('./lib/types/ui/index.d.ts')
