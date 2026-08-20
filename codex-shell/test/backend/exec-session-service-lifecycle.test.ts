@@ -39,13 +39,13 @@ describe('ExecSessionService', () => {
     const owner = ownerWithCleanup()
 
     const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: new AbortController().signal })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
 
-    const first = service.write({ owner, sessionId: 1, chars: 'one', yieldTimeMs: 0, signal: new AbortController().signal })
-    const second = service.write({ owner, sessionId: 1, chars: 'two', yieldTimeMs: 0, signal: new AbortController().signal })
+    const first = service.write({ owner, jobId: 'codex-shell-1', chars: 'one', yieldTimeMs: 0, signal: new AbortController().signal })
+    const second = service.write({ owner, jobId: 'codex-shell-1', chars: 'two', yieldTimeMs: 0, signal: new AbortController().signal })
     await expect(Promise.all([first, second])).resolves.toEqual([
-      expect.objectContaining({ session_id: 1 }),
-      expect.objectContaining({ session_id: 1 }),
+      expect.objectContaining({ job_id: 'codex-shell-1' }),
+      expect.objectContaining({ job_id: 'codex-shell-1' }),
     ])
     expect(backend.maxConcurrentWrites).toBe(1)
     expect(backend.writes).toEqual(['one', 'two'])
@@ -57,13 +57,13 @@ describe('ExecSessionService', () => {
     const other = ownerWithCleanup()
     const result = await service.exec({ owner, cmd: 'run', yieldTimeMs: 20, signal: new AbortController().signal })
     expect(result.exit_code).toBe(0)
-    expect(result.session_id).toBeUndefined()
-    await expect(service.write({ owner: other, sessionId: 1, chars: '', signal: new AbortController().signal }))
+    expect(result.job_id).toBeUndefined()
+    await expect(service.write({ owner: other, jobId: 'codex-shell-1', chars: '', signal: new AbortController().signal }))
       .rejects.toBeInstanceOf(UnknownSessionError)
 
     const live = makeService(async () => new FixtureBackend(false))
     const started = await live.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: new AbortController().signal })
-    await expect(live.write({ owner: other, sessionId: started.session_id!, chars: '', signal: new AbortController().signal }))
+    await expect(live.write({ owner: other, jobId: started.job_id!, chars: '', signal: new AbortController().signal }))
       .rejects.toBeInstanceOf(SessionOwnershipError)
   })
 
@@ -88,7 +88,7 @@ describe('ExecSessionService', () => {
     })
     const result = await service.write({
       owner,
-      sessionId: started.session_id!,
+      jobId: started.job_id!,
       chars: '000000\n',
       yieldTimeMs: 1_000,
       signal: new AbortController().signal,

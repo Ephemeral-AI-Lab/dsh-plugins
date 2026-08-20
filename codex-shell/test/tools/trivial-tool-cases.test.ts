@@ -34,15 +34,15 @@ describe('trivial registered tool cases', () => {
     expect(result.content[0]?.text).toContain('max_output_tokens must be a positive finite number')
   })
 
-  it('rejects a non-positive write_stdin session id', async () => {
-    const result = await callTool(harness.writeStdin, { session_id: 0 }, execution())
+  it('rejects an invalid write_stdin job id', async () => {
+    const result = await callTool(harness.writeStdin, { job_id: 'invalid' }, execution())
 
     expect(result.isError).toBe(true)
-    expect(result.content[0]?.text).toContain('session_id must be a positive integer')
+    expect(result.content[0]?.text).toContain('job_id must be a codex-shell job id')
   })
 
   it('rejects a negative write_stdin wait', async () => {
-    const result = await callTool(harness.writeStdin, { session_id: 1, yield_time_ms: -1 }, execution())
+    const result = await callTool(harness.writeStdin, { job_id: 'codex-shell-1', yield_time_ms: -1 }, execution())
 
     expect(result.isError).toBe(true)
     expect(result.content[0]?.text).toContain('yield_time_ms must be a non-negative finite number')
@@ -54,7 +54,7 @@ describe('trivial registered tool cases', () => {
     expect(result.isError).toBe(false)
     expect(result.value?.output).toBe('PASS foreground\n')
     expect(result.value?.exit_code).toBe(0)
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('returns foreground stderr with exit code one', async () => {
@@ -63,7 +63,7 @@ describe('trivial registered tool cases', () => {
     expect(result.isError).toBe(false)
     expect(result.value?.output).toBe('FAIL simulated command\n')
     expect(result.value?.exit_code).toBe(1)
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('returns timing and chunk metadata for a foreground result', async () => {
@@ -87,36 +87,36 @@ describe('trivial registered tool cases', () => {
     expect(result.content[0]?.text).toBe('FAIL simulated command\n\n[exit code: 1]')
   })
 
-  it('returns a positive session id for a running command', async () => {
+  it('returns a job id for a running command', async () => {
     const result = await callTool(harness.execCommand, { cmd: 'interactive:session', yield_time_ms: 1_000 }, execution())
 
     expect(result.isError).toBe(false)
     expect(result.value?.output).toContain('READY session')
-    expect(result.value?.session_id).toBeTypeOf('number')
-    expect(result.value?.session_id).toBeGreaterThan(0)
+    expect(result.value?.job_id).toBeTypeOf('string')
+    expect(result.value?.job_id).toMatch(/^codex-shell-[1-9]\d*$/)
     expect(result.value?.exit_code).toBeUndefined()
-    expect(result.content[0]?.text).toContain(`[session_id: ${result.value?.session_id}]`)
+    expect(result.content[0]?.text).toContain(`[job_id: ${result.value?.job_id}]`)
   })
 
-  it('keeps the session id when an empty write polls a running command', async () => {
+  it('keeps the job id when an empty write polls a running command', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:poll', yield_time_ms: 0 }, execution())
-    const sessionId = started.value?.session_id
+    const jobId = started.value?.job_id
     const result = await callTool(harness.writeStdin, {
-      session_id: sessionId as number,
+      job_id: jobId,
       chars: '',
       yield_time_ms: 0,
     }, execution())
 
     expect(result.isError).toBe(false)
-    expect(result.value?.session_id).toBe(sessionId)
+    expect(result.value?.job_id).toBe(jobId)
     expect(result.value?.exit_code).toBeUndefined()
-    expect(result.content[0]?.text).toContain(`[session_id: ${sessionId}]`)
+    expect(result.content[0]?.text).toContain(`[job_id: ${jobId}]`)
   })
 
   it('completes with PASS after one write', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:pass', yield_time_ms: 0 }, execution())
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: 'PASS\n',
       yield_time_ms: 1_000,
     }, execution())
@@ -124,13 +124,13 @@ describe('trivial registered tool cases', () => {
     expect(result.isError).toBe(false)
     expect(result.value?.output).toContain('PASS pass')
     expect(result.value?.exit_code).toBe(0)
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('completes with FAIL after one write', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:fail', yield_time_ms: 0 }, execution())
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: 'FAIL\n',
       yield_time_ms: 1_000,
     }, execution())
@@ -138,18 +138,18 @@ describe('trivial registered tool cases', () => {
     expect(result.isError).toBe(false)
     expect(result.value?.output).toContain('FAIL fail')
     expect(result.value?.exit_code).toBe(1)
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('treats omitted chars as an empty poll', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:omitted', yield_time_ms: 0 }, execution())
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       yield_time_ms: 0,
     }, execution())
 
     expect(result.isError).toBe(false)
-    expect(result.value?.session_id).toBe(started.value?.session_id)
+    expect(result.value?.job_id).toBe(started.value?.job_id)
     expect(result.value?.exit_code).toBeUndefined()
   })
 
@@ -169,15 +169,15 @@ describe('trivial registered tool cases', () => {
   })
 
   it('reports an unknown session as a write_stdin error', async () => {
-    const result = await callTool(harness.writeStdin, { session_id: 999, chars: '' }, execution())
+    const result = await callTool(harness.writeStdin, { job_id: 'codex-shell-999', chars: '' }, execution())
 
     expect(result.isError).toBe(true)
-    expect(result.content[0]?.text).toContain('unknown or completed exec session 999')
+    expect(result.content[0]?.text).toContain('unknown or completed exec job codex-shell-999')
   })
 
   it('reports a completed session as unavailable for writing', async () => {
     const completed = await callTool(harness.execCommand, { cmd: 'foreground', yield_time_ms: 1_000 }, execution())
-    const result = await callTool(harness.writeStdin, { session_id: 1, chars: '' }, execution())
+    const result = await callTool(harness.writeStdin, { job_id: 'codex-shell-1', chars: '' }, execution())
 
     expect(completed.value?.exit_code).toBe(0)
     expect(result.isError).toBe(true)

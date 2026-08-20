@@ -2,6 +2,8 @@ import { resolve as resolvePath } from 'node:path'
 import { TextEncoder } from 'node:util'
 import type {
   BackendFactory,
+  BackgroundJobOutcome,
+  BackgroundJobs,
   ExecRequest,
   ExecResult,
   ExitStatus,
@@ -22,15 +24,15 @@ import { SessionRegistry } from './session-registry.js'
 const encoder = new TextEncoder()
 
 export class UnknownSessionError extends Error {
-  constructor(sessionId: number) {
-    super(`unknown or completed exec session ${sessionId}`)
+  constructor(jobId: string) {
+    super(`unknown or completed exec job ${jobId}`)
     this.name = 'UnknownSessionError'
   }
 }
 
 export class SessionOwnershipError extends Error {
-  constructor(sessionId: number) {
-    super(`exec session ${sessionId} belongs to a different agent owner`)
+  constructor(jobId: string) {
+    super(`exec job ${jobId} belongs to a different agent owner`)
     this.name = 'SessionOwnershipError'
   }
 }
@@ -44,7 +46,13 @@ export class MaxSessionsError extends Error {
 
 export class ExecSessionService {
   private readonly registry = new SessionRegistry()
+  private readonly completed = new Map<string, {
+    owner: SessionOwner
+    exit: ExitStatus
+    outputSequence: number
+  }>()
   private readonly ownerCleanup = new WeakSet<object>()
+  private readonly closedOwners = new WeakSet<object>()
   private disposed = false
   private readonly anonymousOwner: SessionOwner = Object.freeze({ ownerId: 'anonymous' })
 
@@ -53,6 +61,7 @@ export class ExecSessionService {
     private readonly shellAdapter: ShellAdapter,
     private readonly backendFactory: BackendFactory,
     private readonly policy?: ExecutionPolicy,
+    private readonly jobs?: BackgroundJobs,
   ) {}
 
   ownerFor(owner: object | undefined): SessionOwner {
@@ -86,7 +95,14 @@ export class ExecSessionService {
       const record = this.publish(id, request.owner, backend, startedAt)
       this.installOwnerCleanup(request.owner)
       await this.collect(record, request.yieldTimeMs ?? this.config.defaultYieldTimeMs, request.signal)
-      return await this.finishOperation(record, startedAt, request.maxOutputTokens)
+      const result = await this.finishOperation(record, startedAt, request.maxOutputTokens)
+      if (this.registry.get(record.id) !== undefined) {
+        const jobId = this.promote(record, request.cmd, request.jobOwner)
+        record.exposedToCaller = true
+        result.job_id = jobId
+        result.chunk_id = `${jobId}-${record.outputSequence}`
+      }
+      return result
     } catch (error: unknown) {
       if (backend !== undefined && this.registry.get(id) === undefined) {
         await this.cleanupUnpublished(backend)
@@ -101,7 +117,20 @@ export class ExecSessionService {
 
   async write(request: WriteRequest): Promise<ExecResult> {
     throwIfAborted(request.signal)
-    const record = this.requireOwned(request.sessionId, request.owner)
+    const completed = this.completed.get(request.jobId)
+    if (completed !== undefined) {
+      if (completed.owner !== request.owner) throw new SessionOwnershipError(request.jobId)
+      if (request.chars.length > 0) throw new StdinClosedError(request.jobId)
+      completed.outputSequence += 1
+      return {
+        output: '',
+        wall_time_seconds: 0,
+        exit_code: completed.exit.exitCode ?? -1,
+        chunk_id: `${request.jobId}-${completed.outputSequence}`,
+        already_collected: true,
+      }
+    }
+    const record = this.requireOwned(request.jobId, request.owner)
     const prior = record.activeOperation ?? Promise.resolve()
     const operation = prior.then(
       () => this.performWrite(record, request),
@@ -115,8 +144,12 @@ export class ExecSessionService {
   }
 
   async closeOwner(owner: SessionOwner): Promise<void> {
+    this.closedOwners.add(owner)
     const records = this.registry.values().filter(record => record.owner === owner)
     await Promise.all(records.map(record => this.terminateRecord(record, 'owner_disposed')))
+    for (const [id, completed] of this.completed) {
+      if (completed.owner === owner) this.completed.delete(id)
+    }
   }
 
   async dispose(): Promise<void> {
@@ -125,6 +158,7 @@ export class ExecSessionService {
     const records = this.registry.values()
     await Promise.all(records.map(record => this.terminateRecord(record, 'service_disposed')))
     for (const record of this.registry.values()) this.registry.remove(record.id)
+    this.completed.clear()
   }
 
   get liveSessionCount(): number {
@@ -140,7 +174,7 @@ export class ExecSessionService {
       // Wait for the backend's stream-drain boundary before closing the log.
       await backend.waitForQuiescence()
       output.finish()
-      this.notifyNaturalExit(record)
+      if (record.jobId === undefined) this.notifyNaturalExit(record)
       return exit
     }).catch((error: unknown) => {
       record.failure = error
@@ -160,6 +194,8 @@ export class ExecSessionService {
       outputSequence: 0,
       notificationAttempted: false,
       exposedToCaller: false,
+      terminalReportedByTool: false,
+      jobCancelRequested: false,
       outputUnsubscribe: () => undefined,
       exitPromise,
     }
@@ -174,9 +210,9 @@ export class ExecSessionService {
     const startedAt = Date.now()
     try {
       throwIfAborted(request.signal)
-      if (record.state === 'closed' || record.state === 'terminating') throw new UnknownSessionError(record.id)
+      if (record.state === 'closed' || record.state === 'terminating') throw new UnknownSessionError(publicSessionId(record))
       if (record.exit !== undefined || record.failure !== undefined || record.state === 'exited') {
-        if (record.exit !== undefined && request.chars.length > 0) throw new StdinClosedError(record.id)
+        if (record.exit !== undefined && request.chars.length > 0) throw new StdinClosedError(publicSessionId(record))
         return await this.finishOperation(record, startedAt, request.maxOutputTokens)
       }
       if (request.chars.length > 0) {
@@ -232,7 +268,7 @@ export class ExecSessionService {
   private async finishOperation(record: SessionRecord, startedAt: number, requestedTokens: number | undefined): Promise<ExecResult> {
     if (record.exit !== undefined) await record.exitPromise.catch(() => undefined)
     if (record.failure !== undefined) throw record.failure
-    if (record.exit === undefined && isClosing(record)) throw new UnknownSessionError(record.id)
+    if (record.exit === undefined && isClosing(record)) throw new UnknownSessionError(publicSessionId(record))
     if (record.exit !== undefined) await record.backend.waitForQuiescence()
     const limit = normalizeOutputLimit(
       { maxOutputTokens: requestedTokens ?? this.config.defaultMaxOutputTokens },
@@ -244,39 +280,48 @@ export class ExecSessionService {
     const result: ExecResult = {
       output: read.text,
       wall_time_seconds: Math.max(0, (Date.now() - startedAt) / 1000),
-      chunk_id: `${record.id}-${record.outputSequence}`,
+      chunk_id: `${record.jobId ?? record.id}-${record.outputSequence}`,
       ...read.truncated || record.output.isTruncated ? { truncated: true } : {},
     }
     if (record.exit !== undefined) {
       result.exit_code = record.exit.exitCode ?? -1
+      record.terminalReportedByTool = true
       if (read.hasMore) {
-        result.session_id = record.id
+        if (record.jobId !== undefined) result.job_id = record.jobId
       } else {
         this.removeCompleted(record)
       }
     } else {
-      record.exposedToCaller = true
-      this.notifyNaturalExit(record)
-      result.session_id = record.id
+      if (record.jobId !== undefined) result.job_id = record.jobId
     }
     return result
   }
 
-  private requireOwned(id: number, owner: SessionOwner): SessionRecord {
-    const record = this.registry.get(id)
+  private requireOwned(id: string, owner: SessionOwner): SessionRecord {
+    const record = this.registry.values().find(candidate => candidate.jobId === id)
     if (record === undefined || record.state === 'closed') throw new UnknownSessionError(id)
     if (record.owner !== owner) throw new SessionOwnershipError(id)
     return record
   }
 
   private removeCompleted(record: SessionRecord): void {
+    if (!this.disposed && record.jobId !== undefined && record.exit !== undefined && !this.closedOwners.has(record.owner)) {
+      this.completed.set(record.jobId, {
+        owner: record.owner,
+        exit: record.exit,
+        outputSequence: record.outputSequence,
+      })
+    }
     this.releaseRecord(record, 'collected')
   }
 
   private async abortSession(id: number, originalError: unknown): Promise<void> {
     const record = this.registry.get(id)
     if (record === undefined) return
-    if (record.exit !== undefined) return
+    if (record.exit !== undefined) {
+      this.releaseRecord(record, 'backend_failure')
+      return
+    }
     record.state = 'terminating'
     try {
       await terminateAndJoin(record.backend)
@@ -316,17 +361,75 @@ export class ExecSessionService {
   }
 
   private notifyNaturalExit(record: SessionRecord): void {
+    if (this.disposed || this.closedOwners.has(record.owner)) return
     if (!record.exposedToCaller || record.notificationAttempted || record.exit === undefined) return
-    const owner = record.owner
-    const deliver = owner.status === 'idle'
-      ? owner.followup ?? owner.inject
-      : owner.inject ?? owner.followup
-    if (deliver === undefined) return
+    if (record.owner.steer === undefined) return
     record.notificationAttempted = true
     try {
-      deliver.call(owner, createSessionExitNotification(record.id, record.exit))
+      record.owner.steer(createSessionExitNotification(record.jobId ?? `codex-shell-${record.id}`, record.exit))
     } catch {
       // Notification is advisory; the session remains pollable.
+    }
+  }
+
+  private promote(record: SessionRecord, command: string, jobOwner: object | undefined): string {
+    const jobs = this.jobs
+    if (jobs === undefined) {
+      const id = `codex-shell-${record.id}`
+      record.jobId = id
+      void record.exitPromise.then(
+        () => this.notifyNaturalExit(record),
+        () => undefined,
+      )
+      return id
+    }
+    let settle!: (outcome: BackgroundJobOutcome) => void
+    const done = new Promise<BackgroundJobOutcome>((resolve) => { settle = resolve })
+    const id = jobs.start({
+      kind: 'codex-shell',
+      label: command.replace(/\s+/g, ' ').trim(),
+      ...jobOwner === undefined ? {} : { owner: jobOwner },
+      run: () => ({
+        cancel: () => {
+          if (record.jobCancelRequested) return
+          record.jobCancelRequested = true
+          void terminateAndJoin(record.backend)
+        },
+        done,
+      }),
+    })
+    record.jobId = id
+    void record.exitPromise.then(
+      exit => this.settlePromoted(record, id, jobOwner, settle, {
+        status: record.jobCancelRequested ? 'killed' : 'completed',
+        detail: exit.signal === null
+          ? `exit code: ${exit.exitCode ?? -1}`
+          : `signal: ${exit.signal}`,
+      }),
+      error => this.settlePromoted(record, id, jobOwner, settle, {
+        status: 'failed',
+        detail: String(error),
+      }),
+    )
+    return id
+  }
+
+  private async settlePromoted(
+    record: SessionRecord,
+    jobId: string,
+    jobOwner: object | undefined,
+    settle: (outcome: BackgroundJobOutcome) => void,
+    outcome: BackgroundJobOutcome,
+  ): Promise<void> {
+    const activeAtExit = record.activeOperation
+    // A terminal waiter marks the generic job notice reported. Codex Shell's
+    // notice points at write_stdin, while job_output intentionally owns no PTY output.
+    const reported = this.jobs?.wait(jobId, 30_000, jobOwner).catch(() => undefined)
+    settle(outcome)
+    await reported
+    await activeAtExit?.catch(() => undefined)
+    if (!record.jobCancelRequested && !record.terminalReportedByTool && record.exit !== undefined) {
+      this.notifyNaturalExit(record)
     }
   }
 
@@ -345,8 +448,8 @@ export class ExecSessionService {
 }
 
 export class StdinClosedError extends Error {
-  constructor(sessionId: number) {
-    super(`exec session ${sessionId} stdin is closed; poll with empty chars to collect its result`)
+  constructor(jobId: string) {
+    super(`exec job ${jobId} stdin is closed; poll with empty chars to collect its result`)
     this.name = 'StdinClosedError'
   }
 }
@@ -362,4 +465,8 @@ function hasTerminalResult(record: SessionRecord): boolean {
 function clampWait(value: number): number {
   if (!Number.isFinite(value) || value < 0) return 0
   return Math.min(30_000, Math.floor(value))
+}
+
+function publicSessionId(record: SessionRecord): string {
+  return record.jobId ?? `codex-shell-${record.id}`
 }

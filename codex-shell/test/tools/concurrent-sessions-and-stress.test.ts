@@ -31,7 +31,7 @@ describe('concurrent sessions and stress behavior', () => {
     for (const label of ['one', 'two', 'three']) {
       const started = await callTool(harness.execCommand, { cmd: `interactive:${label}`, yield_time_ms: 0 }, execution(agent))
       const result = await callTool(harness.writeStdin, {
-        session_id: started.value!.session_id,
+        job_id: started.value!.job_id,
         chars: 'PASS\n',
         yield_time_ms: 1_000,
       }, execution(agent))

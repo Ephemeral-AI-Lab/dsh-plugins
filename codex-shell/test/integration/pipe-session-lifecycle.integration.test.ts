@@ -15,14 +15,14 @@ describe('pipe session lifecycle integration', () => {
     const agent = harness.agent('pipe-output-agent')
     try {
       const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-      const sessionId = started.value?.session_id
-      expect(sessionId).toBeTypeOf('number')
+      const jobId = started.value?.job_id
+      expect(jobId).toBeTypeOf('string')
 
       // The fixture writes and exits while no write_stdin call is active.
       await delay(250)
 
       const polled = await callTool(harness.writeStdin, {
-        session_id: sessionId,
+        job_id: jobId,
         chars: '',
         yield_time_ms: 0,
       }, execution(agent))
@@ -42,19 +42,19 @@ describe('pipe session lifecycle integration', () => {
     const agent = harness.agent('post-exit-write-agent')
     try {
       const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-      const sessionId = started.value?.session_id
-      expect(sessionId).toBeTypeOf('number')
+      const jobId = started.value?.job_id
+      expect(jobId).toBeTypeOf('string')
       await delay(250)
 
       const writeAfterExit = await callTool(harness.writeStdin, {
-        session_id: sessionId,
+        job_id: jobId,
         chars: 'late input',
         yield_time_ms: 0,
       }, execution(agent))
       expect(writeAfterExit.isError).toBe(true)
 
       const finalPoll = await callTool(harness.writeStdin, {
-        session_id: sessionId,
+        job_id: jobId,
         chars: '',
         yield_time_ms: 0,
       }, execution(agent))
@@ -74,21 +74,21 @@ describe('pipe session lifecycle integration', () => {
     try {
       const first = await service.exec({ owner, cmd: 'slow', yieldTimeMs: 0, signal: signal() })
       const second = await service.exec({ owner, cmd: 'slow', yieldTimeMs: 0, signal: signal() })
-      expect(first.session_id).toBeTypeOf('number')
-      expect(second.session_id).toBeTypeOf('number')
+      expect(first.job_id).toBeTypeOf('string')
+      expect(second.job_id).toBeTypeOf('string')
       await delay(250)
 
       await expect(service.exec({ owner, cmd: 'slow', yieldTimeMs: 0, signal: signal() }))
         .rejects.toBeInstanceOf(MaxSessionsError)
 
-      const firstResult = await service.write({ owner, sessionId: first.session_id!, chars: '', yieldTimeMs: 0, signal: signal() })
-      const secondResult = await service.write({ owner, sessionId: second.session_id!, chars: '', yieldTimeMs: 0, signal: signal() })
+      const firstResult = await service.write({ owner, jobId: first.job_id!, chars: '', yieldTimeMs: 0, signal: signal() })
+      const secondResult = await service.write({ owner, jobId: second.job_id!, chars: '', yieldTimeMs: 0, signal: signal() })
       expect(firstResult).toMatchObject({ output: expect.stringContaining('PASS slow'), exit_code: 0 })
       expect(secondResult).toMatchObject({ output: expect.stringContaining('PASS slow'), exit_code: 0 })
 
       const replacement = await service.exec({ owner, cmd: 'slow', yieldTimeMs: 0, signal: signal() })
-      expect(replacement.session_id).toBeTypeOf('number')
-      await service.write({ owner, sessionId: replacement.session_id!, chars: '', yieldTimeMs: 1_000, signal: signal() })
+      expect(replacement.job_id).toBeTypeOf('string')
+      await service.write({ owner, jobId: replacement.job_id!, chars: '', yieldTimeMs: 1_000, signal: signal() })
     } finally {
       await service.dispose()
     }
@@ -110,7 +110,7 @@ describe('pipe session lifecycle integration', () => {
         yieldTimeMs: 0,
         signal: signal(),
       })
-      expect(started.session_id).toBeTypeOf('number')
+      expect(started.job_id).toBeTypeOf('string')
       expect(pid).toBeTypeOf('number')
 
       await service.dispose()

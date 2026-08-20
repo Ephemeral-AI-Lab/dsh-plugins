@@ -6,11 +6,11 @@ import type { ExecSessionService } from '../session/exec-session-service.js'
 export function registerExecCommandTool(ctx: Context, service: ExecSessionService): void {
   ctx.tools.register(defineTool({
     name: 'exec_command',
-    description: 'Run a command in the host shell and return output or a session ID for ongoing interaction.',
+    description: 'Run a command in the host shell and return output or a background job ID for ongoing interaction.',
     parameters: {
       cmd: { type: 'string', required: true, description: 'Shell command to execute.' },
       workdir: { type: 'string', description: 'Working directory for the command.' },
-      yield_time_ms: { type: 'number', description: 'Maximum time to wait before returning a live session ID. Defaults to 10000 ms.' },
+      yield_time_ms: { type: 'number', description: 'Maximum time to wait before returning a live background job ID. Defaults to 10000 ms.' },
       max_output_tokens: { type: 'number', description: 'Maximum output token budget. Defaults to the configured limit.' },
     },
     output: {
@@ -20,7 +20,7 @@ export function registerExecCommandTool(ctx: Context, service: ExecSessionServic
         properties: {
           output: { type: 'string', required: true },
           wall_time_seconds: { type: 'number', required: true },
-          session_id: { type: 'integer' },
+          job_id: { type: 'string' },
           exit_code: { type: 'integer' },
           chunk_id: { type: 'string' },
           original_token_count: { type: 'integer' },
@@ -33,6 +33,7 @@ export function registerExecCommandTool(ctx: Context, service: ExecSessionServic
       validateCommandArgs(args)
       return service.exec({
         owner: service.ownerFor(exec.agent),
+        ...exec.agent === undefined ? {} : { jobOwner: exec.agent },
         cmd: args.cmd,
         ...args.workdir === undefined ? {} : { workdir: args.workdir },
         ...args.yield_time_ms === undefined ? {} : { yieldTimeMs: args.yield_time_ms },
@@ -55,7 +56,7 @@ function validateCommandArgs(args: ExecCommandArgs): void {
 }
 
 function renderOutput(value: ExecResult): string {
-  const session = value.session_id === undefined ? '' : `\n[session_id: ${value.session_id}]`
+  const job = value.job_id === undefined ? '' : `\n[job_id: ${value.job_id}]`
   const marker = value.exit_code !== undefined && value.exit_code !== 0 ? `\n[exit code: ${value.exit_code}]` : ''
-  return value.output + session + marker
+  return value.output + job + marker
 }

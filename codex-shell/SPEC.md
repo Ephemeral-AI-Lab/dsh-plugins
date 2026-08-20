@@ -29,6 +29,8 @@ The plugin is intentionally independent of DHS's current terminal-bash PTY path.
 10. Keep process output bounded in memory and avoid a disk-backed shell log by default.
 11. Preserve unread terminal output after natural process exit until the terminal result is delivered.
 12. Notify the owning agent when a session returned by exec_command exits naturally.
+13. Automatically register every session that outlives yield_time_ms with ctx.jobs.
+14. Keep job lifecycle and cancellation in ctx.jobs while write_stdin remains the only output path.
 
 ### Non-goals for v1
 
@@ -61,6 +63,7 @@ cmd is required. The following are deliberately not model-visible:
 - justification
 - prefix_rule
 - tty
+- run_in_background
 
 Pipes are the default transport in v1. The model-facing contract does not expose a transport switch; the plugin runtime does not allocate a PTY for ordinary commands.
 
@@ -73,7 +76,7 @@ Defaults:
 | PTY rows | 24 |
 | PTY columns | 80 |
 
-The command runs in a new process session. A persistent shell is not reused between separate exec_command calls.
+The command runs in a new process session. A persistent shell is not reused between separate exec_command calls. If the process is still live when yield_time_ms expires, the existing session is registered as a background job and exec_command returns its single `codex-shell-N` identifier. No separate background-mode parameter exists.
 
 ### 3.2 write_stdin
 
@@ -81,7 +84,7 @@ The model-visible parameters are:
 
 ~~~ts
 interface WriteStdinArgs {
-  session_id: number
+  job_id: string
   chars?: string
   yield_time_ms?: number
   max_output_tokens?: number
@@ -102,7 +105,8 @@ Defaults and behavior:
 - A completed session remains readable through an empty poll. A non-empty write after exit
   returns a structured stdin-closed error without deleting the session or its unread output.
 - The first successful terminal poll returns the remaining output and exit_code, then releases
-  the session record.
+  the process and output record. A lightweight owner-scoped completion record keeps later empty
+  polls idempotent while the owner and its background-job history remain alive.
 - An unknown, expired, or explicitly discarded session returns a structured error that identifies
   the reason; it must not be reported as an indistinguishable generic unknown session.
 
@@ -116,26 +120,31 @@ Both tools return the same canonical JSON shape:
 interface ExecCommandResult {
   output: string
   wall_time_seconds: number
-  session_id?: number
+  job_id?: string
   exit_code?: number
   chunk_id?: string
   original_token_count?: number
   truncated?: boolean
+  already_collected?: boolean
 }
 ~~~
 
 Rules:
 
 - output is always present and may be empty.
-- session_id is present while the process is running or while an exited session still has
+- job_id is present while the process is running or while an exited session still has
   unread output after a token-capped result.
+- job_id is the registry-issued `codex-shell-N` identifier shared by write_stdin,
+  job_list, and job_kill.
 - exit_code is present once the process has exited.
-- session_id and exit_code may both be present while a completed session's output is being
+- job_id and exit_code may both be present while a completed session's output is being
   paginated. The session is removed only when the terminal result has no unread output left.
 - wall_time_seconds measures the current tool operation, not the full lifetime of a session.
 - chunk_id is optional and may identify an output segment.
 - original_token_count is emitted only when an exact token counter is available.
 - truncated must be true when returned output is incomplete because of a configured limit.
+- already_collected is true only for an idempotent empty poll after the promoted session's
+  terminal output and exit status were already delivered.
 - Each result contains the unread output delta since the previous successful result for that
   session. It includes output that arrived while no tool call was active and output that arrives
   while the current write_stdin operation is waiting.
@@ -149,10 +158,10 @@ The plugin entry point must follow the DHS Cordis plugin shape:
 
 ~~~ts
 export const name = 'codex-shell'
-export const inject = ['tools', 'systemPrompt']
+export const inject = ['tools', 'systemPrompt', 'jobs']
 
 export function apply(ctx: Context): void {
-  // Register the session service and both model-facing tools.
+  // Register the job-aware session service and both model-facing tools.
 }
 ~~~
 
@@ -163,6 +172,7 @@ The exact DHS tool registration must use defineTool() and ctx.tools.register(). 
 3. Return one canonical JSON value.
 4. Throw infrastructure failures rather than encoding them as successful output.
 5. Register cleanup through the Cordis effect/disposal lifecycle.
+6. Fail at load when ctx.jobs is unavailable.
 
 The plugin may add a short system-prompt capability note describing the host shell, for example that Windows commands use PowerShell and POSIX commands use the resolved POSIX shell.
 
@@ -244,6 +254,8 @@ interface SessionRecord {
   startedAt: number
   outputDelivered: boolean
   completionNotified: boolean
+  jobId?: string
+  jobCancelRequested: boolean
   exitObservedAt?: number
   cleanupReason?: 'collected' | 'owner_disposed' | 'service_disposed' | 'expired' | 'backend_failure'
 }
@@ -265,6 +277,9 @@ Session rules:
 10. Remove all backend listeners, timers, process references, and registry references exactly once
     during finalization. Cleanup must be idempotent and must not depend on JavaScript garbage
     collection running at a particular time.
+11. Keep only lightweight completion metadata after a promoted session's terminal output has
+    been collected; repeated empty polls return the same exit status without retaining the process
+    or output buffer.
 
 ### 6.1 Session lifecycle and retention
 
@@ -279,8 +294,8 @@ in `state: 'exited'` while it is still holding unread output for a later empty w
 For the initial exec_command operation:
 
 - If the process exits before the initial result is returned, return the terminal output and
-  exit_code directly and do not return a session_id.
-- If the initial operation returns a session_id, retain that session even if the process exits
+  exit_code directly and do not return a job_id.
+- If the initial operation returns a job_id, retain that session even if the process exits
   immediately afterward.
 
 For a later natural exit:
@@ -289,34 +304,62 @@ For a later natural exit:
 - Retain the record until the first successful terminal poll returns the unread output and
   exit_code.
 - Remove the record only after the result has been constructed and the output cursor advanced.
+- Preserve a lightweight completion record for promoted sessions so a delayed notification cannot
+  turn a harmless second empty poll into an unknown-session error.
 
-There is no implicit process-session disk persistence in v1. A session_id is valid only while its
+There is no implicit process-session disk persistence in v1. A job_id is valid only while its
 owning ExecSessionService is alive. Plugin disposal, owner disposal, or process failure may make a
 session unavailable, but each such removal must have an explicit cleanup reason and diagnostic
 path. Restart recovery is a separate, opt-in feature and must not be simulated by writing full
 shell output into the main DSH conversation log.
 
-### 6.2 Natural-exit notification
+### 6.2 Background-job promotion
 
-When exec_command has already returned a live session_id and the process later exits naturally,
+If the process is still live when the initial yield expires, the session service registers one
+`codex-shell` job through ctx.jobs. The registry-issued job ID is also the write_stdin target.
+The job's cancel hook terminates the same backend and its done
+promise settles only after process exit and output quiescence.
+
+ctx.jobs owns the job ID, running/stopping/terminal state, owner fencing, job_list visibility, and
+job_kill. It does not own terminal output: the producer supplies no readOutput hook or outcome
+output. Before settling the job, Codex Shell attaches a terminal wait so the generic job_output
+completion notice is marked reported; it then sends its own write_stdin instruction without
+advancing the session output cursor.
+
+Commands that exit before the initial result are returned inline and never registered. A process
+that exits at the yield boundary either returns inline or becomes an already-terminal registered
+job; it must not escape both paths.
+
+### 6.3 Natural-exit notification
+
+When exec_command has already returned a live job_id and the process later exits naturally,
 the service emits at most one owner-scoped completion notification. The notification is not a
 second tool/result and must not fabricate a historical tool call.
+
+The notification is emitted only for background completion between tool calls. If an active
+write_stdin operation observes the exit and returns exit_code inside its yield, that tool result
+is the terminal delivery and the completion steer is suppressed. The service waits for the operation
+that was active at exit before deciding, so input that causes the process to terminate cannot
+produce both a terminal tool result and a completion notice.
 
 The notification is compact and instructs the agent to retrieve the result:
 
 ~~~text
-exec session 12 exited with code 0.
-Call write_stdin with session_id=12 and chars="" to collect the remaining output.
+exec job codex-shell-12 exited with code 0.
+Call write_stdin with job_id="codex-shell-12" and chars="" to collect the remaining output.
 ~~~
 
 The notification must not contain the full output. The full unread output remains available from
-write_stdin, which is the single terminal-result path. The notification should use the DSH owner
-lifecycle: inject while the owner is busy, or followup when the owner is idle and should wake.
+write_stdin, which is the single terminal-result path. A promoted session delivers the notice with
+`owner.steer(notification)`. A running owner consumes it at the nearest later step boundary; an
+idle owner wakes in a new turn so the model learns that the job finished. The owner interface does
+not expose `followup`, and Codex Shell never uses it for completion delivery.
 
-The notification is sent only after output closure is complete and only once. If notification
-delivery fails, the session remains pollable; notification failure must never delete output.
+The notification is sent only after output closure is complete and only once. Owner or service
+teardown suppresses it rather than waking an agent being disposed. If notification delivery fails,
+the session remains pollable; notification failure must never delete output.
 
-The public session ID is an opaque plugin identifier. It must not be treated as an operating-system PID, even if the backend also exposes a PID internally.
+The public job ID is an opaque plugin identifier. It must not be treated as an operating-system PID, even if the backend also exposes a PID internally.
 
 ## 7. Backend abstraction
 
@@ -516,9 +559,9 @@ Suggested development defaults:
 ### Unit tests
 
 - Tool schemas expose only the approved public parameters.
-- Missing cmd and missing session_id are rejected.
+- Missing cmd and missing job_id are rejected.
 - Empty chars performs a poll.
-- Session IDs are unique within an owner.
+- Job IDs are unique within an owner.
 - A different owner cannot write to a session.
 - Concurrent operations on one session are serialized.
 - Output truncation is reported.
@@ -538,7 +581,7 @@ Suggested development defaults:
 ### Windows integration tests
 
 - Run a short PowerShell command and return exit_code.
-- Run a long-lived Node or PowerShell process and return session_id.
+- Run a long-lived Node or PowerShell process and return job_id.
 - Send input through write_stdin.
 - Poll with empty chars.
 - Interrupt a live pipe process.
@@ -557,7 +600,7 @@ Load the compiled plugin in a minimal DHS profile and verify:
 
 1. Both tools appear in the tool schema list.
 2. exec_command can be called by an agent.
-3. A live session can be polled with write_stdin.
+3. A live job can be polled with write_stdin using the job ID returned by exec_command.
 4. Plugin disposal leaves no live child process.
 
 ## 14. Definition of done

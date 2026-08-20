@@ -37,13 +37,13 @@ describe('session output and retention regressions', () => {
     const service = makeService(async () => backend)
 
     const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
 
     backend.emit('stdout', 'output-after-exec')
-    const result = await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    const result = await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
 
     expect(result.output).toContain('output-after-exec')
-    expect(result.session_id).toBe(1)
+    expect(result.job_id).toBe('codex-shell-1')
   })
 
   it('returns already-unread output without waiting the default poll delay', async () => {
@@ -52,7 +52,7 @@ describe('session output and retention regressions', () => {
     await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
     backend.emit('stdout', 'already-buffered')
 
-    const poll = service.write({ owner, sessionId: 1, chars: '', signal: signal() })
+    const poll = service.write({ owner, jobId: 'codex-shell-1', chars: '', signal: signal() })
     const outcome = await Promise.race([
       poll.then(result => ({ kind: 'result' as const, result })),
       delay(25).then(() => ({ kind: 'timeout' as const })),
@@ -72,20 +72,20 @@ describe('session output and retention regressions', () => {
     for (let index = 0; index < 3; index += 1) {
       const result = await service.write({
         owner,
-        sessionId: 1,
+        jobId: 'codex-shell-1',
         chars: '',
         yieldTimeMs: 0,
         maxOutputTokens: 1,
         signal: signal(),
       })
       chunks.push(result.output)
-      expect(result.session_id).toBe(1)
+      expect(result.job_id).toBe('codex-shell-1')
     }
 
     expect(chunks.join('')).toBe('abcdefghij')
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
-    expect((await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })).exit_code).toBe(0)
+    expect((await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })).exit_code).toBe(0)
   })
 
   it('retains naturally exited output until an empty write_stdin poll', async () => {
@@ -97,7 +97,7 @@ describe('session output and retention regressions', () => {
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
 
-    const result = await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    const result = await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
     expect(result.output).toContain('final-output')
     expect(result.exit_code).toBe(0)
     expect(service.liveSessionCount).toBe(0)
@@ -114,7 +114,7 @@ describe('session output and retention regressions', () => {
 
     const first = await service.write({
       owner,
-      sessionId: 1,
+      jobId: 'codex-shell-1',
       chars: '',
       yieldTimeMs: 0,
       maxOutputTokens: 100,
@@ -122,21 +122,21 @@ describe('session output and retention regressions', () => {
     })
     expect(first.truncated).toBe(true)
     expect(first.exit_code).toBe(0)
-    expect(first.session_id).toBe(1)
+    expect(first.job_id).toBe('codex-shell-1')
     expect(service.liveSessionCount).toBe(1)
 
     let last = first
-    for (let poll = 0; poll < 10 && last.session_id !== undefined; poll += 1) {
+    for (let poll = 0; poll < 10 && last.job_id !== undefined; poll += 1) {
       last = await service.write({
         owner,
-        sessionId: 1,
+        jobId: 'codex-shell-1',
         chars: '',
         yieldTimeMs: 0,
         maxOutputTokens: 100,
         signal: signal(),
       })
     }
-    expect(last.session_id).toBeUndefined()
+    expect(last.job_id).toBeUndefined()
     expect(last.exit_code).toBe(0)
     expect(service.liveSessionCount).toBe(0)
   })
@@ -150,8 +150,8 @@ describe('session output and retention regressions', () => {
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
 
-    await expect(service.write({ owner, sessionId: 1, chars: 'late-input', yieldTimeMs: 0, signal: signal() })).rejects.toThrow()
-    const result = await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    await expect(service.write({ owner, jobId: 'codex-shell-1', chars: 'late-input', yieldTimeMs: 0, signal: signal() })).rejects.toThrow()
+    const result = await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
     expect(result.output).toContain('must-survive')
     expect(result.exit_code).toBe(0)
   })
@@ -161,25 +161,24 @@ describe('session output and retention regressions', () => {
     const notifications: string[] = []
     const notifyingOwner: SessionOwner = {
       ownerId: 'notification-owner',
-      status: 'idle',
-      followup(message) {
+      steer(message) {
         notifications.push(message.content[0].text)
       },
     }
     const service = makeService(async () => backend)
 
     const started = await service.exec({ owner: notifyingOwner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
 
     backend.emit('stdout', 'notification-output')
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
 
     expect(notifications).toEqual([
-      'exec session 1 exited with code 0. Call write_stdin with session_id=1 and chars="" to collect the remaining output.',
+      'exec job codex-shell-1 exited with code 0. Call write_stdin with job_id="codex-shell-1" and chars="" to collect the remaining output.',
     ])
 
-    const result = await service.write({ owner: notifyingOwner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    const result = await service.write({ owner: notifyingOwner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
     expect(result.output).toContain('notification-output')
     expect(result.exit_code).toBe(0)
     expect(notifications).toHaveLength(1)

@@ -39,7 +39,7 @@ export interface ExecCommandArgs {
 }
 
 export interface WriteStdinArgs {
-  session_id: number
+  job_id: string
   chars?: string
   yield_time_ms?: number
   max_output_tokens?: number
@@ -48,11 +48,35 @@ export interface WriteStdinArgs {
 export interface ExecResult {
   output: string
   wall_time_seconds: number
-  session_id?: number
+  job_id?: string
   exit_code?: number
   chunk_id?: string
   original_token_count?: number
   truncated?: boolean
+  already_collected?: boolean
+}
+
+export interface BackgroundJobOutcome {
+  status: 'completed' | 'killed' | 'failed'
+  detail?: string
+}
+
+export interface BackgroundJobHooks {
+  cancel(reason?: string): void
+  done: Promise<BackgroundJobOutcome>
+}
+
+export interface BackgroundJobStart {
+  kind: string
+  label: string
+  owner?: object
+  run(): BackgroundJobHooks
+}
+
+/** Narrow portion of ctx.jobs used to track promoted shell sessions. */
+export interface BackgroundJobs {
+  start(spec: BackgroundJobStart): string
+  wait(id: string, timeoutMs: number, owner?: object, signal?: AbortSignal): Promise<unknown>
 }
 
 export type OutputStream = 'pty' | 'stdout' | 'stderr'
@@ -112,13 +136,12 @@ export interface SessionNotification {
 
 export interface SessionOwner {
   readonly ownerId?: string
-  readonly status?: 'idle' | 'running' | 'maintenance'
-  readonly inject?: (message: SessionNotification) => void
-  readonly followup?: (message: SessionNotification) => void
+  steer?(message: SessionNotification): void
 }
 
 export interface ExecRequest {
   owner: SessionOwner
+  jobOwner?: object
   cmd: string
   workdir?: string
   yieldTimeMs?: number
@@ -128,7 +151,7 @@ export interface ExecRequest {
 
 export interface WriteRequest {
   owner: SessionOwner
-  sessionId: number
+  jobId: string
   chars: string
   yieldTimeMs?: number
   maxOutputTokens?: number
@@ -149,6 +172,9 @@ export interface SessionRecord {
   outputSequence: number
   notificationAttempted: boolean
   exposedToCaller: boolean
+  terminalReportedByTool: boolean
+  jobCancelRequested: boolean
+  jobId?: string
   outputUnsubscribe: () => void
   cleanupReason?: 'collected' | 'owner_disposed' | 'service_disposed' | 'expired' | 'backend_failure'
   readonly exitPromise: Promise<ExitStatus>

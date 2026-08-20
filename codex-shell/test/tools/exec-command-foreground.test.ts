@@ -19,7 +19,7 @@ describe('exec_command foreground execution', () => {
 
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ output: expect.stringContaining('PASS foreground'), exit_code: 0 })
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('preserves stderr and a nonzero exit code as a command result', async () => {
@@ -27,7 +27,7 @@ describe('exec_command foreground execution', () => {
 
     expect(result.isError).toBe(false)
     expect(result.value).toMatchObject({ output: expect.stringContaining('FAIL simulated command'), exit_code: 1 })
-    expect(result.value?.session_id).toBeUndefined()
+    expect(result.value?.job_id).toBeUndefined()
   })
 
   it('returns a stable result shape and operation timing', async () => {

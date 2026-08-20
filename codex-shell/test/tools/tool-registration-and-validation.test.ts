@@ -22,13 +22,13 @@ describe('tool registration and validation', () => {
   it('rejects invalid command and write arguments before starting a process', async () => {
     const blank = await callTool(harness.execCommand, { cmd: '   ' }, execution(agent))
     const negativeWait = await callTool(harness.execCommand, { cmd: 'foreground', yield_time_ms: -1 }, execution(agent))
-    const invalidSession = await callTool(harness.writeStdin, { session_id: 0 }, execution(agent))
-    const invalidLimit = await callTool(harness.writeStdin, { session_id: 1, max_output_tokens: 0 }, execution(agent))
+    const invalidSession = await callTool(harness.writeStdin, { job_id: 'invalid' }, execution(agent))
+    const invalidLimit = await callTool(harness.writeStdin, { job_id: 'codex-shell-1', max_output_tokens: 0 }, execution(agent))
 
     expect(blank.isError).toBe(true)
     expect(blank.content[0]?.text).toContain('cmd must be a non-empty string')
     expect(negativeWait.content[0]?.text).toContain('yield_time_ms must be a non-negative finite number')
-    expect(invalidSession.content[0]?.text).toContain('session_id must be a positive integer')
+    expect(invalidSession.content[0]?.text).toContain('job_id must be a codex-shell job id')
     expect(invalidLimit.content[0]?.text).toContain('max_output_tokens must be a positive finite number')
     expect(harness.service.liveSessionCount).toBe(0)
   })

@@ -45,7 +45,7 @@ describe('exec session memory and retention safety', () => {
       service.exec(request('third')),
     ])
 
-    expect(started.map(result => result.session_id)).toEqual([1, 2, 3])
+    expect(started.map(result => result.job_id)).toEqual(['codex-shell-1', 'codex-shell-2', 'codex-shell-3'])
     expect(service.liveSessionCount).toBe(3)
     await expect(service.exec(request('fourth'))).rejects.toBeInstanceOf(MaxSessionsError)
     expect(service.liveSessionCount).toBe(3)
@@ -72,12 +72,12 @@ describe('exec session memory and retention safety', () => {
     await expect(service.exec(request('third'))).rejects.toBeInstanceOf(MaxSessionsError)
     expect(service.liveSessionCount).toBe(2)
 
-    const first = await service.write({ ...writeRequest(1), chars: '' })
+    const first = await service.write({ ...writeRequest('codex-shell-1'), chars: '' })
     expect(first.output).toContain('first-final')
     expect(first.exit_code).toBe(0)
     expect(service.liveSessionCount).toBe(1)
 
-    const second = await service.write({ ...writeRequest(2), chars: '' })
+    const second = await service.write({ ...writeRequest('codex-shell-2'), chars: '' })
     expect(second.output).toContain('second-final')
     expect(second.exit_code).toBe(0)
     expect(service.liveSessionCount).toBe(0)
@@ -99,13 +99,13 @@ describe('exec session memory and retention safety', () => {
     backends[1]!.finish({ exitCode: 8, signal: null })
     await delay(0)
 
-    const first = await service.write({ ...writeRequest(1), chars: '' })
+    const first = await service.write({ ...writeRequest('codex-shell-1'), chars: '' })
     expect(first.exit_code).toBe(7)
     expect(service.liveSessionCount).toBe(1)
     expect(backends[0]!.listenerCount).toBe(0)
     expect(backends[1]!.listenerCount).toBe(1)
 
-    const second = await service.write({ ...writeRequest(2), chars: '' })
+    const second = await service.write({ ...writeRequest('codex-shell-2'), chars: '' })
     expect(second.exit_code).toBe(8)
     expect(service.liveSessionCount).toBe(0)
     expect(backends[1]!.listenerCount).toBe(0)
@@ -119,7 +119,7 @@ describe('exec session memory and retention safety', () => {
     backend.emit('stdout', `head-${'middle-'.repeat(512)}-tail`)
 
     const partial = await service.write({
-      ...writeRequest(1),
+      ...writeRequest('codex-shell-1'),
       chars: '',
       maxOutputTokens: 1_000,
     })
@@ -127,11 +127,11 @@ describe('exec session memory and retention safety', () => {
     expect(partial.truncated).toBe(true)
     expect(partial.output).toContain('head-')
     expect(partial.output).not.toContain('middle-middle-middle')
-    expect(partial.session_id).toBe(1)
+    expect(partial.job_id).toBe('codex-shell-1')
     expect(service.liveSessionCount).toBe(1)
 
     backend.finish({ exitCode: 0, signal: null })
-    const final = await service.write({ ...writeRequest(1), chars: '', maxOutputTokens: 1_000 })
+    const final = await service.write({ ...writeRequest('codex-shell-1'), chars: '', maxOutputTokens: 1_000 })
     expect(final.exit_code).toBe(0)
     expect(final.truncated).toBe(true)
     expect(service.liveSessionCount).toBe(0)
@@ -151,7 +151,7 @@ describe('exec session memory and retention safety', () => {
 
     const result = await service.exec(request('pre-publication-flood'))
 
-    expect(result.session_id).toBe(1)
+    expect(result.job_id).toBe('codex-shell-1')
     expect(result.output).toContain('<output truncated before session publication>')
     expect(Buffer.byteLength(result.output, 'utf8')).toBeLessThanOrEqual(64)
     expect(service.liveSessionCount).toBe(1)
@@ -188,10 +188,10 @@ function request(command: string) {
   }
 }
 
-function writeRequest(sessionId: number) {
+function writeRequest(jobId: string) {
   return {
     owner,
-    sessionId,
+    jobId,
     chars: '',
     yieldTimeMs: 0,
     signal: new AbortController().signal,

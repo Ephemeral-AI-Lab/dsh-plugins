@@ -15,15 +15,15 @@ describe('error handling and recovery', () => {
   })
 
   it('reports an unknown session as a tool error', async () => {
-    const result = await callTool(harness.writeStdin, { session_id: 999, chars: '' }, execution(agent))
+    const result = await callTool(harness.writeStdin, { job_id: 'codex-shell-999', chars: '' }, execution(agent))
 
     expect(result.isError).toBe(true)
-    expect(result.content[0]?.text).toContain('unknown or completed exec session 999')
+    expect(result.content[0]?.text).toContain('unknown or completed exec job codex-shell-999')
   })
 
   it('reports writes to a completed session as a tool error', async () => {
     const completed = await callTool(harness.execCommand, { cmd: 'foreground', yield_time_ms: 1_000 }, execution(agent))
-    const result = await callTool(harness.writeStdin, { session_id: 1, chars: '' }, execution(agent))
+    const result = await callTool(harness.writeStdin, { job_id: 'codex-shell-1', chars: '' }, execution(agent))
 
     expect(completed.value?.exit_code).toBe(0)
     expect(result.isError).toBe(true)

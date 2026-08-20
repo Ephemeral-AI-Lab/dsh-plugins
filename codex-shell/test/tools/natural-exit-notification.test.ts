@@ -18,89 +18,79 @@ afterEach(async () => {
 })
 
 describe('natural exec session notifications', () => {
-  it('uses followup for an idle owner and preserves the pollable result', async () => {
+  it('steers the owner and preserves the pollable result', async () => {
     const backend = new ControlledBackend()
     const notices: string[] = []
     const owner: SessionOwner = {
       ownerId: 'idle-notification-owner',
-      status: 'idle',
-      followup(message) {
+      steer(message) {
         notices.push(message.content[0].text)
-      },
-      inject() {
-        throw new Error('idle owner should use followup')
       },
     }
     const service = makeService(async () => backend)
 
     const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
     backend.emit('stdout', 'idle-final')
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
 
     expect(notices).toEqual([
-      'exec session 1 exited with code 0. Call write_stdin with session_id=1 and chars="" to collect the remaining output.',
+      'exec job codex-shell-1 exited with code 0. Call write_stdin with job_id="codex-shell-1" and chars="" to collect the remaining output.',
     ])
-    const result = await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    const result = await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
     expect(result.output).toContain('idle-final')
     expect(result.exit_code).toBe(0)
   })
 
-  it('uses inject for a busy owner and emits only once', async () => {
+  it('steers only once', async () => {
     const backend = new ControlledBackend()
-    const injected: string[] = []
+    const steered: string[] = []
     const owner: SessionOwner = {
       ownerId: 'busy-notification-owner',
-      status: 'running',
-      inject(message) {
-        injected.push(message.content[0].text)
-      },
-      followup() {
-        throw new Error('busy owner should use inject')
+      steer(message) {
+        steered.push(message.content[0].text)
       },
     }
     const service = makeService(async () => backend)
 
     const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
     backend.finish({ exitCode: 3, signal: null })
     await delay(0)
     await delay(0)
 
-    expect(injected).toHaveLength(1)
-    expect(injected[0]).toContain('session_id=1')
-    expect(injected[0]).toContain('chars=""')
+    expect(steered).toHaveLength(1)
+    expect(steered[0]).toContain('job_id="codex-shell-1"')
+    expect(steered[0]).toContain('chars=""')
   })
 
   it('keeps polling available when notification delivery throws', async () => {
     const backend = new ControlledBackend()
     const owner: SessionOwner = {
       ownerId: 'failing-notification-owner',
-      status: 'idle',
-      followup() {
+      steer() {
         throw new Error('notification sink unavailable')
       },
     }
     const service = makeService(async () => backend)
 
     const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(started.session_id).toBe(1)
+    expect(started.job_id).toBe('codex-shell-1')
     backend.emit('stdout', 'still-readable')
     backend.finish({ exitCode: 0, signal: null })
     await delay(0)
 
-    const result = await service.write({ owner, sessionId: 1, chars: '', yieldTimeMs: 0, signal: signal() })
+    const result = await service.write({ owner, jobId: 'codex-shell-1', chars: '', yieldTimeMs: 0, signal: signal() })
     expect(result.output).toContain('still-readable')
     expect(result.exit_code).toBe(0)
   })
 
-  it('does not notify when the command exits before returning a session_id', async () => {
+  it('does not notify when the command exits before returning a job_id', async () => {
     const ownerNotices: string[] = []
     const owner: SessionOwner = {
       ownerId: 'immediate-exit-owner',
-      status: 'idle',
-      followup(message) {
+      steer(message) {
         ownerNotices.push(message.content[0].text)
       },
     }
@@ -114,10 +104,31 @@ describe('natural exec session notifications', () => {
     })
 
     const result = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
-    expect(result.session_id).toBeUndefined()
+    expect(result.job_id).toBeUndefined()
     expect(result.output).toContain('immediate-final')
     expect(result.exit_code).toBe(0)
     expect(ownerNotices).toEqual([])
+  })
+
+  it.each(['owner', 'service'] as const)('does not steer during %s teardown', async (scope) => {
+    const backend = new ControlledBackend()
+    const notices: string[] = []
+    const owner: SessionOwner = {
+      ownerId: `${scope}-teardown-owner`,
+      steer(message) {
+        notices.push(message.content[0].text)
+      },
+    }
+    const service = makeService(async () => backend)
+
+    const started = await service.exec({ owner, cmd: 'run', yieldTimeMs: 0, signal: signal() })
+    expect(started.job_id).toBe('codex-shell-1')
+
+    if (scope === 'owner') await service.closeOwner(owner)
+    else await service.dispose()
+    await delay(0)
+
+    expect(notices).toEqual([])
   })
 })
 

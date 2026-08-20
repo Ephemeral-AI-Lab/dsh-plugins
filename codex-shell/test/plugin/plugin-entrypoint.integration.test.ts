@@ -6,6 +6,7 @@ describe('DHS plugin entry point', () => {
     const tools: any[] = []
     const effects: Array<() => Promise<void>> = []
     const sections: any[] = []
+    const jobs = { start() {}, wait() {} }
     const ctx = {
       tools: {
         register(tool: unknown) {
@@ -22,6 +23,9 @@ describe('DHS plugin entry point', () => {
       effect(body: () => () => Promise<void>) {
         effects.push(body())
         return () => {}
+      },
+      get(name: string) {
+        return name === 'jobs' ? jobs : undefined
       },
     }
 

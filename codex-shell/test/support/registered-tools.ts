@@ -51,14 +51,14 @@ const shell: ShellAdapter = {
   interactiveArgs: () => [],
 }
 
-export function createRegisteredToolHarness(): {
+export function createRegisteredToolHarness(jobs?: unknown): {
   service: ExecSessionService
   execCommand: RegisteredTool
   writeStdin: RegisteredTool
   agent(name: string): SimulatedAgent
 } {
   const registered: RegisteredTool[] = []
-  const service = new ExecSessionService(config, shell, createPipeBackend)
+  const service = new ExecSessionService(config, shell, createPipeBackend, undefined, jobs as never)
   const ctx = { tools: { register(tool: RegisteredTool): void { registered.push(tool) } } }
   registerExecCommandTool(ctx as never, service)
   registerWriteStdinTool(ctx as never, service)

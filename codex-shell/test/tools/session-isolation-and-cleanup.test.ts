@@ -18,7 +18,7 @@ describe('session isolation and cleanup', () => {
     const other = harness.agent('owner-b')
     const started = await callTool(harness.execCommand, { cmd: 'interactive:owned', yield_time_ms: 0 }, execution(agent))
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: 'PASS\n',
     }, execution(other))
 
@@ -29,14 +29,14 @@ describe('session isolation and cleanup', () => {
 
   it('cleans sessions when the owner scope is closed', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:cleanup', yield_time_ms: 0 }, execution(agent))
-    expect(started.value?.session_id).toBeTypeOf('number')
+    expect(started.value?.job_id).toBeTypeOf('string')
     expect(harness.service.liveSessionCount).toBe(1)
 
     await agent.cleanup?.()
 
     expect(harness.service.liveSessionCount).toBe(0)
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: '',
     }, execution(agent))
     expect(result.isError).toBe(true)
@@ -50,7 +50,7 @@ describe('session isolation and cleanup', () => {
       callTool(harness.execCommand, { cmd: 'interactive:second', yield_time_ms: 0 }, execution(other)),
     ])
 
-    expect(first.value?.session_id).not.toBe(second.value?.session_id)
+    expect(first.value?.job_id).not.toBe(second.value?.job_id)
     expect(harness.service.liveSessionCount).toBe(2)
   })
 })

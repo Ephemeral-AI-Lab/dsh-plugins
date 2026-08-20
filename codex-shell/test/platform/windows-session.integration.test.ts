@@ -55,11 +55,11 @@ describe('Windows service lifecycle', () => {
         yieldTimeMs: 0,
         signal: new AbortController().signal,
       })
-      expect(started.session_id).toBeTypeOf('number')
+      expect(started.job_id).toBeTypeOf('string')
 
       const completed = await service.write({
         owner,
-        sessionId: started.session_id!,
+        jobId: started.job_id!,
         chars: 'hello\n',
         yieldTimeMs: 1_000,
         signal: new AbortController().signal,
@@ -93,13 +93,13 @@ describe('Windows service lifecycle', () => {
         }),
       ])
 
-      expect(first.session_id).toBeTypeOf('number')
-      expect(second.session_id).toBeTypeOf('number')
-      expect(first.session_id).not.toBe(second.session_id)
+      expect(first.job_id).toBeTypeOf('string')
+      expect(second.job_id).toBeTypeOf('string')
+      expect(first.job_id).not.toBe(second.job_id)
 
       const [firstDone, secondDone] = await Promise.all([
-        service.write({ owner, sessionId: first.session_id!, chars: 'one\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
-        service.write({ owner, sessionId: second.session_id!, chars: 'two\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
+        service.write({ owner, jobId: first.job_id!, chars: 'one\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
+        service.write({ owner, jobId: second.job_id!, chars: 'two\n', yieldTimeMs: 1_000, signal: new AbortController().signal }),
       ])
 
       expect(firstDone.output).toContain('first:one')
@@ -120,7 +120,7 @@ describe('Windows service lifecycle', () => {
         yieldTimeMs: 0,
         signal: new AbortController().signal,
       })
-      expect(started.session_id).toBeTypeOf('number')
+      expect(started.job_id).toBeTypeOf('string')
       expect(service.liveSessionCount).toBe(1)
 
       await service.dispose()

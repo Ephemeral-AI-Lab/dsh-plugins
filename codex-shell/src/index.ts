@@ -5,10 +5,10 @@ import { registerExecCommandTool } from './tools/exec-command.js'
 import { registerWriteStdinTool } from './tools/write-stdin.js'
 import { ExecSessionService } from './session/exec-session-service.js'
 import { createShellAdapter } from './shell/index.js'
-import type { Config, ResolvedConfig } from './types.js'
+import type { BackgroundJobs, Config, ResolvedConfig } from './types.js'
 
 export const name = 'codex-shell'
-export const inject = ['tools', 'systemPrompt']
+export const inject = ['tools', 'systemPrompt', 'jobs']
 
 const DEFAULTS: Required<Pick<ResolvedConfig,
   'executionMode' | 'ptyFallback' | 'maxSessions' | 'defaultYieldTimeMs' |
@@ -29,6 +29,10 @@ const DEFAULTS: Required<Pick<ResolvedConfig,
 export function apply(ctx: Context, config: Config = {}): void {
   const resolved = resolveConfig(config)
   const policy = createExecutionPolicy(resolved.executionMode)
+  const jobs = ctx.get('jobs') as unknown as BackgroundJobs | undefined
+  if (jobs === undefined) {
+    throw new Error('codex-shell: background jobs unavailable; load @deepseek-ai/dsh-jobs-local and @deepseek-ai/dsh-tool-jobs')
+  }
   const service = new ExecSessionService(
     resolved,
     createShellAdapter(resolved),
@@ -36,6 +40,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     // while preserving a persistent stdin for write_stdin.
     createPipeBackend,
     policy,
+    jobs,
   )
 
   ctx.effect(() => async () => {
@@ -45,7 +50,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.systemPrompt.section({
     name: 'tool:codex-shell',
     order: 105,
-    text: 'The codex-shell command tools use the host-resolved shell; use `workdir` for the command directory. Long-running commands return an opaque session id for `write_stdin`. If a session exits after returning, poll it with `write_stdin` using empty `chars` to collect its final output and exit code.',
+    text: 'The codex-shell command tools use the host-resolved shell; use `workdir` for the command directory. A command that exceeds `yield_time_ms` is automatically tracked and returns one job id. Use that same id with `job_list`, `job_kill`, and `write_stdin`; only `write_stdin` with empty `chars` collects unread terminal output. Do not use `job_output` for codex-shell jobs.',
   })
 
   registerExecCommandTool(ctx, service)

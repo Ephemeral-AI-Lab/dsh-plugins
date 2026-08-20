@@ -19,14 +19,14 @@ describe('timing, waiting, and timeouts', () => {
     const result = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
 
     expect(result.isError).toBe(false)
-    expect(result.value?.session_id).toBeTypeOf('number')
+    expect(result.value?.job_id).toBeTypeOf('string')
     expect(result.value?.exit_code).toBeUndefined()
   })
 
   it('returns delayed output after a subsequent poll', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: '',
       yield_time_ms: 1_000,
     }, execution(agent))
@@ -37,15 +37,15 @@ describe('timing, waiting, and timeouts', () => {
 
   it('retains final output when a live session exits before polling starts', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-    const sessionId = started.value?.session_id
-    expect(sessionId).toBeTypeOf('number')
+    const jobId = started.value?.job_id
+    expect(jobId).toBeTypeOf('string')
 
     // The fixture exits naturally while no tool call is active.
     await delay(250)
     expect(harness.service.liveSessionCount).toBe(1)
 
     const result = await callTool(harness.writeStdin, {
-      session_id: sessionId,
+      job_id: jobId,
       chars: '',
       yield_time_ms: 0,
     }, execution(agent))

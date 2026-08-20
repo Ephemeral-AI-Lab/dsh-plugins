@@ -17,12 +17,12 @@ describe('registered exec session output retention', () => {
 
   it('lets the next empty write_stdin poll retrieve output emitted after exec_command returned', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-    const sessionId = started.value?.session_id
-    expect(sessionId).toBeTypeOf('number')
+    const jobId = started.value?.job_id
+    expect(jobId).toBeTypeOf('string')
 
     await delay(250)
     const result = await callTool(harness.writeStdin, {
-      session_id: sessionId,
+      job_id: jobId,
       chars: '',
       yield_time_ms: 0,
     }, execution(agent))
@@ -33,14 +33,14 @@ describe('registered exec session output retention', () => {
 
   it('keeps naturally exited output available until the empty poll delivers it', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-    const sessionId = started.value?.session_id
-    expect(sessionId).toBeTypeOf('number')
+    const jobId = started.value?.job_id
+    expect(jobId).toBeTypeOf('string')
 
     await delay(250)
     expect(harness.service.liveSessionCount).toBe(1)
 
     const result = await callTool(harness.writeStdin, {
-      session_id: sessionId,
+      job_id: jobId,
       chars: '',
       yield_time_ms: 0,
     }, execution(agent))
@@ -51,19 +51,19 @@ describe('registered exec session output retention', () => {
 
   it('does not lose the final result when write_stdin is attempted after natural exit', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'slow', yield_time_ms: 0 }, execution(agent))
-    const sessionId = started.value?.session_id
-    expect(sessionId).toBeTypeOf('number')
+    const jobId = started.value?.job_id
+    expect(jobId).toBeTypeOf('string')
 
     await delay(250)
     const lateWrite = await callTool(harness.writeStdin, {
-      session_id: sessionId,
+      job_id: jobId,
       chars: 'late-input',
       yield_time_ms: 0,
     }, execution(agent))
     expect(lateWrite.isError).toBe(true)
 
     const result = await callTool(harness.writeStdin, {
-      session_id: sessionId,
+      job_id: jobId,
       chars: '',
       yield_time_ms: 0,
     }, execution(agent))

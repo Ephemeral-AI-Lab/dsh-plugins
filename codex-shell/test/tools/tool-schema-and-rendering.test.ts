@@ -16,9 +16,9 @@ describe('codex-shell tool contract', () => {
     const registered: any[] = []
     registerWriteStdinTool({ tools: { register: (tool: unknown) => registered.push(tool) } } as any, {} as any)
     expect(Object.keys(registered[0].parameters.properties).sort()).toEqual([
-      'chars', 'max_output_tokens', 'session_id', 'yield_time_ms',
+      'chars', 'job_id', 'max_output_tokens', 'yield_time_ms',
     ])
-    expect(registered[0].parameters.required).toEqual(['session_id'])
+    expect(registered[0].parameters.required).toEqual(['job_id'])
   })
 
   it('does not accept missing required values in execute implementations', async () => {
@@ -31,25 +31,36 @@ describe('codex-shell tool contract', () => {
       .rejects.toThrow('cmd must be a non-empty string')
   })
 
-  it('renders a live session id so the model can call write_stdin', () => {
+  it('renders the promoted job id so the model can call write_stdin', () => {
     const registered: any[] = []
     registerExecCommandTool({ tools: { register: (tool: unknown) => registered.push(tool) } } as any, {} as any)
 
     expect(registered[0].output.render({}, {
       output: 'Guess #1> ',
       wall_time_seconds: 0.1,
-      session_id: 42,
-    })).toEqual([{ type: 'text', text: 'Guess #1> \n[session_id: 42]' }])
+      job_id: 'codex-shell-7',
+    })).toEqual([{ type: 'text', text: 'Guess #1> \n[job_id: codex-shell-7]' }])
   })
 
-  it('keeps the live session id visible while polling with write_stdin', () => {
+  it('keeps the live job id visible while polling with write_stdin', () => {
     const registered: any[] = []
     registerWriteStdinTool({ tools: { register: (tool: unknown) => registered.push(tool) } } as any, {} as any)
 
     expect(registered[0].output.render({}, {
       output: 'still waiting',
       wall_time_seconds: 0.1,
-      session_id: 42,
-    })).toEqual([{ type: 'text', text: 'still waiting\n[session_id: 42]' }])
+      job_id: 'codex-shell-7',
+    })).toEqual([{ type: 'text', text: 'still waiting\n[job_id: codex-shell-7]' }])
+  })
+
+  it('renders a successful terminal poll even when it has no output', () => {
+    const registered: any[] = []
+    registerWriteStdinTool({ tools: { register: (tool: unknown) => registered.push(tool) } } as any, {} as any)
+
+    expect(registered[0].output.render({ job_id: 'codex-shell-7' }, {
+      output: '',
+      wall_time_seconds: 0.1,
+      exit_code: 0,
+    })).toEqual([{ type: 'text', text: '[job codex-shell-7 exited with code 0]' }])
   })
 })

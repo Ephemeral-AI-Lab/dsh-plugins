@@ -17,7 +17,7 @@ describe('write_stdin result contract', () => {
   it('exposes failed command output and exit status through the simulated tool result', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:contract', yield_time_ms: 0 }, execution(agent))
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: 'FAIL\n',
       yield_time_ms: 1_000,
     }, execution(agent))
@@ -33,7 +33,7 @@ describe('write_stdin result contract', () => {
   it('never turns a successful stdin send into an Error:null result', async () => {
     const started = await callTool(harness.execCommand, { cmd: 'interactive:no-null', yield_time_ms: 0 }, execution(agent))
     const result = await callTool(harness.writeStdin, {
-      session_id: started.value!.session_id,
+      job_id: started.value!.job_id,
       chars: 'PASS\n',
       yield_time_ms: 1_000,
     }, execution(agent))

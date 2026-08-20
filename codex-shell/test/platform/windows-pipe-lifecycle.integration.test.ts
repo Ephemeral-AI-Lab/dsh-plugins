@@ -29,12 +29,12 @@ describe('Windows pipe lifecycle', () => {
         yieldTimeMs: 0,
         signal: signal(),
       })
-      expect(started.session_id).toBeTypeOf('number')
+      expect(started.job_id).toBeTypeOf('string')
 
       await delay(750)
       const result = await service.write({
         owner,
-        sessionId: started.session_id!,
+        jobId: started.job_id!,
         chars: '',
         yieldTimeMs: 0,
         signal: signal(),
@@ -59,12 +59,12 @@ describe('Windows pipe lifecycle', () => {
         yieldTimeMs: 0,
         signal: signal(),
       })
-      expect(started.session_id).toBeTypeOf('number')
+      expect(started.job_id).toBeTypeOf('string')
       await delay(750)
 
       await expect(service.write({
         owner,
-        sessionId: started.session_id!,
+        jobId: started.job_id!,
         chars: 'should-not-delete',
         yieldTimeMs: 0,
         signal: signal(),
@@ -72,7 +72,7 @@ describe('Windows pipe lifecycle', () => {
 
       const final = await service.write({
         owner,
-        sessionId: started.session_id!,
+        jobId: started.job_id!,
         chars: '',
         yieldTimeMs: 0,
         signal: signal(),
