@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
-  <a href="https://www.npmjs.com/package/dsh-codex-shell"><img src="https://img.shields.io/npm/v/dsh-codex-shell?logo=npm&logoColor=white&style=flat-square" alt="dsh-codex-shell on npm"></a>
+  <a href="https://www.npmjs.com/package/dsh-codex-terminal"><img src="https://img.shields.io/npm/v/dsh-codex-terminal?logo=npm&logoColor=white&style=flat-square" alt="dsh-codex-terminal on npm"></a>
   <a href="https://www.npmjs.com/package/dsh-loop"><img src="https://img.shields.io/npm/v/dsh-loop?logo=npm&logoColor=white&style=flat-square" alt="dsh-loop on npm"></a>
   <a href="https://www.npmjs.com/package/dsh-mock"><img src="https://img.shields.io/npm/v/dsh-mock?logo=npm&logoColor=white&style=flat-square" alt="dsh-mock on npm"></a>
 </p>
@@ -29,14 +29,14 @@
 Published plugins install directly into a DSH profile with one command. The
 examples below target the `web` profile; replace `web` with the profile you use.
 
-### 🐚 Codex Shell
+### 🐚 Codex Terminal
 
 ```powershell
 # With the DSH CLI:
-dsh plugin --profile web add dsh-codex-shell@0.1.2
+dsh plugin --profile web add dsh-codex-terminal@0.1.3
 
 # Without the `dsh` CLI:
-npm install dsh-codex-shell@0.1.2
+npm install dsh-codex-terminal@0.1.3
 ```
 
 ### ⏰ Loop
@@ -86,12 +86,12 @@ part of a profile.
 
 | Package | Status | What it adds | Docs |
 | --- | --- | --- | --- |
-| [`dsh-codex-shell`](./codex-shell/) | ✅ Published · `0.1.2` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-shell/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-shell) |
+| [`dsh-codex-terminal`](./codex-terminal/) | ✅ Published · `0.1.3` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-terminal/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-terminal) |
 | [`dsh-loop`](./loop/) | ✅ Published · `0.1.3` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
 | [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
 | [`dsh-sessions`](./sessions/) | ✅ Published · `0.1.1` | Session discovery, bounded reads, creation, and delivery through session tools and `/sessions`. | [`README`](./sessions/README.md) · [`SPEC`](./sessions/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-sessions) |
 
-### 🐚 `dsh-codex-shell`
+### 🐚 `dsh-codex-terminal`
 
 Run shell commands like a Codex-style agent: start long-running processes,
 poll for output, and send input to persistent sessions. PTY transport is used
@@ -133,7 +133,7 @@ DSH composes plugins through profile-scoped installation and patch layers.
 
 ## 📚 Documentation
 
-- [Codex Shell documentation](./codex-shell/README.md)
+- [Codex Terminal documentation](./codex-terminal/README.md)
 - [Loop documentation](./loop/README.md)
 - [Mock documentation](./mock/README.md)
 - [Mock implementation specification](./mock/SPEC.md)

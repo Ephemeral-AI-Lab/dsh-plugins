@@ -1,0 +1,3 @@
+- insert:
+    - id: codex-terminal
+      name: 'dsh-codex-terminal'
