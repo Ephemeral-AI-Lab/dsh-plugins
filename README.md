@@ -157,6 +157,13 @@ DSH composes plugins through profile-scoped installation and patch layers.
 - [Sessions specification](./sessions/SPEC.md)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 
+### Harness architecture and how-to guides
+
+- [Project guide](./project.md)
+- [Tool reference](./tools.md)
+- [Ephemeral AI Harness preset](./ephemeral_ai_harness_preset.md)
+- [How-to guides](./how-to/)
+
 ## 🤝 Contributing
 
 Issues, ideas, and pull requests are welcome. Keep plugins focused, document
