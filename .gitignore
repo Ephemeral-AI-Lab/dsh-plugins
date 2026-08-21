@@ -1,2 +1,9 @@
+# Local credentials
 .npm-token
+
+# Package archives
 *.tgz
+
+# Local development artifacts
+.DS_Store
+node_modules/
