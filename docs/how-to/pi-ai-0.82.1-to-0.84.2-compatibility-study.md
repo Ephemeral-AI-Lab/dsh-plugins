@@ -98,7 +98,7 @@ pending assistant message
 stop / length / toolUse / error
 ~~~
 
-当前 DSH 的 [stream.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/stream.ts) 只处理旧的五个值。升级后必须明确 pending 的生命周期，否则可能出现提前结束 DSH stream 的问题。
+当前 DSH 的 [stream.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/stream.ts) 只处理旧的五个值。升级后必须明确 pending 的生命周期，否则可能出现提前结束 DSH stream 的问题。
 
 ### 2.4 deferred
 
@@ -140,7 +140,7 @@ endTurn?: boolean
 | rawStopReason | 保留 provider 原始结束原因 | 有助诊断；replay schema 需要决定是否持久化 |
 | endTurn | 保留 OpenAI Codex 的原生 end_turn 信号 | Codex Responses replay/诊断可能需要保留 |
 
-当前 DSH 的 [replay.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/replay.ts) 只允许旧 stop reason：
+当前 DSH 的 [replay.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/replay.ts) 只允许旧 stop reason：
 
 ~~~ts
 ['stop', 'length', 'toolUse', 'error', 'aborted']
@@ -150,7 +150,7 @@ endTurn?: boolean
 
 ## 4. Catalog 和 compat 字段变化
 
-当前 DSH 的 [catalog.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/catalog.ts) 使用强类型 drift gate，要求每一个 pi-ai 新字段都被明确分类。这个设计可以防止新 capability 被静默丢弃，但也意味着 pi-ai 类型一变化，DSH 必须同步。
+当前 DSH 的 [catalog.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/catalog.ts) 使用强类型 drift gate，要求每一个 pi-ai 新字段都被明确分类。这个设计可以防止新 capability 被静默丢弃，但也意味着 pi-ai 类型一变化，DSH 必须同步。
 
 ### 4.1 OpenAI Completions 新字段
 
@@ -298,8 +298,8 @@ UI 一定自动显示 low/medium/high
 
 当前 patch 位于：
 
-- [grok/cordis.patch.yml](../../dsh-plugins/coding-plan/grok/cordis.patch.yml)
-- [codex/cordis.patch.yml](../../dsh-plugins/coding-plan/codex/cordis.patch.yml)
+- [grok/cordis.patch.yml](../../coding-plan/grok/cordis.patch.yml)
+- [codex/cordis.patch.yml](../../coding-plan/codex/cordis.patch.yml)
 
 它不是修改 pi-ai 源码，而是增加一个 DSH explicit route：
 
@@ -359,15 +359,15 @@ DSH 的 catalog 层把 pi-ai 的 compat fields 明确列出来。好处是新字
 
 ### 8.2 Stream exhaustive switch
 
-DSH 当前 [stream.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/stream.ts) 将 pi-ai terminal message 映射成 DSH finish reason。新增 pending/deferred 后，必须定义新的生命周期语义，不能只把两个字符串补到 union。
+DSH 当前 [stream.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/stream.ts) 将 pi-ai terminal message 映射成 DSH finish reason。新增 pending/deferred 后，必须定义新的生命周期语义，不能只把两个字符串补到 union。
 
 ### 8.3 Replay schema
 
-DSH 当前 [replay.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/replay.ts) 只接受旧 stop reason。如果新 runtime 产生了 deferred 或 raw stop metadata，replay 要么丢信息，要么拒绝历史。
+DSH 当前 [replay.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/replay.ts) 只接受旧 stop reason。如果新 runtime 产生了 deferred 或 raw stop metadata，replay 要么丢信息，要么拒绝历史。
 
 ### 8.4 Request body
 
-DSH 的 [adapter.ts](../../deepseek-harness/packages/llm/llm-pi-ai/src/adapter.ts) 将 DSH options 交给 pi-ai streamSimple。新版根据 model compat 决定：
+DSH 的 [adapter.ts](../../../deepseek-harness/packages/llm/llm-pi-ai/src/adapter.ts) 将 DSH options 交给 pi-ai streamSimple。新版根据 model compat 决定：
 
 ~~~text
 max_tokens
@@ -452,4 +452,3 @@ Grok 4.6 功能现在已经可用
 ~~~
 
 只有当新模型引入新的 wire protocol、stop lifecycle 或 compat capability 时，才把它升级为 host adapter migration，而不是每个模型都强迫 DSH 整体升级。
-

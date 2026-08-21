@@ -159,10 +159,10 @@ DSH composes plugins through profile-scoped installation and patch layers.
 
 ### Harness architecture and how-to guides
 
-- [Project guide](./project.md)
-- [Tool reference](./tools.md)
-- [Ephemeral AI Harness preset](./ephemeral_ai_harness_preset.md)
-- [How-to guides](./how-to/)
+- [Project guide](./docs/project.md)
+- [Tool reference](./docs/tools.md)
+- [Ephemeral AI Harness preset](./docs/ephemeral_ai_harness_preset.md)
+- [How-to guides](./docs/how-to/)
 
 ## 🤝 Contributing
 
