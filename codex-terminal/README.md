@@ -3,7 +3,7 @@
 Adds Codex-style `exec_command` and `write_stdin` tools to DeepSeek
 Harness.
 
-## Current release: 0.1.3
+## Current release: 0.1.4
 
 Commands that remain live after `yield_time_ms` are now automatically registered
 with `ctx.jobs`. `exec_command` returns one `job_id` such as
@@ -13,15 +13,15 @@ terminates the underlying session. Terminal output remains exclusive to
 completion marker instead of an empty result or stale-session error.
 
 The package was verified with the full unit suite, build, and an assembled Web
-API run. See the [E2E test prompts](e2e-test-prompt.md) and [0.1.3
-changelog](changelog/0.1.3.md).
+API run. See the [E2E test prompts](e2e-test-prompt.md) and [0.1.4
+changelog](changelog/0.1.4.md).
 
 ## 🚀 1. Install the plugin
 
 Install it into the DSH profile you use:
 
 ```powershell
-dsh plugin --profile web add dsh-codex-terminal@0.1.3
+dsh plugin --profile web add dsh-codex-terminal@0.1.4
 ```
 
 From a DeepSeek Harness source checkout:
@@ -29,7 +29,7 @@ From a DeepSeek Harness source checkout:
 ```powershell
 cd C:/path/to/deepseek-harness
 pnpm install
-pnpm dsh plugin --profile web add dsh-codex-terminal@0.1.3
+pnpm dsh plugin --profile web add dsh-codex-terminal@0.1.4
 ```
 
 > ⚠️ Do not run `npm install dsh-codex-terminal` as a separate setup step. The
@@ -79,7 +79,7 @@ Validate the result before finishing.
 - `cmd` (`string`, required) - Command to run.
 - `workdir` (`string`, optional) - Working directory for the command.
 - `yield_time_ms` (`number`, optional) - Wait time before returning; default `10000` ms.
-- `max_output_tokens` (`number`, optional) - Maximum output token budget; default configured limit (`10000` by default).
+- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.
 
 ### `write_stdin`
 
@@ -88,7 +88,7 @@ Validate the result before finishing.
 - `job_id` (`string`, required) - `codex-terminal-N` job ID returned by `exec_command`.
 - `chars` (`string`, optional) - Characters to send; omit or use an empty string to poll.
 - `yield_time_ms` (`number`, optional) - Wait time for output; default `250` ms.
-- `max_output_tokens` (`number`, optional) - Maximum output token budget; default configured limit (`10000` by default).
+- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.
 
 Typical flow: call `exec_command`; if it returns a `job_id`, use that same ID
 with `job_list`, `job_kill`, and `write_stdin` to inspect status, stop the
@@ -96,6 +96,9 @@ process, send input, or collect unread output. A terminal result
 may contain both `exit_code` and `job_id` when `max_output_tokens` capped
 the current page; keep polling with empty `chars` until `job_id` is no
 longer returned. Do not use `job_output` for Codex Shell output.
+
+The authoritative contracts for output pages, pipe transport, background-job
+promotion, polling, cleanup, and completion notices are in [SPEC.md](./SPEC.md).
 
 ## 🧭 Current session behavior
 
@@ -211,7 +214,7 @@ Then install the plugin again.
 
 ```powershell
 dsh plugin --profile web remove dsh-codex-terminal
-dsh plugin --profile web add dsh-codex-terminal@0.1.3
+dsh plugin --profile web add dsh-codex-terminal@0.1.4
 ```
 
 ## 📚 Documentation
@@ -221,4 +224,5 @@ dsh plugin --profile web add dsh-codex-terminal@0.1.3
 - [0.1.0 changelog](changelog/0.1.0.md)
 - [0.1.1 changelog](changelog/0.1.1.md)
 - [0.1.2 changelog](changelog/0.1.2.md)
+- [0.1.4 changelog](changelog/0.1.4.md)
 - [0.1.3 changelog](changelog/0.1.3.md)

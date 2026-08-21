@@ -147,6 +147,7 @@ function config(): ResolvedConfig {
     pollYieldTimeMs: 0,
     maxOutputBytes: 1_024,
     defaultMaxOutputTokens: 100,
+    maxOutputTokens: 100,
     rows: 24,
     cols: 80,
     windowsPtyStartupGraceMs: 2_000,

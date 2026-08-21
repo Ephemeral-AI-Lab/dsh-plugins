@@ -1,6 +1,11 @@
 # dsh-codex-terminal
 
-Status: Draft implementation specification
+Status: Authoritative tool and lifecycle specification
+
+This file defines the complete `exec_command` and `write_stdin` contract,
+including pipe transport, output pagination, background-job promotion,
+notification-inbox delivery, ownership, cancellation, and cleanup. README.md is
+usage guidance; this file is the source of truth when the two differ.
 
 ## 1. Purpose
 
@@ -72,7 +77,8 @@ Defaults:
 | Setting | Default |
 | --- | ---: |
 | yield_time_ms | 10_000 |
-| max_output_tokens | configured limit, normally 10_000 |
+| max_output_tokens | configured page size, normally 4_000 |
+| hard maximum page size | configured limit, normally 10_000 |
 | PTY rows | 24 |
 | PTY columns | 80 |
 
@@ -151,6 +157,40 @@ Rules:
 - Model-visible output strips ANSI/VT terminal control sequences, including CSI
   and terminal-title controls, while preserving printable text, line endings,
   Unicode, and interactive PTY input behavior.
+
+### 3.4 Output-page contract
+
+`max_output_tokens` limits one `exec_command` or `write_stdin` response page,
+not the process's total output. The effective page limit is:
+
+~~~text
+min(requested max_output_tokens ?? defaultMaxOutputTokens, maxOutputTokens)
+~~~
+
+With the suggested defaults, omission returns at most a 4_000-unit page, a
+smaller positive request is honored, and any request above 10_000 is clamped to
+10_000. When a page fills, the result reports truncation, retains the unread
+bytes, and returns `job_id`; an empty `write_stdin` poll retrieves the next page.
+
+The unit is an estimate of four UTF-8 bytes, not an exact model token. Therefore
+4_000 units is approximately 16 KB and 10_000 units is approximately 40 KB.
+The estimate is usually closest for English prose. Chinese and Japanese
+characters commonly occupy three UTF-8 bytes and tokenize differently, so their
+actual model-token counts can be higher or lower. Code, paths, JSON, emoji, and
+mixed-language output also vary. The terminal tool deliberately avoids a
+model-specific tokenizer; callers should request smaller pages for dense CJK or
+otherwise token-heavy output.
+
+### 3.5 End-to-end lifecycle
+
+| Event | Tool/job behavior | Owner inbox behavior |
+| --- | --- | --- |
+| Command exits within `yield_time_ms` | `exec_command` returns output and `exit_code`; no job is created. | No notice. |
+| Command remains live after `yield_time_ms` | The session is promoted to `ctx.jobs`; `exec_command` returns the registry-issued `job_id`. | No notice while still running. |
+| Caller polls or writes while live | `write_stdin` returns unread output and keeps the same `job_id`. | No separate notice. |
+| Active `write_stdin` observes exit | That call returns the terminal output and `exit_code`. | Completion notice is suppressed to avoid duplicate delivery. |
+| Background command exits between calls | Output remains buffered for an empty `write_stdin` poll. | One compact plugin notice is steered into the owner's inbox. |
+| Owner or plugin is disposed | The process tree is terminated and retained state is released. | No notice wakes a disposing owner. |
 
 ## 4. DHS integration
 
@@ -330,7 +370,7 @@ Commands that exit before the initial result are returned inline and never regis
 that exits at the yield boundary either returns inline or becomes an already-terminal registered
 job; it must not escape both paths.
 
-### 6.3 Natural-exit notification
+### 6.3 Natural-exit notification and inbox delivery
 
 When exec_command has already returned a live job_id and the process later exits naturally,
 the service emits at most one owner-scoped completion notification. The notification is not a
@@ -354,6 +394,13 @@ write_stdin, which is the single terminal-result path. A promoted session delive
 `owner.steer(notification)`. A running owner consumes it at the nearest later step boundary; an
 idle owner wakes in a new turn so the model learns that the job finished. The owner interface does
 not expose `followup`, and Codex Shell never uses it for completion delivery.
+
+The steered value is a user-role plugin notice with `source.kind: 'plugin'`,
+`source.plugin: 'codex-terminal'`, and `source.form: 'notice'`. DSH places that
+notice in the owning agent's inbox. It is session-local and owner-fenced: it is
+not broadcast to other agents, inserted as a fabricated tool result, or copied
+into generic `job_output`. The notice contains only the job ID, exit code, and
+the instruction to poll `write_stdin` with empty `chars`.
 
 The notification is sent only after output closure is complete and only once. Owner or service
 teardown suppresses it rather than waking an agent being disposed. If notification delivery fails,
@@ -521,6 +568,7 @@ interface Config {
   pollYieldTimeMs: number
   maxOutputBytes: number
   defaultMaxOutputTokens: number
+  maxOutputTokens: number
   maxRetainedOutputBytes: number
   terminationTimeoutMs: number
   completedSessionTtlMs?: number
@@ -542,7 +590,8 @@ Suggested development defaults:
   defaultYieldTimeMs: 10_000,
   pollYieldTimeMs: 250,
   maxOutputBytes: 1_048_576,
-  defaultMaxOutputTokens: 10_000,
+  defaultMaxOutputTokens: 4_000,
+  maxOutputTokens: 10_000,
   maxRetainedOutputBytes: 67_108_864,
   terminationTimeoutMs: 5_000,
   // 0 or omitted means no automatic expiry in v1. If enabled later, expiry must
@@ -565,6 +614,8 @@ Suggested development defaults:
 - A different owner cannot write to a session.
 - Concurrent operations on one session are serialized.
 - Output truncation is reported.
+- Omitted page size uses defaultMaxOutputTokens; larger requests are clamped to maxOutputTokens.
+- Four-byte page accounting is deterministic for English, CJK, and mixed UTF-8 output.
 - Output produced between exec_command and write_stdin is returned by the next poll.
 - A poll with existing unread output returns immediately rather than waiting for new output.
 - Output remaining after max_output_tokens is returned by the next poll.

@@ -1,0 +1,50 @@
+{
+  "name": "dsh-coding-plan",
+  "version": "0.1.0",
+  "description": "Combined DeepSeek Harness bundle for Codex and Grok coding plans",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./codex": "./lib/codex/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./core": "./lib/core/index.js",
+    "./grok": "./lib/grok/index.js",
+    "./models.json": "./models.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "models.json",
+    "README.md",
+    "SPEC.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepack": "npm --prefix core run build && npm --prefix codex run build && npm --prefix grok run build && node scripts/package-dist.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.82.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-atomic-write": ">=0.1.0-rc.8",
+    "@deepseek-ai/dsh-credentials": ">=0.1.0-rc.8"
+  },
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

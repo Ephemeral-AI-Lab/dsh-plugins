@@ -39,6 +39,17 @@ dsh plugin --profile web add dsh-codex-terminal@0.1.3
 npm install dsh-codex-terminal@0.1.3
 ```
 
+### 🔐 Codex Coding Plan
+
+Reuse an existing file-backed `codex login` from the DSH Models page:
+
+```powershell
+dsh plugin --profile web add ./coding-plan/codex
+
+# Grok Coding Plan models from the existing `grok login`
+dsh plugin --profile web add ./coding-plan/grok
+```
+
 ### ⏰ Loop
 
 ```powershell
@@ -86,6 +97,8 @@ part of a profile.
 
 | Package | Status | What it adds | Docs |
 | --- | --- | --- | --- |
+| [`dsh-codex-coding-plan`](./coding-plan/codex/) | 🧪 Local · `0.1.0` | Reuses a file-backed Codex ChatGPT login through the existing `openai-codex` pi-ai provider. | [`README`](./coding-plan/codex/README.md) |
+| [`dsh-grok-coding-plan`](./coding-plan/grok/) | 🧪 Local · `0.1.0` | Reuses a file-backed Grok subscription login through the existing `xai` pi-ai provider. | [`README`](./coding-plan/grok/README.md) |
 | [`dsh-codex-terminal`](./codex-terminal/) | ✅ Published · `0.1.3` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-terminal/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-terminal) |
 | [`dsh-loop`](./loop/) | ✅ Published · `0.1.3` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
 | [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
@@ -134,6 +147,9 @@ DSH composes plugins through profile-scoped installation and patch layers.
 ## 📚 Documentation
 
 - [Codex Terminal documentation](./codex-terminal/README.md)
+- [Coding Plan core](./coding-plan/core/)
+- [Codex Coding Plan documentation](./coding-plan/codex/README.md)
+- [Grok Coding Plan documentation](./coding-plan/grok/README.md)
 - [Loop documentation](./loop/README.md)
 - [Mock documentation](./mock/README.md)
 - [Mock implementation specification](./mock/SPEC.md)

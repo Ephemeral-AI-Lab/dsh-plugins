@@ -1,0 +1,28 @@
+# DSH replaces the whole llm-pi-ai config row; keep both coding-plan routes here.
+- id: llm-pi-ai
+  config:
+    providers:
+      openai-codex:
+        displayName: Codex Coding Plan
+        apiKeyEnv: CODEX_CODING_PLAN_ACCESS_TOKEN
+      xai:
+        displayName: Grok Coding Plan
+        apiKeyEnv: GROK_CODING_PLAN_ACCESS_TOKEN
+      xai-grok-4-6:
+        displayName: Grok Coding Plan · Grok 4.6
+        apiKeyEnv: GROK_CODING_PLAN_ACCESS_TOKEN
+        api: openai-completions
+        baseURL: https://api.x.ai/v1
+        models:
+          - id: grok-4.6
+            name: Grok 4.6
+            contextWindow: 1000000
+            maxTokens: 131072
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+
+- insert:
+    - id: grok-coding-plan
+      name: 'dsh-grok-coding-plan'

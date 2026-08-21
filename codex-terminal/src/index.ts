@@ -12,7 +12,7 @@ export const inject = ['tools', 'systemPrompt', 'jobs']
 
 const DEFAULTS: Required<Pick<ResolvedConfig,
   'executionMode' | 'ptyFallback' | 'maxSessions' | 'defaultYieldTimeMs' |
-  'pollYieldTimeMs' | 'maxOutputBytes' | 'defaultMaxOutputTokens' | 'rows' | 'cols' |
+  'pollYieldTimeMs' | 'maxOutputBytes' | 'defaultMaxOutputTokens' | 'maxOutputTokens' | 'rows' | 'cols' |
   'windowsPtyStartupGraceMs'>> = {
   executionMode: 'trusted',
   ptyFallback: 'pipe',
@@ -20,7 +20,8 @@ const DEFAULTS: Required<Pick<ResolvedConfig,
   defaultYieldTimeMs: 10_000,
   pollYieldTimeMs: 250,
   maxOutputBytes: 1_048_576,
-  defaultMaxOutputTokens: 10_000,
+  defaultMaxOutputTokens: 4_000,
+  maxOutputTokens: 10_000,
   rows: 24,
   cols: 80,
   windowsPtyStartupGraceMs: 2_000,
@@ -76,6 +77,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     pollYieldTimeMs: config.pollYieldTimeMs ?? DEFAULTS.pollYieldTimeMs,
     maxOutputBytes: config.maxOutputBytes ?? DEFAULTS.maxOutputBytes,
     defaultMaxOutputTokens: config.defaultMaxOutputTokens ?? DEFAULTS.defaultMaxOutputTokens,
+    maxOutputTokens: config.maxOutputTokens ?? DEFAULTS.maxOutputTokens,
     rows: config.rows ?? DEFAULTS.rows,
     cols: config.cols ?? DEFAULTS.cols,
     windowsPtyStartupGraceMs: config.windowsPtyStartupGraceMs ?? DEFAULTS.windowsPtyStartupGraceMs,
@@ -94,6 +96,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     ['pollYieldTimeMs', resolved.pollYieldTimeMs],
     ['maxOutputBytes', resolved.maxOutputBytes],
     ['defaultMaxOutputTokens', resolved.defaultMaxOutputTokens],
+    ['maxOutputTokens', resolved.maxOutputTokens],
     ['rows', resolved.rows],
     ['cols', resolved.cols],
   ] as const) {
@@ -101,6 +104,9 @@ function resolveConfig(config: Config): ResolvedConfig {
   }
   if (!Number.isSafeInteger(resolved.windowsPtyStartupGraceMs) || resolved.windowsPtyStartupGraceMs < 0) {
     throw new Error('windowsPtyStartupGraceMs must be a non-negative safe integer')
+  }
+  if (resolved.defaultMaxOutputTokens > resolved.maxOutputTokens) {
+    throw new Error('defaultMaxOutputTokens must not exceed maxOutputTokens')
   }
   return resolved
 }

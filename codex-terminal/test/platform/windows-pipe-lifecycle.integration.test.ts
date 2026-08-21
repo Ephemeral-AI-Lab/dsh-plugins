@@ -13,6 +13,7 @@ const config: ResolvedConfig = {
   pollYieldTimeMs: 5,
   maxOutputBytes: 16_384,
   defaultMaxOutputTokens: 1_000,
+  maxOutputTokens: 1_000,
   rows: 24,
   cols: 80,
   windowsPtyStartupGraceMs: 2_000,

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "kind": "dsh-coding-plan-model-table",
+  "catalogAuthority": "pi-ai",
+  "providers": {
+    "openai-codex": {
+      "displayName": "Codex Coding Plan",
+      "credentialEnv": "CODEX_CODING_PLAN_ACCESS_TOKEN",
+      "status": "stable"
+    },
+    "xai": {
+      "displayName": "Grok Coding Plan",
+      "credentialEnv": "GROK_CODING_PLAN_ACCESS_TOKEN",
+      "status": "stable"
+    },
+    "xai-grok-4-6": {
+      "displayName": "Grok Coding Plan · Grok 4.6",
+      "credentialEnv": "GROK_CODING_PLAN_ACCESS_TOKEN",
+      "status": "current",
+      "routeKind": "explicit-model-route",
+      "catalogProvider": "xai"
+    }
+  },
+  "models": [
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.3-codex-spark",
+      "name": "GPT-5.3 Codex Spark",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.4",
+      "name": "GPT-5.4",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.4-mini",
+      "name": "GPT-5.4 Mini",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.6-luna",
+      "name": "GPT-5.6 Luna",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.6-sol",
+      "name": "GPT-5.6 Sol",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "provider": "openai-codex",
+      "id": "gpt-5.6-terra",
+      "name": "GPT-5.6 Terra",
+      "api": "openai-codex-responses",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "provider": "xai",
+      "id": "grok-4.3",
+      "name": "Grok 4.3",
+      "api": "openai-completions",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high"]
+    },
+    {
+      "provider": "xai",
+      "id": "grok-build-0.1",
+      "name": "Grok Build 0.1",
+      "api": "openai-completions",
+      "thinkingEfforts": ["off", "minimal", "low", "medium", "high"]
+    },
+    {
+      "provider": "xai",
+      "id": "grok-4.5",
+      "name": "Grok 4.5",
+      "api": "openai-responses",
+      "thinkingEfforts": ["low", "medium", "high"]
+    },
+    {
+      "provider": "xai-grok-4-6",
+      "id": "grok-4.6",
+      "name": "Grok 4.6",
+      "api": "openai-completions",
+      "thinkingEfforts": ["low", "medium", "high"]
+    }
+  ]
+}

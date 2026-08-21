@@ -273,6 +273,7 @@ export class ExecSessionService {
     const limit = normalizeOutputLimit(
       { maxOutputTokens: requestedTokens ?? this.config.defaultMaxOutputTokens },
       this.config.defaultMaxOutputTokens,
+      this.config.maxOutputTokens,
     )
     const read = record.output.read(record.cursor, limit)
     record.cursor = read.nextCursor

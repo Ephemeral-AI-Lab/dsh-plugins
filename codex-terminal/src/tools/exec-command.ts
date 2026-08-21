@@ -11,7 +11,7 @@ export function registerExecCommandTool(ctx: Context, service: ExecSessionServic
       cmd: { type: 'string', required: true, description: 'Shell command to execute.' },
       workdir: { type: 'string', description: 'Working directory for the command.' },
       yield_time_ms: { type: 'number', description: 'Maximum time to wait before returning a live background job ID. Defaults to 10000 ms.' },
-      max_output_tokens: { type: 'number', description: 'Maximum output token budget. Defaults to the configured limit.' },
+      max_output_tokens: { type: 'number', description: 'Approximate output-page token budget. Defaults to the configured page size; larger requests are capped at the configured maximum.' },
     },
     output: {
       schema: {

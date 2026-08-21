@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { normalizeOutputLimit } from '../../src/output/output-limiter.js'
 import { OutputLog } from '../../src/session/output-log.js'
 
 describe('OutputLog', () => {
+  it('clamps requested pages to the configured hard maximum', () => {
+    expect(normalizeOutputLimit({ maxOutputTokens: 12_000 }, 4_000, 10_000))
+      .toEqual({ maxOutputTokens: 10_000 })
+  })
+
   it('preserves split UTF-8 sequences and does not invent token counts', () => {
     const log = new OutputLog(1024)
     const bytes = new TextEncoder().encode('你好')

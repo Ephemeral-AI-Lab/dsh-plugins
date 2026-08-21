@@ -11,7 +11,7 @@ export function registerWriteStdinTool(ctx: Context, service: ExecSessionService
       job_id: { type: 'string', required: true, description: 'Opaque codex-terminal job identifier returned by exec_command.' },
       chars: { type: 'string', description: 'Characters to write. Omit or use an empty string to poll.' },
       yield_time_ms: { type: 'number', description: 'Maximum time to wait for output. Defaults to the configured poll interval.' },
-      max_output_tokens: { type: 'number', description: 'Maximum output token budget. Defaults to the configured limit.' },
+      max_output_tokens: { type: 'number', description: 'Approximate output-page token budget. Defaults to the configured page size; larger requests are capped at the configured maximum.' },
     },
     output: {
       schema: {

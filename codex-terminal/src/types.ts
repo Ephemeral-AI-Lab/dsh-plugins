@@ -9,6 +9,7 @@ export interface Config {
   pollYieldTimeMs?: number
   maxOutputBytes?: number
   defaultMaxOutputTokens?: number
+  maxOutputTokens?: number
   rows?: number
   cols?: number
   windowsPtyStartupGraceMs?: number
@@ -24,6 +25,7 @@ export interface ResolvedConfig {
   pollYieldTimeMs: number
   maxOutputBytes: number
   defaultMaxOutputTokens: number
+  maxOutputTokens: number
   rows: number
   cols: number
   windowsPtyStartupGraceMs: number

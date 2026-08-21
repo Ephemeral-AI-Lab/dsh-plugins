@@ -1,0 +1,8 @@
+export const NS = 'presetBuilder'
+export type Key = 'nav' | 'title' | 'intro' | 'loading' | 'retry' | 'preset' | 'saving' | 'saved' | 'readOnly' | 'effectiveTools' | 'toolSummary' | 'searchTools' | 'plugins' | 'pluginSummary' | 'togglePlugin' | 'configuration' | 'selectPlugin' | 'configJson' | 'saveValidate' | 'rawConfig'
+export const en: Record<Key, string> = {
+  nav: 'Preset Builder', title: 'Preset Builder', intro: 'Configure plugins and verify the tools the agent will receive.', loading: 'Loading preset…', retry: 'Retry', preset: 'Preset', saving: 'Saving…', saved: 'Validated', readOnly: 'Built-in presets are read-only. Duplicate this preset from Agent Presets to configure it.', effectiveTools: 'Effective tools', toolSummary: '{tools} tools exposed by {plugins} enabled plugins', searchTools: 'Search tools…', plugins: 'Plugin composition', pluginSummary: '{enabled} of {all} enabled', togglePlugin: 'Enable or disable plugin', configuration: 'Plugin configuration', selectPlugin: 'Select a plugin to configure it.', configJson: 'Configuration', saveValidate: 'Save and validate', rawConfig: 'Advanced · Raw composition',
+}
+export const zh: Record<Key, string> = {
+  nav: '预设构建器', title: '预设构建器', intro: '配置插件，并确认 Agent 最终获得的工具。', loading: '正在加载预设…', retry: '重试', preset: '预设', saving: '正在保存…', saved: '已验证', readOnly: '系统内置预设为只读。请先在 Agent 预设页面复制，再进行配置。', effectiveTools: 'Agent 最终可用工具', toolSummary: '{plugins} 个已启用插件，共开放 {tools} 个工具', searchTools: '搜索工具…', plugins: '插件组成', pluginSummary: '已启用 {enabled} / {all}', togglePlugin: '启用或停用插件', configuration: '插件配置', selectPlugin: '选择一个插件进行配置。', configJson: '配置', saveValidate: '保存并验证', rawConfig: '高级 · 原始组成文件',
+}
