@@ -1,5 +1,3 @@
-import type { JsonValue } from '@deepseek-ai/dsh-session'
-
 export type SessionSendMode = 'steer' | 'followup'
 
 export interface SessionSendArgs {
@@ -53,27 +51,11 @@ export interface SessionStatusView {
   title?: string
   status: CheckedSessionStatus
   updated_at?: string
+  /** Backend-owned absolute path to the plain session log. */
+  session_path?: string
 }
 
 export interface ListStatusResult {
   /** One row per recent session, or one row for an exact session query. */
   sessions: SessionStatusView[]
-}
-
-export interface ReadSessionArgs {
-  session_id: string
-  /** 1-based message offset over the reconstructed conversation surface. */
-  offset?: number
-  /** Maximum number of message blocks to return. */
-  limit?: number
-}
-
-/** One canonical, JSON-safe message block reconstructed from the session surface. */
-export type ReadSessionMessage = Record<string, JsonValue>
-
-export interface ReadSessionResult {
-  session_id: string
-  offset: number
-  messages: ReadSessionMessage[]
-  total_messages: number
 }

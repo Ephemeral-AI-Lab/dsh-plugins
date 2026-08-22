@@ -1,25 +1,18 @@
 # dsh-sessions
 
-Adds session discovery, bounded message inspection, fresh-session creation,
-message delivery, and durable side chats to DeepSeek Harness.
+Adds session discovery, plain session-log paths, and fresh-session creation to
+DeepSeek Harness.
 
 ## 1. Release: 0.1.2
 
-This release provides five public agent tools:
+This release provides three public agent tools:
 
 - `session_status` for recent sessions or one exact session;
-- `session_read` for bounded canonical message reads;
 - `session_create` for creating a fresh session with an initial prompt;
-- `session_send` for steering or following up an existing session.
+- `session_send` for steering or following up with an existing session;
 
-It also provides the `/sessions` command family and supports explicit model
-provider, model, and thinking-effort selection during session creation.
-
-Side chats are opened with `session_open_sidechat` or `/sessions sidechat "PROMPT"`.
-They return the real continuable child session id, inherit the parent's
-balanced and stable model context, and continue through the existing Harness
-`send_message` path. The browser renders them in a persistent, tabbed
-`shell.overlay` panel without navigating away from the main session.
+It supports explicit model provider, model, and thinking-effort selection during
+session creation.
 
 ## 2. Install the plugin
 
@@ -47,35 +40,28 @@ dsh plugin --profile web add C:\path\to\dsh-plugins\sessions
 
 ## 3. Quick start
 
-Create a child session, inspect it, read its conversation, and send a message:
+Create a child session, then inspect its status and log path:
 
 ~~~text
 session_create({ "prompt": "Reply with exactly READY and nothing else." })
 
 session_status({ "session_id": "<SESSION_ID>" })
 
-session_read({ "session_id": "<SESSION_ID>", "offset": 1, "limit": 20 })
-
-session_send({
-  "session_id": "<SESSION_ID>",
-  "message": "Continue with the next step."
-})
 ~~~
 
 `session_create` returns a queued result containing the new session ID. Use
-that ID with the other tools.
+that ID with `session_status`. The returned `session_path` is a plain JSONL
+file that ordinary `read`, `grep`, or `bash` tools can inspect.
 
-## 4. Agent tools and command interface
+## 4. Agent tools
 
 ### Agent tools
 
 | Tool | Arguments | Behavior |
 | --- | --- | --- |
-| `session_status` | `session_id?`, `recent_n?` | Lists recent sessions, or returns one exact status row. Defaults to the 50 most recently updated sessions. |
-| `session_read` | `session_id`, `offset?`, `limit?` | Reads canonical conversation blocks without resuming or mutating the session. |
+| `session_status` | `session_id?`, `recent_n?` | Lists recent sessions, or returns one exact status row with the backend-owned `session_path`. Defaults to the 50 most recently updated sessions. |
 | `session_create` | `prompt`, `preset?`, `model?`, `cwd?` | Creates a fresh session and queues its initial prompt. |
-| `session_send` | `session_id`, `message`, `mode?` | Sends to an existing session; `mode` defaults to `steer`. |
-| `session_open_sidechat` | `prompt` | Opens a durable continuable child attached to the calling agent and returns `subagent_id` plus the accepted message id. |
+| `session_send` | `session_id`, `message`, `mode?` | Sends text to an existing session. `mode` defaults to `steer`; `followup` queues another turn. |
 
 An explicit creation model has this shape:
 
@@ -90,59 +76,26 @@ An explicit creation model has this shape:
 The adapter validates the effort identifier against the selected model. The
 `cwd` option must be an existing absolute directory.
 
-### Slash commands
-
-~~~text
-/sessions status [SESSION_ID] [--recent N]
-/sessions read SESSION_ID [--offset N] [--limit N]
-/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
-/sessions send SESSION_ID MESSAGE [--mode steer|followup]
-/sessions sidechat "PROMPT"
-~~~
-
-The `/sessions create` flags map to the tool's nested `model` object. A JSON
-object with the same shape as `session_create` is also accepted.
+No slash commands are registered. Use the agent tools.
 
 ## 5. Session lifecycle and delivery
 
 - `session_create` only creates a fresh session and queues its initial prompt;
   it does not wait for model completion.
+- `session_send` delivers to a live session or resumes a cold session using its
+  stored preset before delivery.
 - `session_status` is inspection-only and defaults to 50 recent sessions.
-- `session_read` uses a 1-based message-block offset and a maximum limit of
-  200. It omits trace-only chunks, token deltas, and lifecycle records.
-- `session_send` defaults to `steer`, which wakes an idle agent and targets the
-  nearest step of a running agent.
-- `session_send({ mode: "followup" })` queues a separate next turn.
-- Cold sessions are resumed only for an explicit `session_send`; status and
-  read never resume them.
-
-The returned send `message_id` confirms accepted inbox work. It does not mean
-that the target agent has finished processing the message.
-
-### Side-chat lifecycle
-
-Side chats run independently of the main turn. Opening returns after the child
-inbox accepts the initial prompt, and main-turn completion never waits for the
-child. The Harness serializes follow-ups per child, synchronizes the latest
-stable parent surface before each next child turn, and supports both live and
-cold-resumed children through the same real `subagent_id`.
-
-The panel keeps `status` (`running`, `idle`, `finished`, or `error`) separate
-from `residency` (`live` or `cold`) and preserves tabs across close/reopen.
-Disposing the parent cancels live child work through the Harness ownership
-graph without deleting the durable child session; settlement notices are
-best-effort and the child transcript remains authoritative.
+- Session persistence is configured for uncompressed, unpacked JSONL so the
+  returned paths are directly readable by ordinary filesystem tools.
 
 ## 6. E2E testing
 
 Reusable prompt fixtures are in
 [`test/e2e/prompts`](./test/e2e/prompts/). The recommended flow is create,
-capture the returned `session_id`, and substitute it into the status, read, and
-send prompts.
+capture the returned `session_id`, and substitute it into the status prompt.
 
-The exact registered names are required. `session_send` must not be replaced by
-the built-in `send_message`, which targets subagents and has different
-semantics.
+The exact registered names are required. The session-read fixture is no longer
+part of the package; use the returned `session_path` with normal tools.
 
 ## 7. Verify locally
 
@@ -161,12 +114,10 @@ fixtures. Unit-test sources and development dependencies are not included.
 
 The plugin uses public DeepSeek Harness and Cordis APIs and does not modify
 DeepSeek Harness source code. `dsh-loop` owns recurring self-prompts for the
-current session; `dsh-sessions` owns cross-session inspection, creation, and
-message delivery.
+current session; `dsh-sessions` owns cross-session inspection and creation.
 
 ## 9. Documentation
 
-- [Implementation specification](./SPEC.md)
-- [Side-chat design specification](./SIDE_CHAT_SPEC.md)
-- [UI contract](./ui.md)
+- [Session-tree implementation specification](./SPEC.md)
+- [Session-tree UI specification](./u.md)
 - [E2E prompt fixtures](./test/e2e/prompts/README.md)

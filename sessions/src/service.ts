@@ -1,19 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { SessionId as makeSessionId, Session, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
+import { SessionId as makeSessionId, type SessionHeader } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionTitleObservationResult } from '@deepseek-ai/dsh-session-query'
 import type {
   ListStatusArgs,
   ListStatusResult,
-  ReadSessionArgs,
-  ReadSessionMessage,
-  ReadSessionResult,
   SessionStatus,
   SessionStatusView,
 } from './types.js'
 
-export const READ_SESSION_LIMIT = 200
 export const LIST_STATUS_DEFAULT_RECENT_N = 50
 
 export class SessionsService {
@@ -41,11 +37,13 @@ export class SessionsService {
     const sessions = [...records.entries()].map(([id, record]) => {
       const updatedAt = latestEventTime(record.agent) ?? record.header.createdAt
       const title = titles.get(id)
+      const sessionPath = persistedSessionPath(this.ctx, record.header)
       return {
         session_id: id,
         ...title === undefined ? {} : { title },
         status: statusOf(record.agent),
         updated_at: new Date(updatedAt).toISOString(),
+        ...sessionPath === undefined ? {} : { session_path: sessionPath },
       } satisfies SessionStatusView
     })
 
@@ -74,30 +72,13 @@ export class SessionsService {
     const titles = await this.readTitles([id], signal)
     const title = titles.get(id)
     const updatedAt = latestEventTime(agent) ?? header.createdAt
+    const sessionPath = persistedSessionPath(this.ctx, header)
     return {
       session_id: id,
       ...title === undefined ? {} : { title },
       status: statusOf(agent),
       updated_at: new Date(updatedAt).toISOString(),
-    }
-  }
-
-  async readSession(args: ReadSessionArgs, signal?: AbortSignal): Promise<ReadSessionResult> {
-    const input = parseReadSessionArgs(args)
-    const id = makeSessionId(input.session_id)
-    const live = this.ctx.agents.get(id)
-    const source: readonly ReadSessionMessage[] = live === undefined
-      ? reconstructMessages(id, await this.ctx.sessionPersistence.inspect(id, signal))
-      : live.session.deriveMessages().map(toReadSessionMessage)
-    if (input.offset > source.length && !(source.length === 0 && input.offset === 1)) {
-      throw new Error(`offset ${input.offset} is out of range for session "${input.session_id}" (${source.length} messages)`)
-    }
-    const messages = source.slice(input.offset - 1, input.offset - 1 + input.limit)
-    return {
-      session_id: input.session_id,
-      offset: input.offset,
-      messages,
-      total_messages: source.length,
+      ...sessionPath === undefined ? {} : { session_path: sessionPath },
     }
   }
 
@@ -131,35 +112,15 @@ function latestEventTime(agent: Agent | undefined): number | undefined {
   return agent?.session.events.at(-1)?.time
 }
 
+function persistedSessionPath(ctx: Context, header: SessionHeader): string | undefined {
+  return (ctx.sessionPersistence as { locate?: (meta: SessionHeader) => { path: string } | undefined })
+    .locate?.(header)?.path
+}
+
 export function validateRecentN(recentN: number | undefined): void {
   if (recentN !== undefined && (!Number.isSafeInteger(recentN) || recentN <= 0)) {
     throw new Error('recent_n must be a positive safe integer')
   }
-}
-
-export function parseReadSessionArgs(args: ReadSessionArgs): { session_id: string; offset: number; limit: number } {
-  requireSessionId(args.session_id)
-  const offset = args.offset === undefined ? 1 : parsePositiveInteger(args.offset, 'offset')
-  const limit = args.limit === undefined ? READ_SESSION_LIMIT : parsePositiveInteger(args.limit, 'limit')
-  if (limit > READ_SESSION_LIMIT) throw new Error(`limit must be less than or equal to ${READ_SESSION_LIMIT}`)
-  return { session_id: args.session_id.trim(), offset, limit }
-}
-
-function parsePositiveInteger(value: number, name: string): number {
-  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`${name} must be a positive safe integer`)
-  return value
-}
-
-function reconstructMessages(id: ReturnType<typeof makeSessionId>, inspection: {
-  readonly meta: SessionHeader
-  readonly events: readonly SessionEvent[]
-}): readonly ReadSessionMessage[] {
-  const session = Session.create(id, inspection.events, inspection.meta)
-  return session.deriveMessages().map(toReadSessionMessage)
-}
-
-function toReadSessionMessage(message: ReturnType<Session['deriveMessages']>[number]): ReadSessionMessage {
-  return message as unknown as ReadSessionMessage
 }
 
 function requireSessionId(value: string): void {

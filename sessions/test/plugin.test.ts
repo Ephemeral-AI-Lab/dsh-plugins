@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/index.js'
 
 describe('dsh-sessions plugin', () => {
-  it('registers session tools and /sessions, then disposes both', () => {
+  it('registers session tools, then disposes them', () => {
     const tools: Array<{ name: string }> = []
-    const commands: Array<{ name: string }> = []
     const cleanups: Array<() => void> = []
     const ctx = {
       tools: {
@@ -13,15 +12,6 @@ describe('dsh-sessions plugin', () => {
           return () => {
             const index = tools.indexOf(definition)
             if (index >= 0) tools.splice(index, 1)
-          }
-        },
-      },
-      commands: {
-        register(definition: { name: string }) {
-          commands.push(definition)
-          return () => {
-            const index = commands.indexOf(definition)
-            if (index >= 0) commands.splice(index, 1)
           }
         },
       },
@@ -37,18 +27,11 @@ describe('dsh-sessions plugin', () => {
     apply(ctx as never)
     expect(tools.map(tool => tool.name)).toEqual([
       'session_status',
-      'session_read',
       'session_create',
       'session_send',
-      'session_open_sidechat',
     ])
-    expect(commands.map(command => command.name)).toEqual(['sessions'])
-
-    const sendTool = tools.find(tool => tool.name === 'session_send')
-    expect(sendTool).toBeDefined()
 
     cleanups[0]!()
     expect(tools).toHaveLength(0)
-    expect(commands).toHaveLength(0)
   })
 })

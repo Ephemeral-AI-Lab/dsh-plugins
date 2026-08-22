@@ -1,0 +1,434 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-specific-menu);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-width: 0;
+  padding: 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+}
+
+.tabList {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tabShell {
+  display: flex;
+  align-items: center;
+  min-width: 110px;
+  max-width: 220px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+}
+
+.tabShell:hover,
+.tabShell[data-active] {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tab {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 4px 0 12px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tabTitle {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabClose,
+.newTab,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.tabClose {
+  width: 36px;
+  height: 36px;
+}
+
+.tabClose:hover,
+.newTab:hover,
+.iconButton:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tabClose svg,
+.newTab svg,
+.iconButton svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.anchor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-specific-menu);
+}
+
+.anchor > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.anchorLabel,
+.anchorMeta {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.anchor strong {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anchorMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 16px 24px;
+  scrollbar-color: var(--dsw-alias-scrollbar-bg-l2) transparent;
+}
+
+.emptyPanel,
+.emptyConversation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  padding: 36px 24px;
+  text-align: center;
+}
+
+.emptyConversation {
+  min-height: 280px;
+  padding: 24px;
+}
+
+.emptyPanel h3,
+.emptyConversation h3 {
+  margin: 12px 0 6px;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.emptyPanel p,
+.emptyConversation p {
+  max-width: 380px;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.emptyConversation span {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.emptyPanel button {
+  min-height: 40px;
+  margin-top: 18px;
+  padding: 0 16px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-button-elevated-fill);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chatIcon {
+  width: 42px;
+  height: 42px;
+  fill: none;
+  stroke: var(--dsw-alias-label-tertiary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.message {
+  max-width: 92%;
+  margin-bottom: 18px;
+}
+
+.user {
+  margin-left: auto;
+  padding: 10px 12px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.assistant {
+  margin-right: auto;
+}
+
+.message[data-streaming]::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  border-radius: 2px;
+  background: var(--dsw-alias-brand-primary);
+  animation: blink 900ms ease-in-out infinite;
+}
+
+.messageLabel {
+  margin-bottom: 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.message p,
+.reasoning pre {
+  margin: 0 0 8px;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.message p:last-child,
+.reasoning pre:last-child {
+  margin-bottom: 0;
+}
+
+.reasoning {
+  margin: 6px 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.reasoning summary {
+  cursor: pointer;
+}
+
+.reasoning pre {
+  margin-top: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.interrupted,
+.queued {
+  display: inline-block;
+  margin-top: 5px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.queued {
+  display: block;
+  margin: -6px 0 14px;
+  text-align: center;
+}
+
+.error {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.composer {
+  flex: none;
+  margin: 0 10px 10px;
+  padding: 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  background: var(--dsw-specific-menu);
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  max-height: 180px;
+  padding: 2px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 0;
+  outline: 0;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.composer textarea::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.composerActions > span {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+
+.composerActions > div {
+  display: flex;
+  gap: 6px;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.secondaryButton {
+  border: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+}
+
+.secondaryButton:hover,
+.emptyPanel button:hover {
+  filter: brightness(0.96);
+}
+
+.primaryButton:hover {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.tab:focus-visible,
+.tabClose:focus-visible,
+.newTab:focus-visible,
+.iconButton:focus-visible,
+.emptyPanel button:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.composer textarea:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 520px) {
+  .anchorMeta { display: none; }
+  .message { max-width: 100%; }
+  .composerActions { align-items: flex-end; }
+  .composerActions > span { display: none; }
+  .primaryButton,
+  .secondaryButton { min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message[data-streaming]::after { animation: none; }
+}

@@ -1,0 +1,3 @@
+- insert:
+    - id: workbench-ui
+      name: 'dsh-workbench-ui'

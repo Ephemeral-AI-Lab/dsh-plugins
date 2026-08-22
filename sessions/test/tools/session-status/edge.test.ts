@@ -17,6 +17,7 @@ type FixtureOptions = {
   agents?: readonly any[]
   titles?: readonly any[]
   list?: ReturnType<typeof vi.fn>
+  locate?: ReturnType<typeof vi.fn>
   get?: ReturnType<typeof vi.fn>
   readTitles?: ReturnType<typeof vi.fn>
 }
@@ -42,10 +43,11 @@ function makeFixture(options: FixtureOptions = {}) {
   const headers = options.headers ?? []
   const agents = options.agents ?? []
   const list = options.list ?? vi.fn(async () => [...headers])
+  const locate = options.locate ?? vi.fn(() => undefined)
   const get = options.get ?? vi.fn((id: unknown) => agents.find(agent => String(agent.id) === String(id)))
   const readTitles = options.readTitles ?? vi.fn(async () => [...options.titles ?? []])
   const ctx = {
-    sessionPersistence: { list },
+    sessionPersistence: { list, locate },
     agents: { list: vi.fn(() => [...agents]), get },
     sessionQuery: { readTitleSnapshots: readTitles },
     tools: {
@@ -59,7 +61,7 @@ function makeFixture(options: FixtureOptions = {}) {
   let tool: Tool | undefined
   registerSessionStatusTool(ctx as never, service)
   if (tool === undefined) throw new Error('session_status was not registered')
-  return { ctx, get, list, readTitles, service, tool }
+  return { ctx, get, list, locate, readTitles, service, tool }
 }
 
 function invoke(tool: Tool, args: any = {}, signal = new AbortController().signal) {
@@ -257,6 +259,15 @@ describe('session_status tool — EASY (30)', () => {
   it('[E30] preserves the status row shape for a normal session', async () => {
     const result = await makeFixture({ headers: [makeHeader('one', 1)] }).service.listStatus()
     expect(Object.keys(result.sessions[0] ?? {}).sort()).toEqual(['session_id', 'status', 'updated_at'])
+  })
+
+  it('[E31] includes the backend-owned session path', async () => {
+    const path = '/sessions/project/session-one/session.jsonl'
+    const result = await makeFixture({
+      headers: [makeHeader('one', 1)],
+      locate: vi.fn(() => ({ kind: 'jsonl', path })),
+    }).service.listStatus()
+    expect(result.sessions[0]).toMatchObject({ session_id: 'one', session_path: path })
   })
 })
 

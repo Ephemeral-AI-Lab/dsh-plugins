@@ -14,9 +14,9 @@ This document specifies the Ephemeral AI agent preset and its Codex Shell integr
 | Filesystem | `edit` | `file_path:string`, `old_string:string`, `new_string:string`, `replace_all?:boolean` |
 | Jobs | `job_list` | — |
 | Jobs | `job_kill` | `job_id:string`, `reason?:string` |
-| Delegation | `subagent` | `description:string`, `prompt:string`, `run_in_background?:boolean` |
-| Delegation | `list_agents` | `scope?:"children" | "descendants"` |
-| Delegation | `send_message` | `subagent_id:string`, `message:string` |
+| Sessions | `session_create` | `prompt:string`, `preset?:string`, `model?:object`, `cwd?:string` |
+| Sessions | `session_status` | `session_id?:string`, `recent_n?:number` |
+| Sessions | `session_send` | `session_id:string`, `message:string`, `mode?:"steer" | "followup"` |
 | Research | `web_search` | `queries:string[]` |
 | Shell | `exec_command` | `cmd:string`, `workdir?:string`, `yield_time_ms?:number`, `max_output_tokens?:number` |
 | Shell | `write_stdin` | `job_id:string`, `chars?:string`, `yield_time_ms?:number`, `max_output_tokens?:number` |
@@ -158,18 +158,8 @@ name: Ephemeral AI Harness
 - id: tool-jobs
   name: '@deepseek-ai/dsh-tool-jobs'
 
-- id: tool-subagent-control
-  name: '@deepseek-ai/dsh-tool-subagent-control'
-
-- id: tool-subagent-list-agents
-  name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
-
-- id: tool-subagent
-  name: '@deepseek-ai/dsh-tool-subagent'
-  config:
-    provider: spawn
-    toolName: subagent
-    backgroundMode: continuable
+- id: dsh-sessions
+  name: 'dsh-sessions'
 
 - id: tool-web
   name: '@deepseek-ai/dsh-tool-web'
@@ -191,10 +181,9 @@ const ALLOWED_TOOLS = [
   'edit',
   'job_list',
   'job_kill',
-  'subagent',
-  'list_agents',
-  'send_message',
-  'interrupt_agent',
+  'session_create',
+  'session_status',
+  'session_send',
   'web_search',
   'exec_command',
   'write_stdin',

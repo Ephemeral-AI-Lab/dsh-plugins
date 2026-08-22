@@ -6,7 +6,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionSendArgs, SessionSendMode, SessionSendResult } from './types.js'
 
-/** Sends messages to existing sessions and owns any handles resumed for delivery. */
+/** Sends messages to existing sessions and owns handles resumed for delivery. */
 export class SessionSendService {
   private readonly ownedHandles = new Map<SessionId, AgentHandle>()
   private readonly persistence: SessionPersistence
@@ -93,10 +93,7 @@ async function resumeComposition(
   return async childCtx => { await ownerPresets.mount(childCtx, resolved.id) }
 }
 
-function resolveStoredPreset(
-  header: unknown,
-  events: readonly unknown[],
-): string | undefined {
+function resolveStoredPreset(header: unknown, events: readonly unknown[]): string | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index]
     if (!isRecord(event) || event.type !== 'agent-preset/selected' || !isRecord(event.data)) continue

@@ -12,6 +12,7 @@ const SESSION_STATUS_VIEW_SCHEMA = {
     title: { type: 'string' },
     status: { type: 'string', required: true, enum: [...SESSION_STATUS] },
     updated_at: { type: 'string' },
+    session_path: { type: 'string' },
   },
 } as const
 

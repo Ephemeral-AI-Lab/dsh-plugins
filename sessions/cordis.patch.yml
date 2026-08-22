@@ -1,3 +1,9 @@
+- id: session-persistence-jsonl
+  config:
+    root: !!js dshHomePath('sessions-plain')
+    compression: none
+    packChunks: false
+
 - insert:
     - id: dsh-sessions
       name: 'dsh-sessions'

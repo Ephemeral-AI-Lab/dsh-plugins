@@ -1,371 +1,387 @@
-# dsh-sessions specification
+# DSH sessions: session-tree specification
 
-Status: implemented.
+Status: proposed vNext.
 
-This plugin provides the session API required by the v2
-`dsh-loop` global automation panel.
+This document defines the next session model for `dsh-sessions`. It is the
+implementation contract for a small public surface:
 
-The custom plugin/package name is `dsh-sessions`; the implementation directory
-is `dsh-plugins/sessions`.
+- `session_create`
+- `session_status`
+- `session_send`
 
-This is an adapter over DSH's built-in session services. It is not a second
-implementation of `@deepseek-ai/dsh-session`, and it must not duplicate the
-session store or persistence backend. `dsh-sessions` owns session inspection,
-fresh-session creation, and message delivery.
+The existing v0.1.2 implementation is still an adapter over the built-in DSH
+session services. It currently creates fresh sessions and exposes plain JSONL
+paths. The fork/worktree tree described here is the next implementation step;
+it must not be implied to be available until the tool, persistence, and UI
+tests pass.
 
-## 1. Package boundary
+## 1. Design principles
 
-The package lives at `dsh-plugins/sessions` and exposes four agent-facing tools
-and one human-facing slash command:
+1. A main session is the root of one session tree.
+2. A fork is a specialized child session created from a completed parent
+   boundary.
+3. A subagent is a child session started with a fresh prompt. Subagents may
+   create subagents recursively.
+4. `session_create` is the only creation API. Forking is selected by a boolean
+   parameter, not by a second public tool.
+5. `worktree` is an opt-in placement option. Forks do not create worktrees by
+   default.
+6. The durable tree and the physical log layout use stable session IDs, never
+   display titles.
+7. Session logs are plain, append-only JSONL. Agents get the path and use
+   ordinary filesystem tools to inspect it.
+8. `session_status` returns a nested folder-style tree. It does not expose a
+   graph with separate `nodes` and `edges` collections.
+9. The sidebar shows main sessions and forks. Subagents are shown in the
+   active session's existing subagent control, not as extra sidebar rows.
+
+## 2. Terminology and ownership
+
+### 2.1 Session kinds
+
+Every session has one immutable `kind`:
+
+| Kind | Meaning | May create |
+| --- | --- | --- |
+| `main` | Root session opened by the user or a root-level caller | subagent or fork; fork may request a worktree |
+| `fork` | Child seeded from the parent's latest completed durable boundary | subagent only |
+| `subagent` | Child started from a new prompt | subagent only |
+
+Fork is a session kind, not a separate runtime or public tool. Internally it
+may use DSH's fork provider, but callers always use `session_create`.
+
+### 2.2 Parent and root
+
+Each non-main session records:
+
+- `parent_session_id`: the session that created it;
+- `root_session_id`: the main session at the top of the tree;
+- `kind`: `fork` or `subagent`;
+- `created_at`: the creation timestamp;
+- `cwd`: the effective working directory for that session.
+
+The root ID is stable even when the session is displayed through a fork or a
+subagent. A title may change; IDs and parent relationships may not.
+
+### 2.3 Title
+
+`title` is the user-facing session name. It is metadata, not identity and not a
+directory name. A title may be renamed without moving a log or changing any
+relationship. If no explicit title exists, the UI may fall back to the first
+prompt or the session ID.
+
+The API uses `title`; `session_name` is not a second field.
+
+## 3. Public tools
+
+### 3.1 `session_create`
 
 ```ts
-session_status({ session_id?: string, recent_n?: number }) -> { sessions: SessionStatusView[] }
+session_create({
+  prompt: string,
+  title?: string,
+  fork?: boolean,
+  worktree?: boolean,
+  preset?: string,
+  model?: {
+    provider: string,
+    model: string,
+    reasoningEffort?: string,
+  },
+  cwd?: string,
+}) -> {
+  session_id: string,
+  kind: 'subagent' | 'fork',
+  accepted: true,
+  status: 'queued',
+  parent_session_id?: string,
+  root_session_id: string,
+  cwd: string,
+  worktree?: string,
+}
 ```
 
+`prompt` is required and is the initial user message for the child. `fork`
+and `worktree` default to `false`.
+
+The creation modes are:
+
+| Caller | `fork` | `worktree` | Result |
+| --- | ---: | ---: | --- |
+| main | `false` | `false` | fresh `subagent` in the selected/inherited `cwd` |
+| main | `true` | `false` | `fork` in the selected/inherited `cwd` |
+| main | `true` | `true` | `fork` in a newly provisioned worktree |
+| fork or subagent | `false` | `false` | fresh `subagent` |
+
+The following combinations are invalid:
+
+- `worktree: true` with `fork: false`;
+- `fork: true` when the caller is a fork or subagent;
+- `worktree: true` when the caller is a fork or subagent;
+- a non-existent or non-absolute explicit `cwd`;
+- an empty `prompt`, `title`, preset, model, or provider identifier.
+
+When a caller is absent, the operation creates a main-level child only when
+the host explicitly permits root creation. A root-level `fork: true` request
+must be treated as a main-session operation, not as a child of an arbitrary
+session.
+
+### 3.2 Fork boundary
+
+For `fork: true`, the child is seeded from the parent's latest full completed
+step before `session_create` is invoked.
+
+The boundary is the last durable point at which the parent has finished its
+current model/tool step. The fork does not include:
+
+- the `session_create` tool call itself;
+- the fork request's pending result;
+- an in-flight tool call or partial streaming chunk;
+- events written after the boundary while the parent continues running.
+
+The child receives a copy/reference of the complete durable prefix through the
+boundary and then receives the new `prompt` as its first child-specific input.
+The parent and child append to different `session.jsonl` files after creation.
+
+If the parent has no completed durable step, the operation may fork the
+available session header and completed prefix; it must not copy an incomplete
+event. The implementation must reject an ambiguous boundary rather than
+silently producing a partially copied conversation.
+
+### 3.3 Worktree behavior
+
+`worktree` is deliberately opt-in. A normal subagent and a same-directory fork
+must not create a Git worktree.
+
+When `fork: true, worktree: true`:
+
+1. the host worktree provider allocates a directory according to its configured
+   policy;
+2. the child session is created with that directory as its `cwd`;
+3. the result returns the canonical worktree path when available;
+4. the child header records the effective `cwd` and worktree metadata;
+5. the session log remains in DSH's session-tree storage, not inside the
+   worktree.
+
+The implementation must not assume that worktrees live under `/repo`,
+`<repository>/.worktrees`, or any other fixed directory. The actual path is
+provider-owned and must be surfaced through `session_status`.
+
+Creation is atomic from the caller's perspective. If the worktree cannot be
+created or the child cannot be initialized, the operation returns an error and
+cleans up any worktree allocated solely for that failed request.
+
+### 3.4 `session_status`
+
 ```ts
-session_read({ session_id: string, offset?: number, limit?: number }) -> ReadSessionResult
+session_status({
+  session_id?: string,
+}) -> {
+  tree: SessionTreeView,
+}
 ```
+
+With no `session_id`, the tool returns the caller's current main-root tree. If
+`session_id` is supplied, it must identify the caller's current session or one
+of its descendants; the result is that session's nested subtree. An ID outside
+the caller's tree is rejected rather than becoming an unrestricted session
+search API.
+
+The response is intentionally folder-shaped:
+
+```ts
+interface SessionTreeView {
+  session_id: string
+  root_session_id: string
+  parent_session_id?: string
+  kind: 'main' | 'fork' | 'subagent'
+  title?: string
+  status: 'running' | 'idle' | 'cold' | 'failed' | 'missing'
+  created_at?: string
+  updated_at?: string
+  cwd?: string
+  worktree?: string
+  session_path?: string
+  forks: SessionTreeView[]
+  subagents: SessionTreeView[]
+}
+```
+
+The result must not contain `nodes`, `edges`, an untyped `children` array, or a
+second flattened list. The two child collections mirror the physical folders
+and make the allowed relationships visible:
+
+```text
+main
+├── session.jsonl
+├── forks/
+│   └── fork
+│       ├── session.jsonl
+│       └── subagents/
+│           └── subagent
+└── subagents/
+    └── subagent
+        ├── session.jsonl
+        └── subagents/
+            └── subagent
+```
+
+`session_path` is the absolute path to the corresponding plain JSONL file. It
+is opaque: consumers must use the returned value and must not reconstruct it
+from an ID.
+
+Status mapping remains conservative:
+
+| Runtime condition | Status |
+| --- | --- |
+| live agent is processing | `running` |
+| live agent exists but is not processing | `idle` |
+| durable header exists without a live agent | `cold` |
+| durable session is known to have failed | `failed` |
+| exact lookup finds neither live nor durable session | `missing` |
+
+`session_status` is inspection-only. It must not resume a cold session, invoke
+the model, create a worktree, or modify a log.
+
+### 3.5 `session_send`
 
 ```ts
 session_send({
   session_id: string,
   message: string,
-  mode?: "steer" | "followup",
-}) -> { message_id: string }
-```
-
-```ts
-session_create({
-  prompt: string,
-  preset?: string,
-  model?: { provider: string, model: string, reasoningEffort?: string },
-  cwd?: string,
 }) -> {
   session_id: string,
   accepted: true,
-  status: "queued",
-  workspace_id?: string,
-  cwd?: string,
+  status: 'queued',
 }
 ```
 
-```text
-/sessions status [SESSION_ID] [--recent N]
-/sessions read SESSION_ID [--offset N] [--limit N]
-/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
-/sessions send SESSION_ID MESSAGE [--mode steer|followup]
-```
+`session_send` sends a new message to a direct child owned by the calling
+session. A caller may send to its own direct subagent or fork, but not to an
+unrelated tree and not directly to a grandchild. A child can forward work by
+using its own `session_send` call.
 
-It does not resume, delete, or send follow-up messages to sessions. A
-`session_create` call creates a fresh session and queues only its initial
-prompt. It may bind the session to an existing absolute directory with `cwd`.
+The operation does not expose a second message transport, does not wait for
+generation, and does not mutate the parent's log. The target child's log
+records the message and its normal DSH lifecycle events.
 
-The slash command uses the same service as the tool. It renders one compact
-line per session, showing the durable title when available and the stable
-`session_id` as the fallback. It is read-only and does not send a message to
-any session.
+## 4. Physical storage
 
-### Composer completion
-
-The client adds a local completion popup for the `read` form:
+The vNext persistence provider owns a canonical tree under the DSH home:
 
 ```text
-/sessions read SESSION_ID
+~/.dsh/session-tree/
+└── <main-session-id>/
+    ├── session.jsonl
+    ├── forks/
+    │   └── <fork-session-id>/
+    │       ├── session.jsonl
+    │       └── subagents/
+    │           └── <subagent-session-id>/
+    │               └── session.jsonl
+    └── subagents/
+        └── <subagent-session-id>/
+            ├── session.jsonl
+            └── subagents/
+                └── <subagent-session-id>/
+                    └── session.jsonl
 ```
 
-The popup offers the unused `--offset` and `--limit` flags. Selecting a flag
-updates the draft to include the flag followed by a space, leaving the user to
-enter its positive integer value. Existing flags are removed from the choices,
-and a partially typed `--...` token filters the choices. This is a client-side
-draft interaction; it does not invoke the agent or create a conversation
-message. The local matcher treats leading/trailing whitespace and zero, one, or
-multiple spaces between `/sessions` and the subcommand equivalently.
+Rules:
 
-## 2. Tool contract
+- directory names are stable, validated session IDs;
+- titles are never directory names;
+- a main session has no parent directory;
+- a fork is stored below its parent's `forks/` directory;
+- every other child is stored below its parent's `subagents/` directory;
+- a fork or subagent may contain `subagents/`, but only a main session may
+  contain `forks/`;
+- logs are kept outside code worktrees so a worktree can be deleted or moved
+  without deleting session history;
+- the header records `kind`, `parent_session_id`, `root_session_id`, `cwd`,
+  and worktree metadata;
+- the directory layout and the header must agree; a mismatch is a persistence
+  error, not a reason to guess.
 
-### `session_status`
+### 4.1 Plain JSONL policy
 
-The argument may be empty. With no `session_id`, the result contains the most
-recent sessions:
+Every `session.jsonl` is UTF-8, append-only JSONL:
 
-```ts
-session_status({})
+```yaml
+compression: none
+packChunks: false
 ```
 
-`recent_n` is an optional positive safe integer and defaults to 50. Results are
-ordered by `updated_at` descending. When `session_id` is supplied, the result
-contains exactly one row for that ID instead of the recent-session list.
+The provider must not write `session.jsonl.zstd` for this profile. Agents may
+use `read`, `rg`, `grep`, `jq`, or ordinary shell tools on the returned path.
+The event vocabulary remains the host DSH session vocabulary; this plugin does
+not invent a second transcript format.
 
-```ts
-interface SessionStatusView {
-  session_id: string
-  /** Latest durable title, when a title event exists. */
-  title?: string
-  status: "running" | "idle" | "cold" | "missing"
-  updated_at?: string
-}
-```
+### 4.2 Persistence boundary
 
-The output contains each recent session at most once. A live agent takes
-precedence over a persisted header with the same `session_id`. For an exact
-query, `missing` means no live agent and no persisted session header exist; a
-missing session has no `updated_at`.
+The custom tree provider is the source of truth for the vNext tree. It must
+implement the public persistence operations needed by DSH for creating,
+appending, loading, listing, locating, and reading session logs. The provider
+must not depend on a UI-only index or on a title-derived path.
 
-### `session_read`
+Existing `sessions-plain` logs are legacy v0 data. Migration is not an
+implicit side effect of `session_status`. A later migration command may import
+legacy sessions into the tree, preserving their IDs and marking unavailable
+parent relationships as legacy roots.
 
-This bounded read returns reconstructed conversation message blocks without
-resuming the session or starting generation. The projection uses the same
-canonical surface as the agent loop: raw stream chunks, token deltas,
-lifecycle boundaries, request metadata, and other trace-only events are
-omitted.
+## 5. UI contract
 
-```ts
-interface ReadSessionArgs {
-  session_id: string
-  /** 1-based first message block to return; defaults to 1. */
-  offset?: number
-  /** Maximum message blocks to return; defaults to and is capped at 200. */
-  limit?: number
-}
+The sidebar UI is specified separately in [`u.md`](./u.md). The important
+boundary is:
 
-interface ReadSessionResult {
-  session_id: string
-  offset: number
-  messages: Record<string, JsonValue>[]
-  total_messages: number
-}
-```
+- render main sessions and fork sessions in the workspace tree;
+- do not render subagents as sidebar rows;
+- render subagents in the active session's existing header dropdown;
+- keep `session_status` complete even though the sidebar intentionally filters
+  its presentation.
 
-The model-facing text is grouped into readable message blocks, without the
-built-in `read` tool's XML envelope and without generated line numbers. A
-message containing a tool call is shown as an assistant block with the tool
-name and arguments; a tool result is shown as a tool block. The footer reports
-the window and total, for example:
+The sidebar is therefore a navigation surface for durable, user-selectable
+sessions. The header dropdown is the operational surface for active helpers.
 
-```text
-(Showing messages 1-20 of 45)
-```
+## 6. Compatibility and non-goals
 
-An offset beyond a non-empty session is rejected like the built-in `read` tool.
-Reading a cold session uses inspection only; it does not resume or mutate it.
+The vNext design does not:
 
-### `session_send`
+- add `session_read`; ordinary tools read `session_path` directly;
+- retain `list_agents` as a second public tree API;
+- create a worktree for every fork;
+- expose a separate public `fork` tool;
+- use titles as IDs or paths;
+- display subagents as duplicate sidebar sessions;
+- allow child sessions to create forks or worktrees;
+- implement a second scheduler, transcript projection, or message database.
 
-Sends a message to an existing session. `session_id` and `message` are required
-and must be non-empty. `mode` defaults to `steer`, which wakes an idle agent
-and targets the nearest step of a running agent. `followup` queues an ordinary
-next-turn message instead.
+Until vNext is implemented, the package's current fresh-session behavior and
+plain `sessions-plain` backend remain the compatibility baseline documented in
+the package README and session-log design guide.
 
-A cold session is resumed only for this explicit delivery request. The target's
-persisted preset is restored, and an agent caller's route is inherited for the
-resume. Missing sessions are not created. The result's `message_id` identifies
-accepted inbox work; it does not identify completed model output.
+## 7. Acceptance criteria
 
-### `session_create`
+The implementation is ready only when all of the following are true:
 
-Creates a fresh session and queues its initial prompt. `prompt` is required and
-must be non-empty. `preset` is an optional preset ID. `model` is an optional
-object with required `provider` and `model` strings plus an optional
-adapter-owned `reasoningEffort` identifier.
-
-Location resolution is explicit:
-
-- `cwd` must be an existing absolute directory and is canonicalized before it
-  is stored. If it belongs to a registered workspace, the result also reports
-  that derived `workspace_id`.
-- When called by an agent and neither location is supplied, the child inherits
-  the caller's session `cwd`.
-- A root call with neither location is allowed but remains ungrouped; global
-  automation can pass `cwd` when workspace ownership matters.
-
-The result reports the canonical `cwd` and resolved `workspace_id` when a
-location was selected. Workspace ownership is derived from persisted `cwd`;
-`workspace_id` is an output-only derived field and is not a create input or
-written into the session header. After the session is created, the plugin also
-calls the resolved workspace's `attachSession()` so the global workspace panel
-sees the new session immediately; a failed attach rolls the new agent back.
-
-`model` and `preset` are independent options. Omitting one does not clear the
-corresponding setting inherited from the caller.
-
-Resolution order for `model` is:
-
-1. use the explicit `{ provider, model }` when supplied;
-2. otherwise, when called from an agent, inherit that agent's effective route;
-3. otherwise use the deployment's default model.
-
-Resolution order for `preset` is:
-
-1. resolve the explicit preset ID when supplied;
-2. otherwise, when called from an agent, inherit the caller's composed preset;
-3. if the caller has no composed preset, resolve the deployment's default
-   preset;
-4. when called without an agent, resolve the deployment's default preset.
-
-If no default preset is configured, the new session simply has no preset. If no
-default model is configured for a root create, creation fails because a model
-route is required.
-
-The four parameter combinations are therefore:
-
-| `model` | `preset` | Child/session-agent call | Root call |
-| --- | --- | --- | --- |
-| omitted | omitted | inherit model and preset; fall back to deployment defaults independently | use deployment defaults independently |
-| provided | omitted | use explicit model; inherit preset or use its default | use explicit model and default preset |
-| omitted | provided | inherit model or use its default; use explicit preset | use default model and explicit preset |
-| provided | provided | use both explicit values | use both explicit values |
-
-When `model.reasoningEffort` is supplied, the selected model and effort are
-validated together through `ctx.llm.resolveCallConfig()` before the new agent
-is created. The effort is then injected through `installModelSelection()` so
-the first request uses it and the request header records it as an explicit
-selection. When the caller's effective route contains an explicitly recorded
-effort, it is carried into the new session internally. Adapter-provided default
-effort is not copied as an explicit override.
-
-The operation returns after the agent accepts the initial user message. It does
-not wait for generation to finish. Reasoning effort is inherited internally
-from the selected route when DSH has recorded an explicit effort, but is not a
-public create parameter.
-
-### `/sessions create`
-
-The human-facing command calls the same creation service as the tool and passes
-the current agent as the inheritance source:
-
-```text
-/sessions create PROMPT [--preset ID] [--provider PROVIDER --model MODEL] [--effort LEVEL] [--cwd PATH]
-```
-
-`PROMPT` may be quoted when it contains spaces. The equivalent expanded model
-form is `--provider PROVIDER --model MODEL --effort LEVEL`. For automation, the
-command also accepts a JSON object with the same fields as `session_create`;
-unknown fields, including `workspace_id`, are rejected.
-
-### `/sessions send`
-
-The command calls the same `session_send` service as the tool:
-
-```text
-/sessions send SESSION_ID MESSAGE [--mode steer|followup]
-```
-
-`MESSAGE` may be quoted when it contains spaces. The mode defaults to `steer`;
-`--mode followup` queues an ordinary next turn. Missing sessions are not
-created, and the command returns the accepted `message_id` as JSON.
-
-### Title resolution
-
-Titles are read from the built-in log-backed title service through the public
-session-query seam (`ctx.sessionQuery.readTitle()` or the batch
-`readTitleSnapshots()` form). Listing must never call
-`ctx.sessionTitle.refresh()` and must never start an LLM request.
-
-The durable title precedence is:
-
-```text
-user-renamed title
-  -> LLM-generated title
-  -> deterministic first-prompt fallback
-  -> no stored title
-```
-
-The final step is not persisted as a title. Consumers display the stable
-`session_id` when `title` is absent. A title-read failure for one session does
-not remove the session row; the adapter returns that row without `title` and
-keeps the ID available for selection.
-
-## 3. Data sources
-
-The implementation merges three public DSH sources:
-
-1. `ctx.sessionPersistence.list()` for persisted sessions, including sessions
-   that are not currently loaded;
-2. `ctx.agents.list()` for live agents and their current status;
-3. `ctx.sessionQuery.readTitleSnapshots()` for live-preferred and cold title
-   reads.
-
-Status mapping:
-
-| Source state | Returned status |
-| --- | --- |
-| live agent currently processing | `running` |
-| live agent registered but not processing | `idle` |
-| persisted session with no live agent | `cold` |
-
-The plugin must not infer that a persisted session is running merely because
-it has recent history.
-
-## 4. Validation and errors
-
-- Empty arguments are valid.
-- `session_status.recent_n`, when supplied, must be a positive safe integer and
-  defaults to 50.
-- `session_status.session_id`, when supplied, must be a non-empty string.
-- `session_read.offset`, when supplied, must be a positive safe integer.
-- `session_read.limit`, when supplied, must be a positive safe integer no greater than 200.
-- `session_send.session_id` and `session_send.message` must be non-empty strings.
-- `session_send.mode`, when supplied, must be `steer` or `followup`.
-- `session_create.prompt`, `model.provider`, `model.model`, and `preset`, when
-  supplied, must be non-empty strings.
-- `session_create.model.reasoningEffort`, when supplied, must be a non-empty
-  effort identifier supported by the selected provider/model.
-- `session_create.cwd`, when supplied, must be a non-empty string that resolves
-  to an existing absolute directory.
-- The create command rejects unknown flags and malformed model arguments.
-- Unknown properties are rejected.
-- Persistence failures are returned as tool errors; partial results are not
-  reported as successful results.
-- Missing titles are valid and are represented by an omitted `title` field.
-- Listing never resumes a cold session and never invokes title generation.
-
-## 5. Integration with dsh-loop
-
-`dsh-loop` uses this tool/service to populate existing-session choices in the
-global automation panel. A selected `session_id` is passed to
-`loop_create`; the loop scheduler then resolves the session again at delivery
-time because it may have become cold or unavailable after selection.
-
-The plugin does not own the global loop registry and does not implement a
-second scheduler.
-
-## 6. Acceptance tests
-
-- Returns live idle sessions.
-- Returns live running sessions.
-- Returns cold persisted sessions.
-- Merges a live and persisted representation without duplicates.
-- Includes the latest durable title when available.
-- Preserves the precedence of user, provider, and deterministic fallback title
-  events.
-- Falls back to the stable session ID when no title exists.
-- Orders by most recent update.
-- Applies `limit` after merging and ordering.
-- Rejects invalid limits and unknown properties.
-- Does not mutate session persistence or agent state.
-- `session_status({})` returns the 50 most recently updated sessions by default.
-- `session_status({ recent_n: N })` applies the same positive-integer validation.
-- `session_status({ session_id })` returns one exact status row, including
-  `missing` when the ID does not exist.
-- `/sessions status` lists the same data as `session_status({})`.
-- `/sessions status --recent N` passes `recent_n: N`.
-- `/sessions status SESSION_ID` passes `session_id` and renders its exact row.
-- `/sessions read SESSION_ID` returns the same bounded message window as `session_read`.
-- `session_read` does not prefix messages with generated line numbers.
-- `session_send` defaults to `steer` and dispatches the matching agent method.
-- `session_send` wakes idle agents in both `steer` and `followup` modes.
-- `session_create` queues an initial prompt and returns a queued result.
-- A child created without explicit preset/model inherits the caller's preset and
-  route; a root create uses deployment defaults.
-- `session_create` resolves model and preset independently for all four
-  explicit/omitted combinations.
-- A child whose caller has no composed preset falls back to the deployment's
-  default preset when one is configured.
-- A create with `cwd` canonicalizes the directory and reports its registered
-  workspace when one exists.
-- A child explicitly naming the same preset as its caller joins the caller's
-  standing composition rather than mounting a second generation.
-- `/sessions create` uses the same model/preset/location resolution as
-  `session_create` and returns the queued result as JSON.
-- An explicit `model.reasoningEffort` is validated before session creation and
-  is applied to the first model request.
+- `session_create({ fork: false, worktree: false })` creates a subagent and
+  behaves like the current fresh-child path;
+- only a main caller can request `fork: true`;
+- `worktree: true` requires `fork: true` and creates no worktree otherwise;
+- a fork starts at the parent's latest completed durable boundary;
+- no incomplete parent tool call or fork request is copied into the child
+  prefix;
+- child relationships are persisted and survive process restart;
+- session logs use the canonical tree layout and plain `.jsonl` files;
+- worktree paths are provider-owned, returned, and recorded without assuming a
+  repository-relative location;
+- `session_status` returns one nested folder-style tree with `forks` and
+  `subagents` arrays;
+- `session_status` cannot inspect a session outside the caller's tree;
+- `session_send` can address a direct child and rejects unrelated sessions;
+- the sidebar renders main sessions and forks only;
+- the active session header renders its subagent list and count;
+- recursive subagents remain operational without appearing in the sidebar;
+- no `session_read` or `list_agents` tool is required by the public design;
+- existing ordinary filesystem tools can search every returned
+  `session_path`.

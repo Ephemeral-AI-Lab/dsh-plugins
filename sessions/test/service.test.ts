@@ -10,12 +10,10 @@ function makeService(options: {
   headers?: readonly ReturnType<typeof header>[]
   agents?: readonly unknown[]
   titles?: readonly unknown[]
-  readEvents?: readonly unknown[]
 } = {}) {
   const ctx = {
     sessionPersistence: {
       list: vi.fn(async () => [...options.headers ?? []]),
-      inspect: vi.fn(async () => ({ meta: options.headers?.[0], events: [...options.readEvents ?? []] })),
     },
     agents: {
       list: vi.fn(() => [...options.agents ?? []]),
@@ -96,53 +94,6 @@ describe('SessionsService', () => {
   it('rejects invalid recent counts', async () => {
     const { service } = makeService()
     await expect(service.listStatus({ recent_n: 0 })).rejects.toThrow('recent_n must be a positive safe integer')
-  })
-
-  it('reads a live session using a 1-based offset and bounded limit', async () => {
-    const live = header('live', 2000)
-    const messages = [
-      { id: 'message-1', role: 'user', content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } },
-      { id: 'message-2', role: 'assistant', content: [{ type: 'text', text: 'world' }], source: { kind: 'model', provider: 'mock', model: 'mock' } },
-    ]
-    const agent = {
-      id: live.id,
-      session: { id: live.id, header: live, events: [], deriveMessages: vi.fn(() => messages) },
-    }
-    const { service, ctx } = makeService({ agents: [agent] })
-
-    await expect(service.readSession({ session_id: 'live', offset: 2, limit: 1 })).resolves.toEqual({
-      session_id: 'live',
-      offset: 2,
-      messages: [messages[1]],
-      total_messages: 2,
-    })
-    expect(ctx.sessionPersistence.inspect).not.toHaveBeenCalled()
-  })
-
-  it('reads a cold session through persistence without resuming it', async () => {
-    const cold = header('cold', 1000)
-    const events = [
-      { seq: 0, time: 1, type: 'user/message', surfaceOp: 'append', data: {
-        id: 'message-1',
-        role: 'user',
-        content: [{ type: 'text', text: 'cold prompt' }],
-        source: { kind: 'user' },
-      } },
-    ]
-    const { service, ctx } = makeService({ headers: [cold], readEvents: events })
-
-    await expect(service.readSession({ session_id: 'cold' })).resolves.toEqual({
-      session_id: 'cold',
-      offset: 1,
-      messages: [{
-        id: 'message-1',
-        role: 'user',
-        content: [{ type: 'text', text: 'cold prompt' }],
-        source: { kind: 'user' },
-      }],
-      total_messages: 1,
-    })
-    expect(ctx.sessionPersistence.inspect).toHaveBeenCalledWith(cold.id, undefined)
   })
 
   it('checks one live, cold, or missing session without resuming it', async () => {
