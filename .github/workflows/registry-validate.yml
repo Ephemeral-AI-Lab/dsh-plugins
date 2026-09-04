@@ -28,7 +28,7 @@ jobs:
           npx --yes ajv-cli@5 validate \
             -s registry/schema/plugin-manifest.v1.json \
             -d 'registry/official/*.json' -d 'registry/dsh/*.json' -d 'registry/community/*.json' \
-            --spec=draft07
+            --spec=draft7
       - name: Verify install sources (npm tarballs + GitHub scratch installs)
         run: node scripts/verify-packages.mjs --github-ref "${{ github.head_ref || 'main' }}"
       - name: Smoke-build the index
