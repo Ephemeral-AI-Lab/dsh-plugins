@@ -5,7 +5,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT",
+  "license": "ISC",
   "type": "module",
   "exports": {
     "./codex": "./lib/codex/index.js",
@@ -24,8 +24,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "prepack": "npm --prefix core run build && npm --prefix codex run build && npm --prefix grok run build && node scripts/package-dist.mjs",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "build:dist": "npm --prefix core run build && npm --prefix codex run build && npm --prefix grok run build && node scripts/package-dist.mjs"
   },
   "dsh": {
     "bundle": {
@@ -45,6 +45,5 @@
     "lib": "lib"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "author": ""
 }

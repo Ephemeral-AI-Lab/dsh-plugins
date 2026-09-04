@@ -134,36 +134,38 @@ function githubSpec (row) {
   return `github:${repo}#${effectiveRef}${subdir ? `&path:${subdir}` : ''}`
 }
 
-function verifyGithubRow (id, row) {
-  const spec = githubSpec(row)
+function verifyGithubEntry (id, rows) {
+  const specs = rows.map(githubSpec)
   const dir = mkdtempSync(join(tmpdir(), 'market-verify-'))
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'market-verify', private: true }, null, 2))
-    writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - .\nnodeLinker: hoisted\n')
-    const result = spawnSync('pnpm', ['add', spec], { cwd: dir, encoding: 'utf8', timeout: 240_000 })
+    writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n')
+    // All rows install together — exactly what the /plugin installer does, and
+    // the only way sibling packages satisfy each other's peer dependencies.
+    const result = spawnSync('pnpm', ['add', ...specs], { cwd: dir, encoding: 'utf8', timeout: 240_000 })
     if (result.status !== 0) {
       const tail = (result.stdout + result.stderr).split('\n').filter(Boolean).slice(-5).join(' | ')
-      errors.push(`${id}: github scratch install failed for ${spec}: ${tail}`)
+      errors.push(`${id}: github scratch install failed for ${specs.join(' ')}: ${tail}`)
       return
     }
-    const installedPath = join(dir, 'node_modules', row.name, 'package.json')
-    if (!existsSync(installedPath)) {
-      errors.push(`${id}: github install of ${spec} produced no node_modules/${row.name}`)
-      return
-    }
-    const installed = JSON.parse(readFileSync(installedPath, 'utf8'))
-    if (installed.dsh?.bundle?.patch === undefined) {
-      errors.push(`${id}: github-installed ${row.name}@${installed.version} declares no dsh.bundle.patch`)
-      return
-    }
-    if (installed.main !== undefined || installed.exports !== undefined) {
-      const libOk = existsSync(join(dir, 'node_modules', row.name, 'lib'))
-      if (!libOk) {
-        errors.push(`${id}: github-installed ${row.name}@${installed.version} exposes lib but ships no lib/ (commit build output)`)
-        return
+    for (const row of rows) {
+      const installedPath = join(dir, 'node_modules', row.name, 'package.json')
+      if (!existsSync(installedPath)) {
+        errors.push(`${id}: github install produced no node_modules/${row.name}`)
+        continue
       }
+      const installed = JSON.parse(readFileSync(installedPath, 'utf8'))
+      if (installed.dsh?.bundle?.patch === undefined) {
+        errors.push(`${id}: github-installed ${row.name}@${installed.version} declares no dsh.bundle.patch`)
+        continue
+      }
+      if ((installed.main !== undefined || installed.exports !== undefined) &&
+          !existsSync(join(dir, 'node_modules', row.name, 'lib'))) {
+        errors.push(`${id}: github-installed ${row.name}@${installed.version} exposes lib but ships no lib/ (commit build output)`)
+        continue
+      }
+      console.log(`ok: ${id} github ${row.github.repo}#${row.github.ref}${row.github.subdir ? `&path:${row.github.subdir}` : ''} -> ${row.name}@${installed.version}`)
     }
-    console.log(`ok: ${id} github ${spec} -> ${row.name}@${installed.version}`)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -184,10 +186,17 @@ for (const manifest of records) {
     console.log(`skip: ${manifest.id} (removed tombstone)`)
     continue
   }
+  const githubRows = []
   for (const row of manifest.install.rows) {
     if (row.npm) await verifyNpmRow(manifest.id, row)
-    else if (!skipInstall) verifyGithubRow(manifest.id, row)
-    else console.log(`skip: ${manifest.id} github ${githubSpec(row)} (--skip-install)`)
+    else if (row.github) githubRows.push(row)
+  }
+  if (githubRows.length > 0) {
+    if (skipInstall) {
+      for (const row of githubRows) console.log(`skip: ${manifest.id} github ${githubSpec(row)} (--skip-install)`)
+    } else {
+      verifyGithubEntry(manifest.id, githubRows)
+    }
   }
 }
 
