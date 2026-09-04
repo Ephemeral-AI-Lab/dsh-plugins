@@ -1,0 +1,1 @@
+{"version":3,"file":"node-pty-backend.d.ts","sourceRoot":"","sources":["../../src/backend/node-pty-backend.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,mBAAmB,EAAc,cAAc,EAAgB,MAAM,aAAa,CAAA;AAMhG,wBAAsB,oBAAoB,CAAC,OAAO,EAAE,mBAAmB,GAAG,OAAO,CAAC,cAAc,CAAC,CAgBhG"}

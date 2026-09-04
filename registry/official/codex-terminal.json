@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "codex-terminal",
+  "source": "official",
+  "displayName": "Codex Terminal",
+  "description": "Codex-style persistent shell sessions: start long-running processes with exec_command, poll output, and feed input with write_stdin. PTY transport by default with a pipe fallback.",
+  "descriptionZh": "Codex 风格持久终端会话：exec_command 启动长驻进程、轮询输出，write_stdin 向会话发送输入。默认 PTY 传输，不可用时回退 pipe。",
+  "author": {
+    "name": "Ephemeral AI Lab",
+    "url": "https://github.com/Ephemeral-AI-Lab"
+  },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/codex-terminal",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/codex-terminal/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {
+    "tools": [
+      "exec_command",
+      "write_stdin"
+    ]
+  },
+  "install": {
+    "allowBuilds": [
+      "node-pty"
+    ],
+    "rows": [
+      {
+        "id": "codex-terminal",
+        "name": "dsh-codex-terminal",
+        "github": {
+          "repo": "Ephemeral-AI-Lab/dsh-plugins",
+          "ref": "main",
+          "subdir": "plugins/codex-terminal"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "shell",
+    "process-spawn"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "dsh-codex-terminal",
+        "version": "0.1.4"
+      }
+    ]
+  }
+}

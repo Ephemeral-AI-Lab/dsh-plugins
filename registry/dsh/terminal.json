@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "id": "terminal",
+  "source": "dsh",
+  "displayName": "Terminal (PTY)",
+  "description": "The persistent interactive terminal of Codex / Claude Code-style TUIs: six tools (terminal_open / send / read / signal / close / list) over a PTY backend that composes with the sandbox. Mayfly renders its output as terminal cards.",
+  "descriptionZh": "Codex / Claude Code 式 TUI 的持久交互终端：terminal_open / send / read / signal / close / list 六个工具，PTY 后端且与沙箱组合。Mayfly 以终端卡片渲染输出。",
+  "author": {
+    "name": "DeepSeek AI",
+    "url": "https://github.com/deepseek-ai"
+  },
+  "links": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/terminal",
+    "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {
+    "tools": [
+      "terminal_open",
+      "terminal_send",
+      "terminal_read",
+      "terminal_signal",
+      "terminal_close",
+      "terminal_list"
+    ]
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "terminal-bash",
+        "name": "@deepseek-ai/dsh-terminal-bash",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-terminal-bash"
+        }
+      },
+      {
+        "id": "tool-terminal",
+        "name": "@deepseek-ai/dsh-tool-terminal",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-tool-terminal"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "shell",
+    "process-spawn"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "@deepseek-ai/dsh-terminal-bash",
+        "version": "0.0.1-rc.3"
+      },
+      {
+        "name": "@deepseek-ai/dsh-tool-terminal",
+        "version": "0.0.1-rc.5"
+      }
+    ]
+  }
+}

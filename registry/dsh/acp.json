@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "acp",
+  "source": "dsh",
+  "displayName": "ACP Server",
+  "description": "An Agent Client Protocol server (JSON-RPC over stdio) that lets automation clients and CLIs drive dsh harness agents programmatically.",
+  "descriptionZh": "Agent Client Protocol 服务器（stdio 上的 JSON-RPC），让自动化客户端与 CLI 以编程方式驱动 dsh harness agent。",
+  "author": {
+    "name": "DeepSeek AI",
+    "url": "https://github.com/deepseek-ai"
+  },
+  "links": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/acp",
+    "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/README.md"
+  },
+  "license": "MIT",
+  "category": "integration",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {},
+  "install": {
+    "rows": [
+      {
+        "id": "acp",
+        "name": "@deepseek-ai/dsh-acp",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-acp"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "network",
+    "process-spawn"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "@deepseek-ai/dsh-acp",
+        "version": "0.0.1-rc.1"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+{"version":3,"file":"terminal-text-sanitizer.d.ts","sourceRoot":"","sources":["../../src/output/terminal-text-sanitizer.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AACH,qBAAa,qBAAqB;IAChC,OAAO,CAAC,OAAO,CAAK;IAEpB,IAAI,CAAC,IAAI,EAAE,MAAM,GAAG,MAAM;IAiC1B,qFAAqF;IACrF,MAAM,CAAC,IAAI,SAAK,GAAG,MAAM;CAK1B"}

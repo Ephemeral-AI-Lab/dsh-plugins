@@ -1,168 +1,122 @@
-# 🧩 DSH Harness Plugins
+# 🧩 Mayfly / DSH Plugin Marketplace
 
 <p align="center">
   <img src="./assets/whale-boy.png" alt="Whale Boy icon" width="220">
 </p>
 
 <p align="center">
-  Small, focused plugins that make <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> more capable, expressive, and pleasant to use.
+  The official plugin marketplace for <a href="https://github.com/Ephemeral-AI-Lab/mayfly">Mayfly</a> and
+  <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness (dsh)</a>:
+  Ephemeral AI Lab's own plugins (source in this repo), curated dsh optional
+  plugins, and community submissions.
 </p>
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
-  <a href="https://www.npmjs.com/package/dsh-codex-terminal"><img src="https://img.shields.io/npm/v/dsh-codex-terminal?logo=npm&logoColor=white&style=flat-square" alt="dsh-codex-terminal on npm"></a>
-  <a href="https://www.npmjs.com/package/dsh-loop"><img src="https://img.shields.io/npm/v/dsh-loop?logo=npm&logoColor=white&style=flat-square" alt="dsh-loop on npm"></a>
-  <a href="https://www.npmjs.com/package/dsh-mock"><img src="https://img.shields.io/npm/v/dsh-mock?logo=npm&logoColor=white&style=flat-square" alt="dsh-mock on npm"></a>
 </p>
 
-<p align="center">
-  <a href="#-quick-start">Quick start</a> ·
-  <a href="#-packages">Packages</a> ·
-  <a href="#-development">Development</a> ·
-  <a href="#-documentation">Documentation</a>
-</p>
+Two things live here:
 
-> 🧠 Give your DSH sessions better tools, durable workflows, and a cleaner path from idea to execution.
+1. **`plugins/`** — the source of Ephemeral AI Lab's official plugins.
+2. **`registry/`** — the marketplace: one JSON manifest per listing. CI
+   aggregates them into [`dist/index.json`](./dist/index.json), the document
+   Mayfly's `/plugin` command and the website catalog consume.
 
-## ⚡ Quick start
+## ⚡ Installing plugins
 
-Published plugins install directly into a DSH profile with one command. The
-examples below target the `web` profile; replace `web` with the profile you use.
+In Mayfly (TUI):
 
-### 🐚 Codex Terminal
-
-```powershell
-# With the DSH CLI:
-dsh plugin --profile web add dsh-codex-terminal@0.1.3
-
-# Without the `dsh` CLI:
-npm install dsh-codex-terminal@0.1.3
+```
+/plugin                 # browse, search, inspect, install, remove
+/plugin install <id>    # e.g. /plugin install loop
 ```
 
-### 🔐 Codex Coding Plan
+Or with the dsh CLI directly (works for any profile):
 
-Reuse an existing file-backed `codex login` from the DSH Models page:
+```sh
+# npm source
+dsh plugin --profile mayfly add @deepseek-ai/dsh-terminal-bash @deepseek-ai/dsh-tool-terminal
 
-```powershell
-dsh plugin --profile web add ./coding-plan/codex
-
-# Grok Coding Plan models from the existing `grok login`
-dsh plugin --profile web add ./coding-plan/grok
+# GitHub source (monorepo subdirectories work; pinned refs preferred)
+dsh plugin --profile mayfly add 'github:Ephemeral-AI-Lab/dsh-plugins#main&path:plugins/loop'
 ```
 
-### ⏰ Loop
+Restart the profile and start a new session after installing. Entries with
+`activation: profile-patch` additionally need their rows in the profile's
+`cordis.patch.yml` — the `/plugin` command does this for you; see
+[docs/market.md](./docs/market.md#activation) for the manual path.
 
-```powershell
-# With the DSH CLI:
-dsh plugin --profile web add dsh-loop@0.1.3
+## 📦 Current listings
 
-# Without the `dsh` CLI:
-npm install dsh-loop@0.1.3
-```
-
-### 🧪 Mock — unstable
-
-`dsh-mock` is published for early testing. Its commands, API, and UI may
-change before a stable release.
-
-```powershell
-# With the DSH CLI:
-dsh plugin --profile web add dsh-mock@0.1.0
-
-# Without the `dsh` CLI:
-npm install dsh-mock@0.1.0
-```
-
-### 🧭 Sessions
-
-Inspect, create, read, and message DSH sessions with the current session tools:
-
-```powershell
-# With the DSH CLI:
-dsh plugin --profile web add dsh-sessions@0.1.1
-
-# Without the `dsh` CLI:
-npm install dsh-sessions@0.1.1
-```
-
-Restart DSH and create a new session after installing a plugin. If `dsh` is not
-on your PATH, run the same command from a DeepSeek Harness source checkout with
-`pnpm dsh` instead.
-
-Direct npm installation downloads the package for use by your project. DSH
-profile installation is still required when you want DSH to load the plugin as
-part of a profile.
-
-## 📦 Packages
-
-| Package | Status | What it adds | Docs |
+| id | source | surfaces | what it adds |
 | --- | --- | --- | --- |
-| [`dsh-codex-coding-plan`](./coding-plan/codex/) | 🧪 Local · `0.1.0` | Reuses a file-backed Codex ChatGPT login through the existing `openai-codex` pi-ai provider. | [`README`](./coding-plan/codex/README.md) |
-| [`dsh-grok-coding-plan`](./coding-plan/grok/) | 🧪 Local · `0.1.0` | Reuses a file-backed Grok subscription login through the existing `xai` pi-ai provider. | [`README`](./coding-plan/grok/README.md) |
-| [`dsh-codex-terminal`](./codex-terminal/) | ✅ Published · `0.1.3` | Codex-compatible `exec_command` and `write_stdin` tools with persistent command sessions. | [`README`](./codex-terminal/README.md) · [npm](https://www.npmjs.com/package/dsh-codex-terminal) |
-| [`dsh-loop`](./loop/) | ✅ Published · `0.1.3` | Session-scoped recurring alarms, loop tools, slash commands, and a web UI. | [`README`](./loop/README.md) · [npm](https://www.npmjs.com/package/dsh-loop) |
-| [`dsh-mock`](./mock/) | ⚠️ Unstable · ✅ Published · `0.1.0` | Deterministic mock model turns and replay commands routed through the real DSH AgentLoop and ToolRuntime. | [`README`](./mock/README.md) · [`SPEC`](./mock/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-mock) |
-| [`dsh-sessions`](./sessions/) | ✅ Published · `0.1.1` | Session discovery, bounded reads, creation, and delivery through session tools and `/sessions`. | [`README`](./sessions/README.md) · [`SPEC`](./sessions/SPEC.md) · [npm](https://www.npmjs.com/package/dsh-sessions) |
+| [`codex-terminal`](./registry/official/codex-terminal.json) | official | server | Codex-style persistent shell: `exec_command` / `write_stdin` |
+| [`loop`](./registry/official/loop.json) | official | server · web | Recurring prompts & alarms: `loop_*` tools, `/loop`, Web panel |
+| [`mock`](./registry/official/mock.json) | official | server · web | Deterministic mock model turns: `/mock run` / `replay` (unstable) |
+| [`sessions`](./registry/official/sessions.json) | official | server | Multi-session orchestration: `session_status/create/send` tools |
+| [`coding-plan`](./registry/official/coding-plan.json) | official | server | Reuse `codex login` / `grok login` subscriptions as providers |
+| [`preset-builder`](./registry/official/preset-builder.json) | official | web | Preset details page in dsh Web Settings |
+| [`workbench-ui`](./registry/official/workbench-ui.json) | official | web | The Web workbench frame other panels dock into |
+| [`sidechat`](./registry/official/sidechat.json) | official | server · web | Side-chat panel on the Web workbench (needs workbench-ui) |
+| [`terminal`](./registry/dsh/terminal.json) | dsh | server | PTY terminal: `terminal_open/send/read/signal/close/list` |
+| [`lsp`](./registry/dsh/lsp.json) | dsh | server | Read-only `lsp` navigation tool |
+| [`mcp`](./registry/dsh/mcp.json) | dsh | server | MCP client: `mcp__server__tool` external tools |
+| [`acp`](./registry/dsh/acp.json) | dsh | server | Agent Client Protocol server |
+| [`code-runtime-ts`](./registry/dsh/code-runtime-ts.json) | dsh | server | `run_code` TypeScript worker-thread runtime |
+| [`code-runtime-py`](./registry/dsh/code-runtime-py.json) | dsh | server | `run_code` Python runtime |
 
-### 🐚 `dsh-codex-terminal`
+`server` plugins work in any frontend (tools render generically); `web` adds a
+dsh Web client module; `tui` adds Mayfly-native UI. A plugin is useful in a
+given frontend if it has `server` **or** that frontend's own contribution.
 
-Run shell commands like a Codex-style agent: start long-running processes,
-poll for output, and send input to persistent sessions. PTY transport is used
-by default with a configured pipe fallback when PTY allocation is unavailable.
+## 📥 Submitting a plugin
 
-### ⏰ `dsh-loop`
+Published an npm package (or a GitHub repo with committed build output)?
+Submit a listing:
 
-Create durable, session-local recurring prompts that can be managed through
-agent tools, `/loop` commands, and the web UI. Loops resume with the session
-and keep each alarm independent from the others.
+1. Read [`registry/community/README.md`](./registry/community/README.md).
+2. Copy [`registry/submission-template.json`](./registry/submission-template.json)
+   to `registry/community/<slug>.json` and open a PR.
+3. CI scratch-installs every declared source; a maintainer reviews against the
+   [review checklist](./registry/review-checklist.md).
 
-### 🧪 `dsh-mock`
+The manifest spec is [`docs/market.md`](./docs/market.md) — manifests are
+**discovery/install metadata only**; the runtime contract is still your
+package plus its `cordis.patch.yml`.
 
-Exercise deterministic mock model turns through `/mock run` and `/mock replay`
-while preserving the real DSH AgentLoop, ToolRuntime, policy, and event flow.
+## 🛠️ Repository scripts
 
-> ⚠️ **Unstable:** published as `dsh-mock@0.1.0` for early testing. The command,
-> API, and UI surface may change before a stable release.
-
-Install it into the DSH `web` profile with one command:
-
-```powershell
-dsh plugin --profile web add dsh-mock@0.1.0
+```sh
+node scripts/validate-manifests.mjs   # schema + semantics, zero deps
+node scripts/verify-packages.mjs      # npm tarball + GitHub scratch-install checks
+node scripts/build-index.mjs          # rebuild dist/index.json + dist/catalog.json
 ```
 
-## 🛠️ Development
+`dist/` is generated — changes land through the `index-publish` workflow's
+auto-merged PR, never by hand.
 
-Each plugin is independently installable and testable. For example:
+## 🛠️ Plugin development
 
-```powershell
-cd loop
+Each plugin under `plugins/` is an independently installable package:
+
+```sh
+cd plugins/loop
 pnpm install
 pnpm test
 pnpm build
 ```
 
 The source tree intentionally stays outside the DeepSeek Harness repository;
-DSH composes plugins through profile-scoped installation and patch layers.
+dsh composes plugins through profile-scoped installation and patch layers.
+See [AGENTS.md](./AGENTS.md) for the agent working rules and
+[docs/](./docs/) for architecture notes and how-to guides.
 
 ## 📚 Documentation
 
-- [Codex Terminal documentation](./codex-terminal/README.md)
-- [Coding Plan core](./coding-plan/core/)
-- [Codex Coding Plan documentation](./coding-plan/codex/README.md)
-- [Grok Coding Plan documentation](./coding-plan/grok/README.md)
-- [Loop documentation](./loop/README.md)
-- [Mock documentation](./mock/README.md)
-- [Mock implementation specification](./mock/SPEC.md)
-- [Sessions documentation](./sessions/README.md)
-- [Sessions specification](./sessions/SPEC.md)
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-
-### Harness architecture and how-to guides
-
-- [Project guide](./docs/project.md)
-- [Tool reference](./docs/tools.md)
-- [Ephemeral AI Harness preset](./docs/ephemeral_ai_harness_preset.md)
-- [How-to guides](./docs/how-to/)
+- [Marketplace & manifest spec](./docs/market.md)
+- [Plugin docs](./plugins/) — each plugin directory has its own README
+- [Architecture & how-to guides](./docs/)
+- [Mayfly](https://github.com/Ephemeral-AI-Lab/mayfly) · [Mayfly website](https://may-fly.dev)
 
 ## 🤝 Contributing
 

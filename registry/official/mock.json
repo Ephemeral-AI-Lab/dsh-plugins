@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "mock",
+  "source": "official",
+  "displayName": "Mock",
+  "description": "Deterministic mock model turns routed through the real dsh AgentLoop and ToolRuntime: /mock run and /mock replay exercise tools, policy, and event flow without a live model. Unstable; API may change.",
+  "descriptionZh": "确定性 mock 模型回合，走真实 dsh AgentLoop 与 ToolRuntime：/mock run 与 /mock replay 不依赖真实模型即可测试工具、策略与事件流。不稳定，接口可能变化。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/mock",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/mock/README.md"
+  },
+  "license": "MIT",
+  "category": "testing",
+  "status": "unstable",
+  "surfaces": { "server": {}, "web": { "clientModule": true } },
+  "provides": { "commands": ["/mock"] },
+  "install": {
+    "rows": [
+      {
+        "id": "mock",
+        "name": "dsh-mock",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/mock" }
+      }
+    ]
+  },
+  "capabilities": ["llm-adapter-override"],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [{ "name": "dsh-mock", "version": "0.1.1" }]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "mcp",
+  "source": "dsh",
+  "displayName": "MCP Client",
+  "description": "The Model Context Protocol client: external servers contribute mcp__server__tool tools. Servers are declared in the profile patch; Mayfly's /mcp browser shows their status and schemas.",
+  "descriptionZh": "Model Context Protocol 客户端：外部服务器以 mcp__server__tool 形式贡献工具。服务器在 profile patch 中声明；Mayfly 的 /mcp 浏览器可查看状态与 schema。",
+  "author": {
+    "name": "DeepSeek AI",
+    "url": "https://github.com/deepseek-ai"
+  },
+  "links": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/mcp",
+    "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/README.md"
+  },
+  "license": "MIT",
+  "category": "integration",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {},
+  "install": {
+    "rows": [
+      {
+        "id": "mcp-client",
+        "name": "@deepseek-ai/dsh-mcp-client",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-mcp-client"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "network",
+    "process-spawn"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "@deepseek-ai/dsh-mcp-client",
+        "version": "0.0.1-rc.1"
+      }
+    ]
+  }
+}

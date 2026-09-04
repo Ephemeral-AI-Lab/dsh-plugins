@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "loop",
+  "source": "official",
+  "displayName": "Loop",
+  "description": "Session-scoped recurring prompts: create durable alarms with agent tools, manage them with the /loop command, and watch them in a Web UI panel. Loops resume with the session.",
+  "descriptionZh": "会话级循环提示：通过 Agent 工具创建持久闹钟，用 /loop 命令管理，Web 端附面板展示。闹钟随会话持久化并恢复。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/loop",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/loop/README.md"
+  },
+  "license": "MIT",
+  "category": "workflow",
+  "status": "stable",
+  "surfaces": { "server": {}, "web": { "clientModule": true } },
+  "provides": {
+    "tools": ["loop_create", "loop_list", "loop_delete"],
+    "commands": ["/loop"]
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "loop",
+        "name": "dsh-loop",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/loop" }
+      }
+    ]
+  },
+  "capabilities": ["timer", "session-write"],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [{ "name": "dsh-loop", "version": "0.1.4" }]
+  }
+}

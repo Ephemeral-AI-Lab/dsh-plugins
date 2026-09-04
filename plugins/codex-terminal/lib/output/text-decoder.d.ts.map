@@ -1,0 +1,1 @@
+{"version":3,"file":"text-decoder.d.ts","sourceRoot":"","sources":["../../src/output/text-decoder.ts"],"names":[],"mappings":"AAAA,8EAA8E;AAC9E,qBAAa,oBAAoB;IAC/B,OAAO,CAAC,QAAQ,CAAC,OAAO,CAA2B;IAEnD,IAAI,CAAC,KAAK,EAAE,UAAU,GAAG,MAAM;IAI/B,MAAM,IAAI,MAAM;CAGjB"}

@@ -1,0 +1,46 @@
+name: 插件收录申请 / Plugin submission
+description: Apply to list your plugin in the marketplace
+labels: [submission]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: npm package or GitHub repository
+      description: The installable source, e.g. `your-package` or `https://github.com/you/your-plugin`
+    validations:
+      required: true
+  - type: input
+    id: slug
+    attributes:
+      label: Requested marketplace id
+      description: Lowercase slug, e.g. `awesome-pane` (must be unique; see registry/ for taken ids)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What does it do?
+      description: One or two sentences, English and Chinese if possible.
+    validations:
+      required: true
+  - type: checkboxes
+    id: surfaces
+    attributes:
+      label: Surfaces
+      options:
+        - label: Server (dsh tools/services, works in any frontend)
+        - label: Web (dsh Web client module)
+        - label: TUI (Mayfly panes/status/overlays/editor extensions)
+  - type: input
+    id: pr
+    attributes:
+      label: Manifest PR link
+      description: PR adding registry/community/<slug>.json (see registry/community/README.md)
+  - type: checkboxes
+    id: ownership
+    attributes:
+      label: Authorization
+      options:
+        - label: I own this package, or its author approved this listing (link the approval below)
+    validations:
+      required: true

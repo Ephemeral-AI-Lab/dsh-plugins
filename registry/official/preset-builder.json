@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-builder",
+  "source": "official",
+  "displayName": "Preset Builder",
+  "description": "A Preset details page for the dsh Web Settings screen. Web-only: contributes a client module with no model-facing tools, so it adds nothing in a terminal frontend.",
+  "descriptionZh": "为 dsh Web 设置页增加 Preset 详情页。仅 Web 端：只包含 client module、无模型工具，在终端前端无作用。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/preset-builder",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/preset-builder/README.md"
+  },
+  "license": "MIT",
+  "category": "ui",
+  "status": "beta",
+  "surfaces": { "web": { "clientModule": true } },
+  "provides": {},
+  "install": {
+    "rows": [
+      {
+        "id": "dsh-preset-builder",
+        "name": "dsh-preset-builder",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/preset-builder" }
+      }
+    ]
+  },
+  "capabilities": [],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [{ "name": "dsh-preset-builder", "version": "0.1.0" }]
+  }
+}

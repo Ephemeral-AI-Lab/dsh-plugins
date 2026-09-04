@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "sessions",
+  "source": "official",
+  "displayName": "Sessions",
+  "description": "Multi-session orchestration tools: discover sessions, read them with bounded reads, create new sessions, and deliver messages across agents with session_status, session_create, and session_send.",
+  "descriptionZh": "多会话编排工具：session_status 发现与有界读取会话，session_create 创建新会话，session_send 跨会话投递消息。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/sessions",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/sessions/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "stable",
+  "surfaces": { "server": {} },
+  "provides": { "tools": ["session_status", "session_create", "session_send"] },
+  "install": {
+    "rows": [
+      {
+        "id": "dsh-sessions",
+        "name": "dsh-sessions",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/sessions" }
+      }
+    ]
+  },
+  "capabilities": ["session-read", "session-write"],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [{ "name": "dsh-sessions", "version": "0.1.2" }]
+  }
+}

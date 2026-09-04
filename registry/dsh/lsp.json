@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "lsp",
+  "source": "dsh",
+  "displayName": "LSP Navigation",
+  "description": "One read-only lsp tool (goToDefinition / findReferences / goToImplementation / hover) over stdio language servers, for precise navigation when textual matches are ambiguous. Requires the session cwd as its workspace root.",
+  "descriptionZh": "基于 stdio 语言服务器的只读 lsp 工具（定义跳转 / 引用查找 / 实现跳转 / hover），在文本搜索有歧义时提供精确导航。需要会话 cwd 作为工作区根。",
+  "author": {
+    "name": "DeepSeek AI",
+    "url": "https://github.com/deepseek-ai"
+  },
+  "links": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/lsp",
+    "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/README.md"
+  },
+  "license": "MIT",
+  "category": "integration",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {
+    "tools": [
+      "lsp"
+    ]
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "lsp-stdio",
+        "name": "@deepseek-ai/dsh-lsp-stdio",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-lsp-stdio"
+        }
+      },
+      {
+        "id": "tool-lsp",
+        "name": "@deepseek-ai/dsh-tool-lsp",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-tool-lsp"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "process-spawn"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "@deepseek-ai/dsh-lsp-stdio",
+        "version": "0.0.1-rc.5"
+      },
+      {
+        "name": "@deepseek-ai/dsh-tool-lsp",
+        "version": "0.0.1-rc.1"
+      }
+    ]
+  }
+}

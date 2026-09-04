@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "coding-plan",
+  "source": "official",
+  "displayName": "Coding Plan (Codex & Grok)",
+  "description": "Reuse file-backed codex login and grok login subscriptions inside dsh: exposes the Codex ChatGPT plan and the Grok subscription through the existing openai-codex / xai providers.",
+  "descriptionZh": "在 dsh 中复用文件级 codex login 与 grok login 订阅：通过现有 openai-codex / xai provider 接入 ChatGPT Codex 套餐与 Grok 订阅。",
+  "author": {
+    "name": "Ephemeral AI Lab",
+    "url": "https://github.com/Ephemeral-AI-Lab"
+  },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/coding-plan",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/coding-plan/README.md"
+  },
+  "license": "MIT",
+  "category": "provider",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {},
+  "install": {
+    "allowBuilds": [
+      "@google/genai",
+      "protobufjs"
+    ],
+    "rows": [
+      {
+        "id": "codex-coding-plan",
+        "name": "dsh-coding-plan",
+        "github": {
+          "repo": "Ephemeral-AI-Lab/dsh-plugins",
+          "ref": "main",
+          "subdir": "plugins/coding-plan"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "credentials",
+    "oauth-file-read"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "dsh-coding-plan",
+        "version": "0.1.0"
+      }
+    ]
+  }
+}
