@@ -178,7 +178,7 @@ async function verifyNpmRow (id, row, manifest) {
 }
 
 function githubRepo (row) {
-  return githubRepoOverride !== null && row.github.repo === OFFICIAL_REPO
+  return githubRepoOverride !== null && row.github.repo === OFFICIAL_REPO && row.github.ref === 'main'
     ? githubRepoOverride
     : row.github.repo
 }
