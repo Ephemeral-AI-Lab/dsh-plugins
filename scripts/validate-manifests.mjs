@@ -190,6 +190,13 @@ function checkManifest (file, manifest, tier) {
       }
     }
   }
+  const allowBuilds = manifest.install?.allowBuilds
+  if (allowBuilds !== undefined &&
+      (!Array.isArray(allowBuilds) || allowBuilds.length === 0 ||
+       !allowBuilds.every(n => typeof n === 'string' && n.length > 0) ||
+       new Set(allowBuilds).size !== allowBuilds.length)) {
+    fail(file, 'install.allowBuilds must be a non-empty array of unique package names')
+  }
 
   if (manifest.capabilities !== undefined &&
       (!Array.isArray(manifest.capabilities) ||

@@ -85,6 +85,11 @@ dsh-Web-only"; a `web`-only plugin warns on install from a TUI.
   `lib/`) — CI scratch-installs every row and fails otherwise.
 - All rows of an entry install together (`dsh plugin add a b ...`) and are
   removed together.
+- `install.allowBuilds: ["node-pty"]` names packages whose install scripts
+  pnpm may run. pnpm >= 10 blocks dependency build scripts by default; the
+  installer writes these into the profile's `pnpm-workspace.yaml` before
+  `pnpm add` (native addons like `node-pty` need this). Declare only what the
+  plugin genuinely needs — reviewers scrutinize this list.
 
 ### Activation
 

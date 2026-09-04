@@ -126,6 +126,13 @@
           "minItems": 1,
           "description": "Ordered install units. A row maps to one package passed to `dsh plugin --profile <name> add <spec>`; multiple rows of one entry install together.",
           "items": { "$ref": "#/definitions/installRow" }
+        },
+        "allowBuilds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "description": "Package names whose install scripts pnpm may run (written to the profile pnpm-workspace.yaml allowBuilds map before install). Declare only what the plugin genuinely needs, e.g. native addons like node-pty."
         }
       }
     },

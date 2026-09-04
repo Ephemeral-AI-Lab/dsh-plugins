@@ -134,12 +134,20 @@ function githubSpec (row) {
   return `github:${repo}#${effectiveRef}${subdir ? `&path:${subdir}` : ''}`
 }
 
-function verifyGithubEntry (id, rows) {
+function verifyGithubEntry (id, manifest) {
+  const rows = manifest.install.rows.filter(row => row.github)
   const specs = rows.map(githubSpec)
   const dir = mkdtempSync(join(tmpdir(), 'market-verify-'))
   try {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'market-verify', private: true }, null, 2))
-    writeFileSync(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n')
+    const allowBuilds = manifest.install.allowBuilds ?? []
+    const allowYaml = allowBuilds.length > 0
+      ? 'allowBuilds:\n' + allowBuilds.map(name => `  ${JSON.stringify(name)}: true`).join('\n') + '\n'
+      : ''
+    // Mirrors the /plugin installer: allowBuilds from the manifest go into
+    // the workspace before pnpm add.
+    writeFileSync(join(dir, 'pnpm-workspace.yaml'),
+      'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n' + allowYaml)
     // All rows install together — exactly what the /plugin installer does, and
     // the only way sibling packages satisfy each other's peer dependencies.
     const result = spawnSync('pnpm', ['add', ...specs], { cwd: dir, encoding: 'utf8', timeout: 240_000 })
@@ -195,7 +203,7 @@ for (const manifest of records) {
     if (skipInstall) {
       for (const row of githubRows) console.log(`skip: ${manifest.id} github ${githubSpec(row)} (--skip-install)`)
     } else {
-      verifyGithubEntry(manifest.id, githubRows)
+      verifyGithubEntry(manifest.id, manifest)
     }
   }
 }

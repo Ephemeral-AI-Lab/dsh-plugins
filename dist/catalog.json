@@ -1,0 +1,974 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-04T14:05:58.931Z",
+  "counts": {
+    "total": 14,
+    "bySource": {
+      "official": 8,
+      "dsh": 6,
+      "community": 0
+    }
+  },
+  "entries": [
+    {
+      "schemaVersion": 1,
+      "id": "codex-terminal",
+      "source": "official",
+      "displayName": "Codex Terminal",
+      "description": "Codex-style persistent shell sessions: start long-running processes with exec_command, poll output, and feed input with write_stdin. PTY transport by default with a pipe fallback.",
+      "descriptionZh": "Codex 风格持久终端会话：exec_command 启动长驻进程、轮询输出，write_stdin 向会话发送输入。默认 PTY 传输，不可用时回退 pipe。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/codex-terminal",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/codex-terminal/README.md"
+      },
+      "license": "MIT",
+      "category": "tools",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "exec_command",
+          "write_stdin"
+        ]
+      },
+      "install": {
+        "allowBuilds": [
+          "node-pty"
+        ],
+        "rows": [
+          {
+            "id": "codex-terminal",
+            "name": "dsh-codex-terminal",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/codex-terminal"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "shell",
+        "process-spawn"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-codex-terminal",
+            "version": "0.1.4"
+          }
+        ]
+      },
+      "registryPath": "registry/official/codex-terminal.json",
+      "npm": {
+        "dsh-codex-terminal": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# dsh-codex-terminal 🐋\n\nAdds Codex-style `exec_command` and `write_stdin` tools to DeepSeek\nHarness.\n\n## Current release: 0.1.4\n\nCommands that remain live after `yield_time_ms` are now automatically registered\nwith `ctx.jobs`. `exec_command` returns one `job_id` such as\n`codex-terminal-1`; `job_list` reports lifecycle state and `job_kill`\nterminates the underlying session. Terminal output remains exclusive to\n`write_stdin`, and successful or repeated terminal polls render an explicit\ncompletion marker instead of an empty result or stale-session error.\n\nThe package was verified with the full unit suite, build, and an assembled Web\nAPI run. See the [E2E test prompts](e2e-test-prompt.md) and [0.1.4\nchangelog](changelog/0.1.4.md).\n\n## 🚀 1. Install the plugin\n\nInstall it into the DSH profile you use:\n\n```powershell\ndsh plugin --profile web add dsh-codex-terminal@0.1.4\n```\n\nFrom a DeepSeek Harness source checkout:\n\n```powershell\ncd C:/path/to/deepseek-harness\npnpm install\npnpm dsh plugin --profile web add dsh-codex-terminal@0.1.4\n```\n\n> ⚠️ Do not run `npm install dsh-codex-terminal` as a separate setup step. The\n> DSH plugin command installs it into the selected profile. `pnpm install` in\n> the source checkout only bootstraps DSH itself.\n\n## 🐋 2. Create the Codex Whale preset\n\nIn the DSH web UI, open **Settings -> Agent presets** and choose **Draft a\ncustom preset with Creator mode**.\n\nPaste this prompt:\n\n```text\nCreate a user preset named \"Codex Whale\" with ID `codex-whale`.\n\nDuplicate the Standard preset and configure it as follows:\n\n- Add exactly one row:\n  - id: codex-terminal\n    name: dsh-codex-terminal\n- Disable `tool-bash` and `tool-pwsh`.\n- Keep `tool-jobs` loaded for `job_list`, `job_kill`, lifecycle tracking, and\n  completion delivery. Hide `job_output` from the agent tool surface.\n- Disable any other persistent or alternate terminal tools.\n- Keep all non-shell coding tools.\n- Do not modify shipped presets.\n- Do not add duplicate `codex-terminal` rows.\n\nValidate the result before finishing.\n```\n\n### 💡 Important\n\n- Installing the npm plugin enables it in the **DSH profile**.\n- Adding the `codex-terminal` row enables its tools in the **agent preset**.\n- `@deepseek-ai/dsh-jobs-local` and `@deepseek-ai/dsh-tool-jobs` must remain\n  loaded; Codex Shell fails loudly if `ctx.jobs` is unavailable.\n- The preset disables the native shell tools.\n\n## 🧰 Tools\n\n### `exec_command`\n\n`exec_command(cmd: string, workdir?: string, yield_time_ms?: number, max_output_tokens?: number)` - Runs one command in the host shell. Short commands return output; commands still running after `yield_time_ms` are automatically promoted and return one `job_id` shared by `write_stdin`, `job_list`, and `job_kill`.\n\n- `cmd` (`string`, required) - Command to run.\n- `workdir` (`string`, optional) - Working directory for the command.\n- `yield_time_ms` (`number`, optional) - Wait time before returning; default `10000` ms.\n- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.\n\n### `write_stdin`\n\n`write_stdin(job_id: string, chars?: string, yield_time_ms?: number, max_output_tokens?: number)` - Writes input to an existing job or polls for more output.\n\n- `job_id` (`string`, required) - `codex-terminal-N` job ID returned by `exec_command`.\n- `chars` (`string`, optional) - Characters to send; omit or use an empty string to poll.\n- `yield_time_ms` (`number`, optional) - Wait time for output; default `250` ms.\n- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.\n\nTypical flow: call `exec_command`; if it returns a `job_id`, use that same ID\nwith `job_list`, `job_kill`, and `write_stdin` to inspect status, stop the\nprocess, send input, or collect unread output. A terminal result\nmay contain both `exit_code` and `job_id` when `max_output_tokens` capped\nthe current page; keep polling with ",
+      "readme": "# dsh-codex-terminal 🐋\n\nAdds Codex-style `exec_command` and `write_stdin` tools to DeepSeek\nHarness.\n\n## Current release: 0.1.4\n\nCommands that remain live after `yield_time_ms` are now automatically registered\nwith `ctx.jobs`. `exec_command` returns one `job_id` such as\n`codex-terminal-1`; `job_list` reports lifecycle state and `job_kill`\nterminates the underlying session. Terminal output remains exclusive to\n`write_stdin`, and successful or repeated terminal polls render an explicit\ncompletion marker instead of an empty result or stale-session error.\n\nThe package was verified with the full unit suite, build, and an assembled Web\nAPI run. See the [E2E test prompts](e2e-test-prompt.md) and [0.1.4\nchangelog](changelog/0.1.4.md).\n\n## 🚀 1. Install the plugin\n\nInstall it into the DSH profile you use:\n\n```powershell\ndsh plugin --profile web add dsh-codex-terminal@0.1.4\n```\n\nFrom a DeepSeek Harness source checkout:\n\n```powershell\ncd C:/path/to/deepseek-harness\npnpm install\npnpm dsh plugin --profile web add dsh-codex-terminal@0.1.4\n```\n\n> ⚠️ Do not run `npm install dsh-codex-terminal` as a separate setup step. The\n> DSH plugin command installs it into the selected profile. `pnpm install` in\n> the source checkout only bootstraps DSH itself.\n\n## 🐋 2. Create the Codex Whale preset\n\nIn the DSH web UI, open **Settings -> Agent presets** and choose **Draft a\ncustom preset with Creator mode**.\n\nPaste this prompt:\n\n```text\nCreate a user preset named \"Codex Whale\" with ID `codex-whale`.\n\nDuplicate the Standard preset and configure it as follows:\n\n- Add exactly one row:\n  - id: codex-terminal\n    name: dsh-codex-terminal\n- Disable `tool-bash` and `tool-pwsh`.\n- Keep `tool-jobs` loaded for `job_list`, `job_kill`, lifecycle tracking, and\n  completion delivery. Hide `job_output` from the agent tool surface.\n- Disable any other persistent or alternate terminal tools.\n- Keep all non-shell coding tools.\n- Do not modify shipped presets.\n- Do not add duplicate `codex-terminal` rows.\n\nValidate the result before finishing.\n```\n\n### 💡 Important\n\n- Installing the npm plugin enables it in the **DSH profile**.\n- Adding the `codex-terminal` row enables its tools in the **agent preset**.\n- `@deepseek-ai/dsh-jobs-local` and `@deepseek-ai/dsh-tool-jobs` must remain\n  loaded; Codex Shell fails loudly if `ctx.jobs` is unavailable.\n- The preset disables the native shell tools.\n\n## 🧰 Tools\n\n### `exec_command`\n\n`exec_command(cmd: string, workdir?: string, yield_time_ms?: number, max_output_tokens?: number)` - Runs one command in the host shell. Short commands return output; commands still running after `yield_time_ms` are automatically promoted and return one `job_id` shared by `write_stdin`, `job_list`, and `job_kill`.\n\n- `cmd` (`string`, required) - Command to run.\n- `workdir` (`string`, optional) - Working directory for the command.\n- `yield_time_ms` (`number`, optional) - Wait time before returning; default `10000` ms.\n- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.\n\n### `write_stdin`\n\n`write_stdin(job_id: string, chars?: string, yield_time_ms?: number, max_output_tokens?: number)` - Writes input to an existing job or polls for more output.\n\n- `job_id` (`string`, required) - `codex-terminal-N` job ID returned by `exec_command`.\n- `chars` (`string`, optional) - Characters to send; omit or use an empty string to poll.\n- `yield_time_ms` (`number`, optional) - Wait time for output; default `250` ms.\n- `max_output_tokens` (`number`, optional) - Approximate output-page token budget; default `4000`, capped at `10000` unless configured otherwise.\n\nTypical flow: call `exec_command`; if it returns a `job_id`, use that same ID\nwith `job_list`, `job_kill`, and `write_stdin` to inspect status, stop the\nprocess, send input, or collect unread output. A terminal result\nmay contain both `exit_code` and `job_id` when `max_output_tokens` capped\nthe current page; keep polling with empty `chars` until `job_id` is no\nlonger returned. Do not use `job_output` for Codex Shell output.\n\nThe authoritative contracts for output pages, pipe transport, background-job\npromotion, polling, cleanup, and completion notices are in [SPEC.md](./SPEC.md).\n\n## 🧭 Current session behavior\n\n- Pipe transport is the default on Windows, macOS, and Linux. A real PTY is\n  not required for the `exec_command` plus `write_stdin` lifecycle.\n- Output produced after `exec_command` returns is retained for the next\n  `write_stdin` poll.\n- A session still running after `yield_time_ms` is automatically registered as\n  a `codex-terminal` job. No `run_in_background` argument exists.\n- `job_list`, `job_kill`, and `write_stdin` use the exact same `codex-terminal-N`\n  identifier.\n- An exited process remains pollable while unread output is buffered. The\n  heavy session record is released only after its terminal output has been\n  collected; a lightweight owner-scoped completion record keeps repeated\n  empty polls safe and explicit.\n- `max_output_tokens` limits each response page; it does not discard buffered\n  output. Continue polling to retrieve later pages.\n- Natural-exit notifications identify the job and instruct the owner to call\n  `write_stdin` with empty `chars` only when completion happened between tool\n  calls. If `exec_command` or `write_stdin` returns the terminal `exit_code`\n  inside its own yield, the background completion steer is suppressed.\n- A background notice is delivered through `steer`: a running owner consumes\n  it at the next step, while an idle owner wakes in a new turn. Codex Shell\n  never delivers the notice through `followup`, and owner or service teardown\n  suppresses it rather than waking an agent being disposed.\n- Session output and process resources are bounded and cleaned up on terminal\n  completion, owner disposal, and plugin disposal.\n\n## 🎯 Why do we need it?\n\nMost Bash or Shell tools use a one-shot model: run a command, read its output,\nand return. That works for `ls`, `git status`, builds, and ordinary tests, but\nnot for a CLI that waits for input while it is still running.\n\nFor example, an interactive `rng` program requires the agent to:\n\n1. Start the process.\n2. Read the generated number.\n3. Send the answer to the same process.\n4. Read `PASS` or `FAIL`.\n5. Confirm the final exit code.\n\nThe same pattern is needed for device-code login, OAuth flows, REPLs, SSH\nsessions, database prompts, and end-to-end CLI tests. Background execution\nalone is not enough if the agent cannot write to the original process.\n\nSee the full motivation in [Why Claude Code, Pi, and DSH cannot complete\ninteractive CLIs](https://x.com/yifanxu_ephai/status/2088905874232459741).\n\n## ⭐ Why Codex-style tools?\n\nThe two-tool design is a good fit for coding agents because it connects the\ncomplete interactive flow:\n\n- **Start** - `exec_command` launches the process and returns early when it is\n  still running.\n- **Continue** - `write_stdin` sends input to that same session.\n- **Observe** - `write_stdin` can poll for more output without sending input.\n- **Verify** - the agent can wait for the final output and exit code.\n- **Reuse** - the same small interface works across Windows, macOS, and Linux.\n\n## ✅ 3. Select and restart\n\n1. Set **Codex Whale** as the default preset.\n2. Restart DSH.\n3. Create a new session.\n\nExisting sessions keep their old tools.\n\n## 🔍 4. Verify\n\nCheck the profile:\n\n```powershell\ndsh --profile web --dump-config\n```\n\nIt should contain exactly one:\n\n```text\n- id: codex-terminal\n  name: dsh-codex-terminal\n```\n\nIn a new Codex Whale session, confirm that:\n\n- ✅ `exec_command` is available\n- ✅ `write_stdin` is available\n- ✅ `job_list` and `job_kill` are available\n- 🚫 `job_output` is hidden when output is intentionally restricted to\n  `write_stdin`\n- 🚫 native Bash/PowerShell tools are unavailable\n\n## 🛠️ Troubleshooting\n\n### `dsh` is not found\n\nRun the command from a DeepSeek Harness checkout with `pnpm dsh`, or install\nthe published DSH CLI.\n\n### `node-pty` build is blocked\n\nAdd this to the target profile's `pnpm-workspace.yaml`:\n\n```yaml\nallowBuilds:\n  node-pty: true\n```\n\nThen install the plugin again.\n\n### The profile has an older plugin version\n\n```powershell\ndsh plugin --profile web remove dsh-codex-terminal\ndsh plugin --profile web add dsh-codex-terminal@0.1.4\n```\n\n## 📚 Documentation\n\n- [Implementation specification](SPEC.md)\n- [Reusable E2E test prompts](e2e-test-prompt.md)\n- [0.1.0 changelog](changelog/0.1.0.md)\n- [0.1.1 changelog](changelog/0.1.1.md)\n- [0.1.2 changelog](changelog/0.1.2.md)\n- [0.1.4 changelog](changelog/0.1.4.md)\n- [0.1.3 changelog](changelog/0.1.3.md)\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "coding-plan",
+      "source": "official",
+      "displayName": "Coding Plan (Codex & Grok)",
+      "description": "Reuse file-backed codex login and grok login subscriptions inside dsh: exposes the Codex ChatGPT plan and the Grok subscription through the existing openai-codex / xai providers.",
+      "descriptionZh": "在 dsh 中复用文件级 codex login 与 grok login 订阅：通过现有 openai-codex / xai provider 接入 ChatGPT Codex 套餐与 Grok 订阅。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/coding-plan",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/coding-plan/README.md"
+      },
+      "license": "MIT",
+      "category": "provider",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {},
+      "install": {
+        "allowBuilds": [
+          "@google/genai",
+          "protobufjs"
+        ],
+        "rows": [
+          {
+            "id": "codex-coding-plan",
+            "name": "dsh-coding-plan",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/coding-plan"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "credentials",
+        "oauth-file-read"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-coding-plan",
+            "version": "0.1.0"
+          }
+        ]
+      },
+      "registryPath": "registry/official/coding-plan.json",
+      "npm": {
+        "dsh-coding-plan": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# DSH Coding Plan\n\nOne installable DSH bundle for local Codex and Grok coding-plan logins. The\npublished package is [`dsh-coding-plan`](https://www.npmjs.com/package/dsh-coding-plan);\nthe Codex, Grok, and shared OAuth code is bundled inside that one package.\n\n```text\ncore  -> shared file-backed OAuth cache, refresh, and atomic persistence\ncodex        -> ~/.codex/auth.json -> openai-codex -> Codex models\ngrok         -> ~/.grok/auth.json  -> xai          -> Grok 4.3/4.5/build\ngrok-4.6     -> ~/.grok/auth.json  -> xai-grok-4-6 -> Grok 4.6\nmodels.json  -> machine-readable model and thinking-effort offering table\n```\n\n## Install from npm\n\n```sh\ndsh plugin --profile web add dsh-coding-plan\n```\n\nRestart the DSH profile after installing or updating the bundle. The package\nowns one complete `llm-pi-ai` configuration row and mounts both auth\nsynchronizers, so users should install the root package rather than the\nimplementation packages separately.\n\n## Login and model selection\n\nSign in through the native CLIs first:\n\n```sh\ncodex login\ngrok login\n```\n\nThe adapters read `~/.codex/auth.json` and `~/.grok/auth.json`, refresh tokens\nthrough the shared pi-ai runtime, and synchronize only short-lived access\ntokens into DSH's credential service.\n\nSelect the provider and model from the model picker inside a DSH session. The\nSettings → Models page manages provider credentials and routes; it is not the\nactive conversation model picker.\n\nThe current stable Grok 4.6 route is explicit:\n\n```yaml\nagent-default-model:\n  provider: xai-grok-4-6\n  model: grok-4.6\n```\n\nThe route uses the shared DSH `llm-pi-ai` runtime and does not introduce a\nsecond request engine. Grok 4.6 is exposed through `xai-grok-4-6` because the\nstable DSH pi-ai catalog does not natively list that model yet.\n\n## Model table\n\n[`models.json`](./models.json) records the offered routes, model IDs, API\nfamilies, and exact thinking-effort IDs. It is packaged as a reference\nmanifest; the current runtime configuration is the bundle's\n[`cordis.patch.yml`](./cordis.patch.yml).\n\nSee [`SPEC.md`](./SPEC.md) for the dependency policy, migration boundary, and\nthe optional future merge of Grok 4.6 into the native `xai` group.\n",
+      "readme": "# DSH Coding Plan\n\nOne installable DSH bundle for local Codex and Grok coding-plan logins. The\npublished package is [`dsh-coding-plan`](https://www.npmjs.com/package/dsh-coding-plan);\nthe Codex, Grok, and shared OAuth code is bundled inside that one package.\n\n```text\ncore  -> shared file-backed OAuth cache, refresh, and atomic persistence\ncodex        -> ~/.codex/auth.json -> openai-codex -> Codex models\ngrok         -> ~/.grok/auth.json  -> xai          -> Grok 4.3/4.5/build\ngrok-4.6     -> ~/.grok/auth.json  -> xai-grok-4-6 -> Grok 4.6\nmodels.json  -> machine-readable model and thinking-effort offering table\n```\n\n## Install from npm\n\n```sh\ndsh plugin --profile web add dsh-coding-plan\n```\n\nRestart the DSH profile after installing or updating the bundle. The package\nowns one complete `llm-pi-ai` configuration row and mounts both auth\nsynchronizers, so users should install the root package rather than the\nimplementation packages separately.\n\n## Login and model selection\n\nSign in through the native CLIs first:\n\n```sh\ncodex login\ngrok login\n```\n\nThe adapters read `~/.codex/auth.json` and `~/.grok/auth.json`, refresh tokens\nthrough the shared pi-ai runtime, and synchronize only short-lived access\ntokens into DSH's credential service.\n\nSelect the provider and model from the model picker inside a DSH session. The\nSettings → Models page manages provider credentials and routes; it is not the\nactive conversation model picker.\n\nThe current stable Grok 4.6 route is explicit:\n\n```yaml\nagent-default-model:\n  provider: xai-grok-4-6\n  model: grok-4.6\n```\n\nThe route uses the shared DSH `llm-pi-ai` runtime and does not introduce a\nsecond request engine. Grok 4.6 is exposed through `xai-grok-4-6` because the\nstable DSH pi-ai catalog does not natively list that model yet.\n\n## Model table\n\n[`models.json`](./models.json) records the offered routes, model IDs, API\nfamilies, and exact thinking-effort IDs. It is packaged as a reference\nmanifest; the current runtime configuration is the bundle's\n[`cordis.patch.yml`](./cordis.patch.yml).\n\nSee [`SPEC.md`](./SPEC.md) for the dependency policy, migration boundary, and\nthe optional future merge of Grok 4.6 into the native `xai` group.\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "loop",
+      "source": "official",
+      "displayName": "Loop",
+      "description": "Session-scoped recurring prompts: create durable alarms with agent tools, manage them with the /loop command, and watch them in a Web UI panel. Loops resume with the session.",
+      "descriptionZh": "会话级循环提示：通过 Agent 工具创建持久闹钟，用 /loop 命令管理，Web 端附面板展示。闹钟随会话持久化并恢复。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/loop",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/loop/README.md"
+      },
+      "license": "MIT",
+      "category": "workflow",
+      "status": "stable",
+      "surfaces": {
+        "server": {},
+        "web": {
+          "clientModule": true
+        }
+      },
+      "provides": {
+        "tools": [
+          "loop_create",
+          "loop_list",
+          "loop_delete"
+        ],
+        "commands": [
+          "/loop"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "loop",
+            "name": "dsh-loop",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/loop"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "timer",
+        "session-write"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-loop",
+            "version": "0.1.4"
+          }
+        ]
+      },
+      "registryPath": "registry/official/loop.json",
+      "npm": {
+        "dsh-loop": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# ⏰ dsh-loop\n\nAdds session-scoped recurring alarms to DeepSeek Harness.\n\n## 🚀 Release: 0.1.4\n\nThis patch release fixes the web client bundle registration so the published\npackage loads correctly in DSH Web. It also includes the session-scoped\nrecurring self-prompts, active-session delivery, and web UI from 0.1.2.\n\n## 1. 📦 Install the plugin\n\nThe stable npm release is available through both DSH and npm:\n\n~~~powershell\n# With the DSH CLI:\ndsh plugin --profile web add dsh-loop@0.1.4\n\n# Without the `dsh` CLI:\nnpm install dsh-loop@0.1.4\n~~~\n\nFor a pinned Git-source install, the marketplace can pin a full Git commit and\nthe `loop` monorepo path, then delegate the package change to the official DSH\nCLI. A direct fixed-source spec has this shape:\n\n~~~powershell\ndsh plugin --profile web add \"git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git#<40-character-commit>&path:loop\"\n~~~\n\nThe plugin is installed into the selected DSH profile. Restart DSH and create\na new session after installing it.\n\nThe fixed Git source contains the compiled `lib` directory and has no\n`preinstall`, `install`, `postinstall`, or `prepare` lifecycle script. Consumer\ninstalls therefore do not download the development toolchain or build the\nplugin. Contributors must run `pnpm build` and commit the regenerated `lib`\nfiles whenever `src` changes.\n\n## 2. ⏱️ Set recurring alarms\n\nThe simplest user-facing request is natural language:\n\n~~~text\nSet a recurring alarm to ask yourself to check the code every 10 seconds.\n~~~\n\nFor a presentation with multiple independent alarms:\n\n~~~text\nSet up four independent recurring alarms for this session:\n\n- Set a recurring alarm to ask yourself to inspect the latest errors, identify\n  the most likely cause, and recommend the next fix every 20 seconds.\n- Set a recurring alarm to ask yourself to review the project tasks, find the\n  biggest blocker, and update the priority order every 30 seconds.\n- Set a recurring alarm to ask yourself to check the research notes, compare\n  them with the current hypothesis, and propose the next experiment every\n  45 seconds.\n- Set a recurring alarm to ask yourself to inspect the draft, find the three\n  most important weaknesses, and suggest concrete revisions every 60 seconds.\n~~~\n\nEach alarm is independent. It has its own interval, prompt, next-delivery\ncountdown, and ID, so one alarm can be removed while the others continue.\n\n## 3. 🛠️ Agent tools and command interface\n\nThe plugin exposes three agent-local tools:\n\n- loop_create({ prompt, time_in_seconds })\n- loop_list({})\n- loop_delete({ id })\n\nIt also registers the /loop command for direct command-driven sessions:\n\n- /loop <seconds> <prompt> creates an alarm;\n- /loop list lists active alarms;\n- /loop delete <id> removes one alarm.\n\nBoth interfaces use the same validation, persistence, and scheduling path.\n\n## 4. 🖥️ Web UI\n\nThe web client adds a compact Loop dock for the current session. It shows:\n\n- the number of active alarms;\n- each alarm's interval and next-delivery countdown;\n- the full prompt on demand;\n- an expand/collapse control for multiple alarms;\n- a direct delete button with no confirmation step.\n\nDeleting an alarm sends the normal delete operation and removes the row when\nthe projected session state confirms the change.\n\n## 5. 🔄 How delivery works\n\ntime_in_seconds is the only time unit. When an alarm is due, its prompt is\ndelivered as a normal user message through the session inbox with\nwakeup: true.\n\n- An idle agent receives the heartbeat through next-turn.\n- A running agent receives it through next-step.\n\nThis lets DSH process the reminder at the earliest safe step boundary without\ninterrupting the current operation. The plugin calls Agent.send directly and\ndoes not call steer() or followup().\n\nThe delivered message has this shape:\n\n~~~text\n<heartbeat>\n  <loop_id>loop_...</loop_id>\n  <prompt>Check whether the build is still healthy</prompt>\n</heartbeat>\n~~~\n\nLoop definitions and next-delivery times are durable loop/change session",
+      "readme": "# ⏰ dsh-loop\n\nAdds session-scoped recurring alarms to DeepSeek Harness.\n\n## 🚀 Release: 0.1.4\n\nThis patch release fixes the web client bundle registration so the published\npackage loads correctly in DSH Web. It also includes the session-scoped\nrecurring self-prompts, active-session delivery, and web UI from 0.1.2.\n\n## 1. 📦 Install the plugin\n\nThe stable npm release is available through both DSH and npm:\n\n~~~powershell\n# With the DSH CLI:\ndsh plugin --profile web add dsh-loop@0.1.4\n\n# Without the `dsh` CLI:\nnpm install dsh-loop@0.1.4\n~~~\n\nFor a pinned Git-source install, the marketplace can pin a full Git commit and\nthe `loop` monorepo path, then delegate the package change to the official DSH\nCLI. A direct fixed-source spec has this shape:\n\n~~~powershell\ndsh plugin --profile web add \"git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git#<40-character-commit>&path:loop\"\n~~~\n\nThe plugin is installed into the selected DSH profile. Restart DSH and create\na new session after installing it.\n\nThe fixed Git source contains the compiled `lib` directory and has no\n`preinstall`, `install`, `postinstall`, or `prepare` lifecycle script. Consumer\ninstalls therefore do not download the development toolchain or build the\nplugin. Contributors must run `pnpm build` and commit the regenerated `lib`\nfiles whenever `src` changes.\n\n## 2. ⏱️ Set recurring alarms\n\nThe simplest user-facing request is natural language:\n\n~~~text\nSet a recurring alarm to ask yourself to check the code every 10 seconds.\n~~~\n\nFor a presentation with multiple independent alarms:\n\n~~~text\nSet up four independent recurring alarms for this session:\n\n- Set a recurring alarm to ask yourself to inspect the latest errors, identify\n  the most likely cause, and recommend the next fix every 20 seconds.\n- Set a recurring alarm to ask yourself to review the project tasks, find the\n  biggest blocker, and update the priority order every 30 seconds.\n- Set a recurring alarm to ask yourself to check the research notes, compare\n  them with the current hypothesis, and propose the next experiment every\n  45 seconds.\n- Set a recurring alarm to ask yourself to inspect the draft, find the three\n  most important weaknesses, and suggest concrete revisions every 60 seconds.\n~~~\n\nEach alarm is independent. It has its own interval, prompt, next-delivery\ncountdown, and ID, so one alarm can be removed while the others continue.\n\n## 3. 🛠️ Agent tools and command interface\n\nThe plugin exposes three agent-local tools:\n\n- loop_create({ prompt, time_in_seconds })\n- loop_list({})\n- loop_delete({ id })\n\nIt also registers the /loop command for direct command-driven sessions:\n\n- /loop <seconds> <prompt> creates an alarm;\n- /loop list lists active alarms;\n- /loop delete <id> removes one alarm.\n\nBoth interfaces use the same validation, persistence, and scheduling path.\n\n## 4. 🖥️ Web UI\n\nThe web client adds a compact Loop dock for the current session. It shows:\n\n- the number of active alarms;\n- each alarm's interval and next-delivery countdown;\n- the full prompt on demand;\n- an expand/collapse control for multiple alarms;\n- a direct delete button with no confirmation step.\n\nDeleting an alarm sends the normal delete operation and removes the row when\nthe projected session state confirms the change.\n\n## 5. 🔄 How delivery works\n\ntime_in_seconds is the only time unit. When an alarm is due, its prompt is\ndelivered as a normal user message through the session inbox with\nwakeup: true.\n\n- An idle agent receives the heartbeat through next-turn.\n- A running agent receives it through next-step.\n\nThis lets DSH process the reminder at the earliest safe step boundary without\ninterrupting the current operation. The plugin calls Agent.send directly and\ndoes not call steer() or followup().\n\nThe delivered message has this shape:\n\n~~~text\n<heartbeat>\n  <loop_id>loop_...</loop_id>\n  <prompt>Check whether the build is still healthy</prompt>\n</heartbeat>\n~~~\n\nLoop definitions and next-delivery times are durable loop/change session\nevents. Timers are disposable and recreated when the session resumes. The\nruntime is session-local: a stopped or cold process cannot run timers or wake\nitself.\n\n## 6. ✅ Verify locally\n\nRun the full Loop test suite:\n\n~~~powershell\npnpm test -- --maxWorkers=1\n~~~\n\nRun the focused E2E suite:\n\n~~~powershell\npnpm test:e2e\n~~~\n\nRun typechecks and build the published artifacts:\n\n~~~powershell\npnpm typecheck\npnpm typecheck:client\npnpm build\n~~~\n\nThe reusable agent-facing scenarios are in\n[e2e-test-prompt.md](./e2e-test-prompt.md). The executable test runner remains\nin the source repository at test/e2e.test.ts.\n\n## 7. 📦 Package scope\n\nThis plugin uses public DSH and Cordis APIs only; it does not modify\ndeepseek-harness. The implementation contract is documented in\n[SPEC.md](./SPEC.md), and the web UI contract is documented in\n[ui.md](./ui.md).\n\n## 📚 Documentation\n\n- [Implementation specification](./SPEC.md)\n- [Cross-session v2 design specification](./SPEC_V2.md)\n- [Web UI contract](./ui.md)\n- [Reusable E2E test prompts](./e2e-test-prompt.md)\n- [Test plan](./TEST_PLAN.md)\n- [Test orchestration](./TEST_ORCHESTRATION.md)\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mock",
+      "source": "official",
+      "displayName": "Mock",
+      "description": "Deterministic mock model turns routed through the real dsh AgentLoop and ToolRuntime: /mock run and /mock replay exercise tools, policy, and event flow without a live model. Unstable; API may change.",
+      "descriptionZh": "确定性 mock 模型回合，走真实 dsh AgentLoop 与 ToolRuntime：/mock run 与 /mock replay 不依赖真实模型即可测试工具、策略与事件流。不稳定，接口可能变化。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/mock",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/mock/README.md"
+      },
+      "license": "MIT",
+      "category": "testing",
+      "status": "unstable",
+      "surfaces": {
+        "server": {},
+        "web": {
+          "clientModule": true
+        }
+      },
+      "provides": {
+        "commands": [
+          "/mock"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "mock",
+            "name": "dsh-mock",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/mock"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "llm-adapter-override"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-mock",
+            "version": "0.1.1"
+          }
+        ]
+      },
+      "registryPath": "registry/official/mock.json",
+      "npm": {
+        "dsh-mock": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# 🧪 dsh-mock\n\n> ⚠️ **Unstable release:** `dsh-mock@0.1.1` is available for early testing.\n> The command, API, and UI surface may change before a stable release.\n\n## 📦 Install\n\nAdd the plugin to the DSH `web` profile with one command:\n\n```powershell\ndsh plugin --profile web add dsh-mock@0.1.1\n```\n\nOr install the npm package directly:\n\n```powershell\nnpm install dsh-mock@0.1.1\n```\n\nThis is an external Cordis plugin. It registers the internal per-turn provider\nroute `mock` with the `mock` model and routes accepted `/mock run` and `/mock replay`\ncommands through the public AgentLoop request waterfall. The route is\ndeliberately omitted from the advertised model catalog, so the normal model\nselector remains unchanged; only the slash command activates it. The plugin\nalso registers `mock` in the public slash-command catalog, and its command\nhandler queues the exact line as a normal AgentLoop follow-up. The adapter\nemits ordinary model chunks; the host AgentLoop and ToolRuntime execute and\nrecord the actual calls.\n\nReplay is read-only and in-memory. A relative path is resolved against the\ncurrent session's absolute `session.header.cwd`; when that value is missing,\nrelative paths are rejected. Absolute paths are accepted for read-only input,\nand the plugin never creates, copies, rewrites, renames, or deletes a replay\nsource. `--overwrite-wait-time-ms` changes only explicit waits in the detached\ncanonical plan.\n\nThe plugin emits ephemeral `mock/status` events for a host UI bridge. The\nbridge should render a compact status row above the existing composer and\nleave normal DSH tool/result/error cards authoritative.\n",
+      "readme": "# 🧪 dsh-mock\n\n> ⚠️ **Unstable release:** `dsh-mock@0.1.1` is available for early testing.\n> The command, API, and UI surface may change before a stable release.\n\n## 📦 Install\n\nAdd the plugin to the DSH `web` profile with one command:\n\n```powershell\ndsh plugin --profile web add dsh-mock@0.1.1\n```\n\nOr install the npm package directly:\n\n```powershell\nnpm install dsh-mock@0.1.1\n```\n\nThis is an external Cordis plugin. It registers the internal per-turn provider\nroute `mock` with the `mock` model and routes accepted `/mock run` and `/mock replay`\ncommands through the public AgentLoop request waterfall. The route is\ndeliberately omitted from the advertised model catalog, so the normal model\nselector remains unchanged; only the slash command activates it. The plugin\nalso registers `mock` in the public slash-command catalog, and its command\nhandler queues the exact line as a normal AgentLoop follow-up. The adapter\nemits ordinary model chunks; the host AgentLoop and ToolRuntime execute and\nrecord the actual calls.\n\nReplay is read-only and in-memory. A relative path is resolved against the\ncurrent session's absolute `session.header.cwd`; when that value is missing,\nrelative paths are rejected. Absolute paths are accepted for read-only input,\nand the plugin never creates, copies, rewrites, renames, or deletes a replay\nsource. `--overwrite-wait-time-ms` changes only explicit waits in the detached\ncanonical plan.\n\nThe plugin emits ephemeral `mock/status` events for a host UI bridge. The\nbridge should render a compact status row above the existing composer and\nleave normal DSH tool/result/error cards authoritative.\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "preset-builder",
+      "source": "official",
+      "displayName": "Preset Builder",
+      "description": "A Preset details page for the dsh Web Settings screen. Web-only: contributes a client module with no model-facing tools, so it adds nothing in a terminal frontend.",
+      "descriptionZh": "为 dsh Web 设置页增加 Preset 详情页。仅 Web 端：只包含 client module、无模型工具，在终端前端无作用。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/preset-builder",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/preset-builder/README.md"
+      },
+      "license": "MIT",
+      "category": "ui",
+      "status": "beta",
+      "surfaces": {
+        "web": {
+          "clientModule": true
+        }
+      },
+      "provides": {},
+      "install": {
+        "rows": [
+          {
+            "id": "dsh-preset-builder",
+            "name": "dsh-preset-builder",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/preset-builder"
+            }
+          }
+        ]
+      },
+      "capabilities": [],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-preset-builder",
+            "version": "0.1.0"
+          }
+        ]
+      },
+      "registryPath": "registry/official/preset-builder.json",
+      "npm": {
+        "dsh-preset-builder": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# dsh-preset-builder\n\nA small DeepSeek Harness UI plugin that adds **Preset details** to Settings.\nIt makes preset inspection explicit and shows the exact `agent.cordis.yml`\nreturned by DSH's existing read-only preset API.\n\n```sh\ndsh plugin --profile web add ./preset-builder\n```\n\nRestart DSH after installation. The existing **Agent presets** page remains the\nplace to select, duplicate, edit, and delete presets; this plugin is deliberately\nan inspection prototype, so it does not replace or regress those controls.\n",
+      "readme": "# dsh-preset-builder\n\nA small DeepSeek Harness UI plugin that adds **Preset details** to Settings.\nIt makes preset inspection explicit and shows the exact `agent.cordis.yml`\nreturned by DSH's existing read-only preset API.\n\n```sh\ndsh plugin --profile web add ./preset-builder\n```\n\nRestart DSH after installation. The existing **Agent presets** page remains the\nplace to select, duplicate, edit, and delete presets; this plugin is deliberately\nan inspection prototype, so it does not replace or regress those controls.\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "sessions",
+      "source": "official",
+      "displayName": "Sessions",
+      "description": "Multi-session orchestration tools: discover sessions, read them with bounded reads, create new sessions, and deliver messages across agents with session_status, session_create, and session_send.",
+      "descriptionZh": "多会话编排工具：session_status 发现与有界读取会话，session_create 创建新会话，session_send 跨会话投递消息。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/sessions",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/sessions/README.md"
+      },
+      "license": "MIT",
+      "category": "tools",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "session_status",
+          "session_create",
+          "session_send"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "dsh-sessions",
+            "name": "dsh-sessions",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/sessions"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "session-read",
+        "session-write"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-sessions",
+            "version": "0.1.2"
+          }
+        ]
+      },
+      "registryPath": "registry/official/sessions.json",
+      "npm": {
+        "dsh-sessions": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# dsh-sessions\n\nAdds session discovery, plain session-log paths, and fresh-session creation to\nDeepSeek Harness.\n\n## 1. Release: 0.1.2\n\nThis release provides three public agent tools:\n\n- `session_status` for recent sessions or one exact session;\n- `session_create` for creating a fresh session with an initial prompt;\n- `session_send` for steering or following up with an existing session;\n\nIt supports explicit model provider, model, and thinking-effort selection during\nsession creation.\n\n## 2. Install the plugin\n\nInstall the published package into a DSH profile:\n\n~~~powershell\n# With the DSH CLI:\ndsh plugin --profile web add dsh-sessions@0.1.2\n\n# Without the `dsh` CLI:\nnpm install dsh-sessions@0.1.2\n~~~\n\nThe DSH profile installation is required for Harness to load the plugin. After\nupgrading, restart DSH and create a new agent session so the current tool\nregistry is loaded.\n\nFor local development, build the package and install the checkout into the\ntarget profile:\n\n~~~powershell\npnpm build\ndsh plugin --profile web add C:\\path\\to\\dsh-plugins\\sessions\n~~~\n\n## 3. Quick start\n\nCreate a child session, then inspect its status and log path:\n\n~~~text\nsession_create({ \"prompt\": \"Reply with exactly READY and nothing else.\" })\n\nsession_status({ \"session_id\": \"<SESSION_ID>\" })\n\n~~~\n\n`session_create` returns a queued result containing the new session ID. Use\nthat ID with `session_status`. The returned `session_path` is a plain JSONL\nfile that ordinary `read`, `grep`, or `bash` tools can inspect.\n\n## 4. Agent tools\n\n### Agent tools\n\n| Tool | Arguments | Behavior |\n| --- | --- | --- |\n| `session_status` | `session_id?`, `recent_n?` | Lists recent sessions, or returns one exact status row with the backend-owned `session_path`. Defaults to the 50 most recently updated sessions. |\n| `session_create` | `prompt`, `preset?`, `model?`, `cwd?` | Creates a fresh session and queues its initial prompt. |\n| `session_send` | `session_id`, `message`, `mode?` | Sends text to an existing session. `mode` defaults to `steer`; `followup` queues another turn. |\n\nAn explicit creation model has this shape:\n\n~~~json\n{\n  \"provider\": \"<PROVIDER>\",\n  \"model\": \"<MODEL>\",\n  \"reasoningEffort\": \"<LEVEL>\"\n}\n~~~\n\nThe adapter validates the effort identifier against the selected model. The\n`cwd` option must be an existing absolute directory.\n\nNo slash commands are registered. Use the agent tools.\n\n## 5. Session lifecycle and delivery\n\n- `session_create` only creates a fresh session and queues its initial prompt;\n  it does not wait for model completion.\n- `session_send` delivers to a live session or resumes a cold session using its\n  stored preset before delivery.\n- `session_status` is inspection-only and defaults to 50 recent sessions.\n- Session persistence is configured for uncompressed, unpacked JSONL so the\n  returned paths are directly readable by ordinary filesystem tools.\n\n## 6. E2E testing\n\nReusable prompt fixtures are in\n[`test/e2e/prompts`](./test/e2e/prompts/). The recommended flow is create,\ncapture the returned `session_id`, and substitute it into the status prompt.\n\nThe exact registered names are required. The session-read fixture is no longer\npart of the package; use the returned `session_path` with normal tools.\n\n## 7. Verify locally\n\n~~~powershell\npnpm typecheck\npnpm test -- --runInBand\npnpm build\npnpm pack --dry-run\n~~~\n\nThe published package includes the generated `lib` directory, the plugin patch,\nthe README, the implementation specification, and the reusable E2E prompt\nfixtures. Unit-test sources and development dependencies are not included.\n\n## 8. Package scope\n\nThe plugin uses public DeepSeek Harness and Cordis APIs and does not modify\nDeepSeek Harness source code. `dsh-loop` owns recurring self-prompts for the\ncurrent session; `dsh-sessions` owns cross-session inspection and creation.\n\n## 9. Documentation\n\n- [Session-tree implementation specification](./SPEC.md)\n- [Session-tree UI specification](./u.md)\n- [E2E prompt fixtures](./test/e2e/prompts/README.",
+      "readme": "# dsh-sessions\n\nAdds session discovery, plain session-log paths, and fresh-session creation to\nDeepSeek Harness.\n\n## 1. Release: 0.1.2\n\nThis release provides three public agent tools:\n\n- `session_status` for recent sessions or one exact session;\n- `session_create` for creating a fresh session with an initial prompt;\n- `session_send` for steering or following up with an existing session;\n\nIt supports explicit model provider, model, and thinking-effort selection during\nsession creation.\n\n## 2. Install the plugin\n\nInstall the published package into a DSH profile:\n\n~~~powershell\n# With the DSH CLI:\ndsh plugin --profile web add dsh-sessions@0.1.2\n\n# Without the `dsh` CLI:\nnpm install dsh-sessions@0.1.2\n~~~\n\nThe DSH profile installation is required for Harness to load the plugin. After\nupgrading, restart DSH and create a new agent session so the current tool\nregistry is loaded.\n\nFor local development, build the package and install the checkout into the\ntarget profile:\n\n~~~powershell\npnpm build\ndsh plugin --profile web add C:\\path\\to\\dsh-plugins\\sessions\n~~~\n\n## 3. Quick start\n\nCreate a child session, then inspect its status and log path:\n\n~~~text\nsession_create({ \"prompt\": \"Reply with exactly READY and nothing else.\" })\n\nsession_status({ \"session_id\": \"<SESSION_ID>\" })\n\n~~~\n\n`session_create` returns a queued result containing the new session ID. Use\nthat ID with `session_status`. The returned `session_path` is a plain JSONL\nfile that ordinary `read`, `grep`, or `bash` tools can inspect.\n\n## 4. Agent tools\n\n### Agent tools\n\n| Tool | Arguments | Behavior |\n| --- | --- | --- |\n| `session_status` | `session_id?`, `recent_n?` | Lists recent sessions, or returns one exact status row with the backend-owned `session_path`. Defaults to the 50 most recently updated sessions. |\n| `session_create` | `prompt`, `preset?`, `model?`, `cwd?` | Creates a fresh session and queues its initial prompt. |\n| `session_send` | `session_id`, `message`, `mode?` | Sends text to an existing session. `mode` defaults to `steer`; `followup` queues another turn. |\n\nAn explicit creation model has this shape:\n\n~~~json\n{\n  \"provider\": \"<PROVIDER>\",\n  \"model\": \"<MODEL>\",\n  \"reasoningEffort\": \"<LEVEL>\"\n}\n~~~\n\nThe adapter validates the effort identifier against the selected model. The\n`cwd` option must be an existing absolute directory.\n\nNo slash commands are registered. Use the agent tools.\n\n## 5. Session lifecycle and delivery\n\n- `session_create` only creates a fresh session and queues its initial prompt;\n  it does not wait for model completion.\n- `session_send` delivers to a live session or resumes a cold session using its\n  stored preset before delivery.\n- `session_status` is inspection-only and defaults to 50 recent sessions.\n- Session persistence is configured for uncompressed, unpacked JSONL so the\n  returned paths are directly readable by ordinary filesystem tools.\n\n## 6. E2E testing\n\nReusable prompt fixtures are in\n[`test/e2e/prompts`](./test/e2e/prompts/). The recommended flow is create,\ncapture the returned `session_id`, and substitute it into the status prompt.\n\nThe exact registered names are required. The session-read fixture is no longer\npart of the package; use the returned `session_path` with normal tools.\n\n## 7. Verify locally\n\n~~~powershell\npnpm typecheck\npnpm test -- --runInBand\npnpm build\npnpm pack --dry-run\n~~~\n\nThe published package includes the generated `lib` directory, the plugin patch,\nthe README, the implementation specification, and the reusable E2E prompt\nfixtures. Unit-test sources and development dependencies are not included.\n\n## 8. Package scope\n\nThe plugin uses public DeepSeek Harness and Cordis APIs and does not modify\nDeepSeek Harness source code. `dsh-loop` owns recurring self-prompts for the\ncurrent session; `dsh-sessions` owns cross-session inspection and creation.\n\n## 9. Documentation\n\n- [Session-tree implementation specification](./SPEC.md)\n- [Session-tree UI specification](./u.md)\n- [E2E prompt fixtures](./test/e2e/prompts/README.md)\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "sidechat",
+      "source": "official",
+      "displayName": "Sidechat",
+      "description": "A side-chat panel on the dsh Web workbench for quick questions in a separate, memory-only session. Two packages: Workbench UI first, then Sidechat itself.",
+      "descriptionZh": "dsh Web 工作台侧边的快速问答面板，使用独立的内存会话。两包安装：先 Workbench UI，再 Sidechat。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/sidechat",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/sidechat/README.md"
+      },
+      "license": "MIT",
+      "category": "ui",
+      "status": "beta",
+      "surfaces": {
+        "server": {},
+        "web": {
+          "clientModule": true
+        }
+      },
+      "provides": {},
+      "install": {
+        "rows": [
+          {
+            "id": "workbench-ui",
+            "name": "dsh-workbench-ui",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/work-bench-ui"
+            }
+          },
+          {
+            "id": "sidechat",
+            "name": "dsh-sidechat",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/sidechat"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "session-write"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-workbench-ui",
+            "version": "0.1.0"
+          },
+          {
+            "name": "dsh-sidechat",
+            "version": "0.1.0"
+          }
+        ]
+      },
+      "registryPath": "registry/official/sidechat.json",
+      "npm": {
+        "dsh-workbench-ui": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        },
+        "dsh-sidechat": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# dsh-workbench-ui\n\nReusable resizable right-side Workbench surface for DeepSeek Harness Web plugins.\n\nThe package owns the panel shell and exposes a client registry. Feature plugins\nregister their own tab and React content without modifying the Workbench UI. The\npanel occupies the host's block-level details column; opening it reduces the\nconversation width, and the host drag handle controls the panel width.\n\n```ts\nimport type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'\nimport type { WorkbenchService } from 'dsh-workbench-ui/client'\nimport type {} from 'dsh-workbench-ui/client'\nimport { TerminalPanel } from './TerminalPanel.js'\n\nexport const inject = ['workbench']\n\nexport function apply(ctx: ClientContext): void {\n  const workbench = ctx.get('workbench') as WorkbenchService\n  ctx.effect(() => workbench.register({\n    id: 'terminal',\n    label: 'Terminal',\n    component: TerminalPanel,\n  }), 'terminal: Workbench panel')\n}\n```\n\nRegistered components receive `{ close }` and own the complete display area.\nUse `workbench.open('terminal')`, `workbench.close()`, or\n`workbench.toggle('terminal')` from another client component to control the\nsurface. Opening and closing also drives the host details column. Registration\nis disposed with the owning plugin fiber.\n\nInstall it into the Web profile with:\n\n```sh\ndsh plugin --profile web add ./work-bench-ui\n```\n",
+      "readme": "# dsh-workbench-ui\n\nReusable resizable right-side Workbench surface for DeepSeek Harness Web plugins.\n\nThe package owns the panel shell and exposes a client registry. Feature plugins\nregister their own tab and React content without modifying the Workbench UI. The\npanel occupies the host's block-level details column; opening it reduces the\nconversation width, and the host drag handle controls the panel width.\n\n```ts\nimport type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'\nimport type { WorkbenchService } from 'dsh-workbench-ui/client'\nimport type {} from 'dsh-workbench-ui/client'\nimport { TerminalPanel } from './TerminalPanel.js'\n\nexport const inject = ['workbench']\n\nexport function apply(ctx: ClientContext): void {\n  const workbench = ctx.get('workbench') as WorkbenchService\n  ctx.effect(() => workbench.register({\n    id: 'terminal',\n    label: 'Terminal',\n    component: TerminalPanel,\n  }), 'terminal: Workbench panel')\n}\n```\n\nRegistered components receive `{ close }` and own the complete display area.\nUse `workbench.open('terminal')`, `workbench.close()`, or\n`workbench.toggle('terminal')` from another client component to control the\nsurface. Opening and closing also drives the host details column. Registration\nis disposed with the owning plugin fiber.\n\nInstall it into the Web profile with:\n\n```sh\ndsh plugin --profile web add ./work-bench-ui\n```\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "workbench-ui",
+      "source": "official",
+      "displayName": "Workbench UI",
+      "description": "The Web workbench frame: provides the workbench client service that other Web plugins (like Sidechat) register tabs into. Web-only; install it before plugins that depend on it.",
+      "descriptionZh": "Web 端工作台框架：提供 workbench client 服务，供 Sidechat 等插件注册标签页。仅 Web 端；需先于依赖它的插件安装。",
+      "author": {
+        "name": "Ephemeral AI Lab",
+        "url": "https://github.com/Ephemeral-AI-Lab"
+      },
+      "links": {
+        "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/work-bench-ui",
+        "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/work-bench-ui/README.md"
+      },
+      "license": "MIT",
+      "category": "ui",
+      "status": "beta",
+      "surfaces": {
+        "web": {
+          "clientModule": true
+        }
+      },
+      "provides": {},
+      "install": {
+        "rows": [
+          {
+            "id": "workbench-ui",
+            "name": "dsh-workbench-ui",
+            "github": {
+              "repo": "Ephemeral-AI-Lab/dsh-plugins",
+              "ref": "main",
+              "subdir": "plugins/work-bench-ui"
+            }
+          }
+        ]
+      },
+      "capabilities": [],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "dsh-workbench-ui",
+            "version": "0.1.0"
+          }
+        ]
+      },
+      "registryPath": "registry/official/workbench-ui.json",
+      "npm": {
+        "dsh-workbench-ui": {
+          "latestVersion": null,
+          "integrity": null,
+          "publishedAt": null,
+          "downloadsMonth": null,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": "# dsh-workbench-ui\n\nReusable resizable right-side Workbench surface for DeepSeek Harness Web plugins.\n\nThe package owns the panel shell and exposes a client registry. Feature plugins\nregister their own tab and React content without modifying the Workbench UI. The\npanel occupies the host's block-level details column; opening it reduces the\nconversation width, and the host drag handle controls the panel width.\n\n```ts\nimport type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'\nimport type { WorkbenchService } from 'dsh-workbench-ui/client'\nimport type {} from 'dsh-workbench-ui/client'\nimport { TerminalPanel } from './TerminalPanel.js'\n\nexport const inject = ['workbench']\n\nexport function apply(ctx: ClientContext): void {\n  const workbench = ctx.get('workbench') as WorkbenchService\n  ctx.effect(() => workbench.register({\n    id: 'terminal',\n    label: 'Terminal',\n    component: TerminalPanel,\n  }), 'terminal: Workbench panel')\n}\n```\n\nRegistered components receive `{ close }` and own the complete display area.\nUse `workbench.open('terminal')`, `workbench.close()`, or\n`workbench.toggle('terminal')` from another client component to control the\nsurface. Opening and closing also drives the host details column. Registration\nis disposed with the owning plugin fiber.\n\nInstall it into the Web profile with:\n\n```sh\ndsh plugin --profile web add ./work-bench-ui\n```\n",
+      "readme": "# dsh-workbench-ui\n\nReusable resizable right-side Workbench surface for DeepSeek Harness Web plugins.\n\nThe package owns the panel shell and exposes a client registry. Feature plugins\nregister their own tab and React content without modifying the Workbench UI. The\npanel occupies the host's block-level details column; opening it reduces the\nconversation width, and the host drag handle controls the panel width.\n\n```ts\nimport type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'\nimport type { WorkbenchService } from 'dsh-workbench-ui/client'\nimport type {} from 'dsh-workbench-ui/client'\nimport { TerminalPanel } from './TerminalPanel.js'\n\nexport const inject = ['workbench']\n\nexport function apply(ctx: ClientContext): void {\n  const workbench = ctx.get('workbench') as WorkbenchService\n  ctx.effect(() => workbench.register({\n    id: 'terminal',\n    label: 'Terminal',\n    component: TerminalPanel,\n  }), 'terminal: Workbench panel')\n}\n```\n\nRegistered components receive `{ close }` and own the complete display area.\nUse `workbench.open('terminal')`, `workbench.close()`, or\n`workbench.toggle('terminal')` from another client component to control the\nsurface. Opening and closing also drives the host details column. Registration\nis disposed with the owning plugin fiber.\n\nInstall it into the Web profile with:\n\n```sh\ndsh plugin --profile web add ./work-bench-ui\n```\n"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "acp",
+      "source": "dsh",
+      "displayName": "ACP Server",
+      "description": "An Agent Client Protocol server (JSON-RPC over stdio) that lets automation clients and CLIs drive dsh harness agents programmatically.",
+      "descriptionZh": "Agent Client Protocol 服务器（stdio 上的 JSON-RPC），让自动化客户端与 CLI 以编程方式驱动 dsh harness agent。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/acp",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/README.md"
+      },
+      "license": "MIT",
+      "category": "integration",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {},
+      "install": {
+        "rows": [
+          {
+            "id": "acp",
+            "name": "@deepseek-ai/dsh-acp",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-acp"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "network",
+        "process-spawn"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-acp",
+            "version": "0.0.1-rc.1"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/acp.json",
+      "npm": {
+        "@deepseek-ai/dsh-acp": {
+          "latestVersion": "0.0.1-rc.1",
+          "integrity": "sha512-RTJmbXz9g4fTN5ebcd9Ra21Ca7UEMA9gxBnsXNcJy9eoDrOAb8DcrBkIlxRnAvluWLqWf9dyPGiUvLO4Oh9uTg==",
+          "publishedAt": "2026-08-10T19:41:14.563Z",
+          "downloadsMonth": 8926,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "code-runtime-py",
+      "source": "dsh",
+      "displayName": "Code Runtime (Python)",
+      "description": "Python execution environment behind run_code for PTC mode, as the alternative to the TypeScript worker-thread runtime. Containment, not a security boundary; bash-equivalent trust by design.",
+      "descriptionZh": "PTC 模式 run_code 的 Python 执行环境，是 TypeScript worker-thread 运行时的替代选项。隔离而非安全边界，信任级别等同 bash。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/code-runtime",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/code-runtime/README.md"
+      },
+      "license": "MIT",
+      "category": "tools",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "run_code"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "code-runtime",
+            "name": "@deepseek-ai/dsh-code-runtime-python",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-code-runtime-python"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "code-execution"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-code-runtime-python",
+            "version": "0.1.0-rc.8"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/code-runtime-py.json",
+      "npm": {
+        "@deepseek-ai/dsh-code-runtime-python": {
+          "latestVersion": "0.1.0-rc.8",
+          "integrity": "sha512-VAXOqpE34SO2cQTTu+5VJLp77OvMOdnW0LMHGC6CDyqE7ZJMlv1bMPoAGDAuutIYSdhaSvhJB+iMw2xSr8D9qQ==",
+          "publishedAt": "2026-08-19T15:42:20.456Z",
+          "downloadsMonth": 473,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "code-runtime-ts",
+      "source": "dsh",
+      "displayName": "Code Runtime (TypeScript)",
+      "description": "The execution environment behind run_code for PTC mode: each program runs in one fresh worker thread with an empty environment, heap cap, and hard termination. Containment, not a security boundary; bash-equivalent trust by design.",
+      "descriptionZh": "PTC 模式 run_code 的执行环境：每个程序在全新 worker 线程中运行，空环境、堆上限、硬终止。这是隔离而非安全边界，信任级别等同 bash。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/code-runtime",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/code-runtime/README.md"
+      },
+      "license": "MIT",
+      "category": "tools",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "run_code"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "code-runtime",
+            "name": "@deepseek-ai/dsh-code-runtime-worker-thread",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-code-runtime-worker-thread"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "code-execution"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-code-runtime-worker-thread",
+            "version": "0.0.1-rc.3"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/code-runtime-ts.json",
+      "npm": {
+        "@deepseek-ai/dsh-code-runtime-worker-thread": {
+          "latestVersion": "0.0.1-rc.3",
+          "integrity": "sha512-l65X/u0lfphAHU3c6690fOG7w3PM5fGY9PK/mREiKQ7mvDDbosutkV/C6KqYgvONeCOat7VNHw4IxQRlXBHnqQ==",
+          "publishedAt": "2026-08-12T20:35:16.524Z",
+          "downloadsMonth": 1236500,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "lsp",
+      "source": "dsh",
+      "displayName": "LSP Navigation",
+      "description": "One read-only lsp tool (goToDefinition / findReferences / goToImplementation / hover) over stdio language servers, for precise navigation when textual matches are ambiguous. Requires the session cwd as its workspace root.",
+      "descriptionZh": "基于 stdio 语言服务器的只读 lsp 工具（定义跳转 / 引用查找 / 实现跳转 / hover），在文本搜索有歧义时提供精确导航。需要会话 cwd 作为工作区根。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/lsp",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/lsp/README.md"
+      },
+      "license": "MIT",
+      "category": "integration",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "lsp"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "lsp-stdio",
+            "name": "@deepseek-ai/dsh-lsp-stdio",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-lsp-stdio"
+            }
+          },
+          {
+            "id": "tool-lsp",
+            "name": "@deepseek-ai/dsh-tool-lsp",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-tool-lsp"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "process-spawn"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-lsp-stdio",
+            "version": "0.0.1-rc.5"
+          },
+          {
+            "name": "@deepseek-ai/dsh-tool-lsp",
+            "version": "0.0.1-rc.1"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/lsp.json",
+      "npm": {
+        "@deepseek-ai/dsh-lsp-stdio": {
+          "latestVersion": "0.0.1-rc.5",
+          "integrity": "sha512-3f4EDc+BgtipyMhbMVhzSoNlLpgFWHJzhLmCsv/NooIXjacKMIehbjYSiOfLCRpGyCr1PFuKWc52BTGyXTHy5g==",
+          "publishedAt": "2026-08-12T22:37:17.244Z",
+          "downloadsMonth": 3863,
+          "readme": null
+        },
+        "@deepseek-ai/dsh-tool-lsp": {
+          "latestVersion": "0.0.1-rc.1",
+          "integrity": "sha512-tK8VebAYJO4rD/lsZ5tNZ7hmlXnfEcVWzhtPmoZCMzejCWhF9pRhrP+jmSvui4K9QZg097LRy0Tvzu8OQjx/JA==",
+          "publishedAt": "2026-08-10T19:43:20.091Z",
+          "downloadsMonth": 3856,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "mcp",
+      "source": "dsh",
+      "displayName": "MCP Client",
+      "description": "The Model Context Protocol client: external servers contribute mcp__server__tool tools. Servers are declared in the profile patch; Mayfly's /mcp browser shows their status and schemas.",
+      "descriptionZh": "Model Context Protocol 客户端：外部服务器以 mcp__server__tool 形式贡献工具。服务器在 profile patch 中声明；Mayfly 的 /mcp 浏览器可查看状态与 schema。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/mcp",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/README.md"
+      },
+      "license": "MIT",
+      "category": "integration",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {},
+      "install": {
+        "rows": [
+          {
+            "id": "mcp-client",
+            "name": "@deepseek-ai/dsh-mcp-client",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-mcp-client"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "network",
+        "process-spawn"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-mcp-client",
+            "version": "0.0.1-rc.1"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/mcp.json",
+      "npm": {
+        "@deepseek-ai/dsh-mcp-client": {
+          "latestVersion": "0.0.1-rc.1",
+          "integrity": "sha512-YPsOvuWFmWl1Pai+9FrsDLNuWFuMXIEZHn9uXJFqDfo/dTyJRZuYFM+jbs5g9eGEKhHgqXibsgeCm4Px1tb4DQ==",
+          "publishedAt": "2026-08-10T19:38:15.865Z",
+          "downloadsMonth": 1241964,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    },
+    {
+      "schemaVersion": 1,
+      "id": "terminal",
+      "source": "dsh",
+      "displayName": "Terminal (PTY)",
+      "description": "The persistent interactive terminal of Codex / Claude Code-style TUIs: six tools (terminal_open / send / read / signal / close / list) over a PTY backend that composes with the sandbox. Mayfly renders its output as terminal cards.",
+      "descriptionZh": "Codex / Claude Code 式 TUI 的持久交互终端：terminal_open / send / read / signal / close / list 六个工具，PTY 后端且与沙箱组合。Mayfly 以终端卡片渲染输出。",
+      "author": {
+        "name": "DeepSeek AI",
+        "url": "https://github.com/deepseek-ai"
+      },
+      "links": {
+        "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/terminal",
+        "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/terminal/README.md"
+      },
+      "license": "MIT",
+      "category": "tools",
+      "status": "stable",
+      "surfaces": {
+        "server": {}
+      },
+      "provides": {
+        "tools": [
+          "terminal_open",
+          "terminal_send",
+          "terminal_read",
+          "terminal_signal",
+          "terminal_close",
+          "terminal_list"
+        ]
+      },
+      "install": {
+        "rows": [
+          {
+            "id": "terminal-bash",
+            "name": "@deepseek-ai/dsh-terminal-bash",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-terminal-bash"
+            }
+          },
+          {
+            "id": "tool-terminal",
+            "name": "@deepseek-ai/dsh-tool-terminal",
+            "activation": "profile-patch",
+            "npm": {
+              "spec": "@deepseek-ai/dsh-tool-terminal"
+            }
+          }
+        ]
+      },
+      "capabilities": [
+        "shell",
+        "process-spawn"
+      ],
+      "verified": {
+        "at": "2026-09-04",
+        "packages": [
+          {
+            "name": "@deepseek-ai/dsh-terminal-bash",
+            "version": "0.0.1-rc.3"
+          },
+          {
+            "name": "@deepseek-ai/dsh-tool-terminal",
+            "version": "0.0.1-rc.5"
+          }
+        ]
+      },
+      "registryPath": "registry/dsh/terminal.json",
+      "npm": {
+        "@deepseek-ai/dsh-terminal-bash": {
+          "latestVersion": "0.0.1-rc.3",
+          "integrity": "sha512-O6SczKhyDzyJlnwjwLmBX3/rwoHjE+SNIm4AJ4qsLjDwlCZfrr+EMFT20LXobvGBUFanlDmKoOyZBOsyTrinUg==",
+          "publishedAt": "2026-08-12T20:35:47.152Z",
+          "downloadsMonth": 1237978,
+          "readme": null
+        },
+        "@deepseek-ai/dsh-tool-terminal": {
+          "latestVersion": "0.0.1-rc.5",
+          "integrity": "sha512-c/BARJ3tWoaviyy/b/8JVk97KcRyue55wE1hsw1a59k3SNDDkFp1PhQhZqIBFjfmSHUqghZLpFSa7okaQuJPIA==",
+          "publishedAt": "2026-08-12T22:38:18.942Z",
+          "downloadsMonth": 1926,
+          "readme": null
+        }
+      },
+      "readmeExcerpt": null,
+      "readme": null
+    }
+  ]
+}
