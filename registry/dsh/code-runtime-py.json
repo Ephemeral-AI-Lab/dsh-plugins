@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "code-runtime-py",
+  "source": "dsh",
+  "displayName": "Code Runtime (Python)",
+  "description": "Python execution environment behind run_code for PTC mode, as the alternative to the TypeScript worker-thread runtime. Containment, not a security boundary; bash-equivalent trust by design.",
+  "descriptionZh": "PTC 模式 run_code 的 Python 执行环境，是 TypeScript worker-thread 运行时的替代选项。隔离而非安全边界，信任级别等同 bash。",
+  "author": {
+    "name": "DeepSeek AI",
+    "url": "https://github.com/deepseek-ai"
+  },
+  "links": {
+    "repo": "https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/code-runtime",
+    "docs": "https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/code-runtime/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "stable",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {
+    "tools": [
+      "run_code"
+    ]
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "code-runtime",
+        "name": "@deepseek-ai/dsh-code-runtime-python",
+        "activation": "profile-patch",
+        "npm": {
+          "spec": "@deepseek-ai/dsh-code-runtime-python"
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "code-execution"
+  ],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [
+      {
+        "name": "@deepseek-ai/dsh-code-runtime-python",
+        "version": "0.1.0-rc.8"
+      }
+    ]
+  }
+}

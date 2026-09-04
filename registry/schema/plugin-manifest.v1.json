@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Ephemeral-AI-Lab/dsh-plugins/main/registry/schema/plugin-manifest.v1.json",
+  "title": "DSH / Mayfly plugin marketplace manifest (v1)",
+  "description": "Discovery- and install-time metadata for a marketplace entry. The runtime contract remains the npm/GitHub package plus its cordis.patch.yml; this manifest never participates in runtime loading.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "source",
+    "displayName",
+    "description",
+    "descriptionZh",
+    "author",
+    "links",
+    "license",
+    "category",
+    "status",
+    "surfaces",
+    "install"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "maxLength": 64,
+      "description": "Unique marketplace slug used by `/plugin install <id>`."
+    },
+    "source": {
+      "enum": ["official", "dsh", "community"],
+      "description": "Trust tier. Must match the manifest's directory: registry/official, registry/dsh, registry/community."
+    },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "description": { "type": "string", "minLength": 10, "maxLength": 300 },
+    "descriptionZh": { "type": "string", "minLength": 10, "maxLength": 300 },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "url": { "type": "string", "maxLength": 300 }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "type": "string" },
+        "docs": { "type": "string" },
+        "npm": { "type": "string" }
+      }
+    },
+    "license": { "type": "string", "maxLength": 32 },
+    "category": {
+      "enum": ["tools", "ui", "provider", "workflow", "testing", "integration"]
+    },
+    "status": {
+      "enum": ["stable", "beta", "unstable", "deprecated", "removed"],
+      "description": "removed = tombstone: keep the file, never delete an entry that was ever listed."
+    },
+    "statusNote": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Required when status is deprecated or removed: reason shown to users who already installed it."
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "What the plugin contributes. Value in a frontend = has server OR has that frontend's own contribution.",
+      "properties": {
+        "server": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {}
+        },
+        "web": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["clientModule"],
+          "properties": {
+            "clientModule": { "type": "boolean" }
+          }
+        },
+        "tui": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["contributions"],
+          "properties": {
+            "contributions": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": ["panes", "status", "overlays", "editorExtensions"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "provides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "commands": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^/[a-z0-9-]+$" }
+        }
+      }
+    },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered install units. A row maps to one package passed to `dsh plugin --profile <name> add <spec>`; multiple rows of one entry install together.",
+          "items": { "$ref": "#/definitions/installRow" }
+        }
+      }
+    },
+    "engines": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dsh": { "type": "string", "description": "Semver range for the DeepSeek Harness runtime." },
+        "mayfly": { "type": "string", "description": "Required when surfaces.tui is declared." },
+        "node": { "type": "string" }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 40 },
+      "description": "Human-review disclosure (e.g. shell, network, fs-read, credentials). Not a runtime permission."
+    },
+    "verified": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "packages"],
+      "properties": {
+        "at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "packages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version"],
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": "string" },
+              "integrity": {
+                "type": "string",
+                "pattern": "^sha512-[a-z0-9+/=]+$"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "installRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "anyOf": [{ "required": ["npm"] }, { "required": ["github"] }],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "cordis patch row id, when the entry wants a specific one."
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-._~]+$",
+          "description": "Runtime package name (the dsh.profile.bundles reconcile key)."
+        },
+        "activation": {
+          "enum": ["bundle", "profile-patch"],
+          "default": "bundle",
+          "description": "bundle: the package declares dsh.bundle.patch and dsh activates it on install. profile-patch: the installer must also insert an {id, name, config?} row into the profile's cordis.patch.yml (used by @deepseek-ai optional plugins that ship no patch of their own)."
+        },
+        "config": {
+          "type": "object",
+          "description": "Default config for the profile patch row; only used with activation=profile-patch."
+        },
+        "npm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["spec"],
+          "properties": {
+            "spec": {
+              "type": "string",
+              "description": "pnpm spec passed to dsh plugin add, e.g. `dsh-loop` or `dsh-loop@0.1.4`."
+            }
+          }
+        },
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repo", "ref"],
+          "properties": {
+            "repo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "ref": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "Commit SHA (community entries pin one at review), tag, or branch."
+            },
+            "subdir": {
+              "type": "string",
+              "pattern": "^[^/].*$",
+              "description": "Monorepo subdirectory; installed as `github:<repo>#<ref>&path:<subdir>`."
+            }
+          }
+        }
+      }
+    }
+  }
+}

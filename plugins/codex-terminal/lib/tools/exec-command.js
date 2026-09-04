@@ -1,0 +1,58 @@
+import { defineTool } from '@deepseek-ai/dsh-tools';
+export function registerExecCommandTool(ctx, service) {
+    ctx.tools.register(defineTool({
+        name: 'exec_command',
+        description: 'Run a command in the host shell and return output or a background job ID for ongoing interaction.',
+        parameters: {
+            cmd: { type: 'string', required: true, description: 'Shell command to execute.' },
+            workdir: { type: 'string', description: 'Working directory for the command.' },
+            yield_time_ms: { type: 'number', description: 'Maximum time to wait before returning a live background job ID. Defaults to 10000 ms.' },
+            max_output_tokens: { type: 'number', description: 'Approximate output-page token budget. Defaults to the configured page size; larger requests are capped at the configured maximum.' },
+        },
+        output: {
+            schema: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    output: { type: 'string', required: true },
+                    wall_time_seconds: { type: 'number', required: true },
+                    job_id: { type: 'string' },
+                    exit_code: { type: 'integer' },
+                    chunk_id: { type: 'string' },
+                    original_token_count: { type: 'integer' },
+                    truncated: { type: 'boolean' },
+                },
+            },
+            render: (_args, value) => [{ type: 'text', text: renderOutput(value) }],
+        },
+        async execute(args, exec) {
+            validateCommandArgs(args);
+            return service.exec({
+                owner: service.ownerFor(exec.agent),
+                ...exec.agent === undefined ? {} : { jobOwner: exec.agent },
+                cmd: args.cmd,
+                ...args.workdir === undefined ? {} : { workdir: args.workdir },
+                ...args.yield_time_ms === undefined ? {} : { yieldTimeMs: args.yield_time_ms },
+                ...args.max_output_tokens === undefined ? {} : { maxOutputTokens: args.max_output_tokens },
+                signal: exec.signal,
+            });
+        },
+        presentCall: args => ({ card: 'terminal', title: args.cmd, ...args.workdir === undefined ? {} : { cwd: args.workdir } }),
+    }));
+}
+function validateCommandArgs(args) {
+    if (args.cmd.trim().length === 0)
+        throw new Error('cmd must be a non-empty string');
+    if (args.yield_time_ms !== undefined && (!Number.isFinite(args.yield_time_ms) || args.yield_time_ms < 0)) {
+        throw new Error('yield_time_ms must be a non-negative finite number');
+    }
+    if (args.max_output_tokens !== undefined && (!Number.isFinite(args.max_output_tokens) || args.max_output_tokens <= 0)) {
+        throw new Error('max_output_tokens must be a positive finite number');
+    }
+}
+function renderOutput(value) {
+    const job = value.job_id === undefined ? '' : `\n[job_id: ${value.job_id}]`;
+    const marker = value.exit_code !== undefined && value.exit_code !== 0 ? `\n[exit code: ${value.exit_code}]` : '';
+    return value.output + job + marker;
+}
+//# sourceMappingURL=exec-command.js.map

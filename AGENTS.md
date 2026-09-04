@@ -71,18 +71,47 @@ details.
 
 ```text
 dsh-plugins/
-├── codex-terminal/       Persistent exec_command/write_stdin tools
-├── coding-plan/          Codex and Grok subscription providers
-├── loop/                 Recurring prompts and loop UI
-├── mock/                 Deterministic model/replay testing
-├── preset-builder/       Preset configuration UI
-├── sessions/             Session discovery and messaging
-└── docs/                 Architecture, tool references, and how-to guides
+├── plugins/              Official plugin sources (independently buildable packages)
+│   ├── codex-terminal/   Persistent exec_command/write_stdin tools
+│   ├── coding-plan/      Codex and Grok subscription providers
+│   ├── loop/             Recurring prompts and loop UI
+│   ├── mock/             Deterministic model/replay testing
+│   ├── preset-builder/   Preset configuration UI
+│   ├── sessions/         Session discovery and messaging
+│   ├── sidechat/         Web workbench side-chat panel
+│   └── work-bench-ui/    Web workbench frame
+├── registry/             Marketplace manifests (see docs/market.md)
+│   ├── schema/           plugin-manifest.v1.json
+│   ├── official/         one manifest per Ephemeral AI Lab plugin
+│   ├── dsh/              DeepSeek optional plugin listings
+│   ├── community/        third-party submissions (PR-reviewed)
+│   ├── submission-template.json
+│   └── review-checklist.md
+├── scripts/              validate-manifests / verify-packages / build-index
+├── dist/                 generated index.json + catalog.json (workflow-owned)
+└── docs/                 Architecture, tool references, how-to guides, market spec
 ```
 
 Each plugin is an independently buildable package. Its `cordis.patch.yml` is
 part of the runtime contract. Treat `package.json`, the patch, source, tests,
 and generated `lib/` output as one package workflow.
+
+## Marketplace rules
+
+- Registry manifests are discovery/install metadata only; never make them a
+  runtime dependency. The manifest spec is `docs/market.md`.
+- `dist/` is generated. Never edit it by hand; the `index-publish` workflow
+  owns it through an auto-merged PR.
+- Every registry change must pass `node scripts/validate-manifests.mjs` and
+  `node scripts/verify-packages.mjs` (the latter scratch-installs npm and
+  GitHub sources; run with `--skip-install` offline).
+- Official plugins install from GitHub (`github:...#main&path:plugins/<name>`)
+  because the `dsh-*` npm names are currently unpublished. Their `lib/` build
+  output is committed on purpose — git installs fetch sources, so rebuild and
+  re-commit `lib/` when releasing a plugin. Plugins without committed `lib/`
+  (none today) must not declare a GitHub source.
+- When moving or renaming a plugin directory, update the matching manifest's
+  `install.rows[].github.subdir` in the same change.
 
 ## Local plugin workflow
 

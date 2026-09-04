@@ -42,13 +42,13 @@ maintain a parallel index or copy the log into another file.
 
 The implementation is split across:
 
-- [`sessions/src/service.ts`](../sessions/src/service.ts): merges live and
+- [`sessions/src/service.ts`](../plugins/sessions/src/service.ts): merges live and
   persisted sessions and exposes the backend-owned log path;
-- [`sessions/src/tools/session-status.ts`](../sessions/src/tools/session-status.ts):
+- [`sessions/src/tools/session-status.ts`](../plugins/sessions/src/tools/session-status.ts):
   registers the model-facing status tool;
-- [`sessions/src/creation-service.ts`](../sessions/src/creation-service.ts):
+- [`sessions/src/creation-service.ts`](../plugins/sessions/src/creation-service.ts):
   creates fresh sessions and queues their initial prompt;
-- [`sessions/cordis.patch.yml`](../sessions/cordis.patch.yml): configures the
+- [`sessions/cordis.patch.yml`](../plugins/sessions/cordis.patch.yml): configures the
   plain JSONL persistence backend.
 
 ## 3. On-disk format
@@ -254,7 +254,7 @@ session_create({
 The selected `cwd` is canonicalized before it is written into the session
 header. When a child is created by an existing agent, the parent location and
 model/preset context may be inherited according to the creation contract in
-[`sessions/SPEC.md`](../sessions/SPEC.md).
+[`sessions/SPEC.md`](../plugins/sessions/SPEC.md).
 
 Persistence may materialize a session lazily. A path returned by the backend is
 a target location, not a guarantee that the file already exists at the exact

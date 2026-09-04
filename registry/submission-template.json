@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "my-plugin",
+  "source": "community",
+  "displayName": "My Plugin",
+  "description": "One or two sentences: what the plugin adds for the agent or the UI.",
+  "descriptionZh": "一两句话：插件为 Agent 或界面增加了什么。",
+  "author": { "name": "Your Name", "url": "https://github.com/your-name" },
+  "links": {
+    "repo": "https://github.com/your-name/your-plugin-repo",
+    "docs": "https://github.com/your-name/your-plugin-repo/blob/main/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": { "server": {} },
+  "provides": { "tools": ["my_tool"], "commands": ["/my-plugin"] },
+  "install": {
+    "rows": [
+      {
+        "id": "my-plugin",
+        "name": "your-npm-package-name",
+        "npm": { "spec": "your-npm-package-name" },
+        "github": {
+          "repo": "your-name/your-plugin-repo",
+          "ref": "<commit-sha>",
+          "subdir": "."
+        }
+      }
+    ]
+  },
+  "engines": { "node": ">=22" },
+  "capabilities": ["fs-read"],
+  "verified": {
+    "at": "1970-01-01",
+    "packages": [{ "name": "your-npm-package-name", "version": "0.0.0" }]
+  }
+}

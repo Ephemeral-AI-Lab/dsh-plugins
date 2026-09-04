@@ -1,0 +1,35 @@
+name: registry-validate
+
+on:
+  pull_request:
+    paths:
+      - 'registry/**'
+      - 'scripts/**'
+      - 'plugins/**'
+      - '.github/workflows/registry-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.21.0 --activate
+      - name: Validate manifests (fast local gate)
+        run: node scripts/validate-manifests.mjs
+      - name: Validate manifests (JSON Schema via ajv)
+        run: |
+          npx --yes ajv-cli@5 validate \
+            -s registry/schema/plugin-manifest.v1.json \
+            -d 'registry/official/*.json' -d 'registry/dsh/*.json' -d 'registry/community/*.json' \
+            --spec=draft07
+      - name: Verify install sources (npm tarballs + GitHub scratch installs)
+        run: node scripts/verify-packages.mjs --github-ref "${{ github.head_ref || 'main' }}"
+      - name: Smoke-build the index
+        run: node scripts/build-index.mjs --out /tmp/dist-smoke

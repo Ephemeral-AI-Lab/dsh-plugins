@@ -1,0 +1,1 @@
+{"version":3,"file":"replay-input.d.ts","sourceRoot":"","sources":["../../src/replay-input.ts"],"names":[],"mappings":"AAEA;;;;;GAKG;AACH,qBAAa,gBAAiB,SAAQ,KAAK;IACzC,QAAQ,CAAC,IAAI,yBAAwB;IACrC,QAAQ,CAAC,IAAI,EAAE,MAAM,CAAA;gBAET,IAAI,EAAE,MAAM;CAKzB;AAED,8EAA8E;AAC9E,wBAAsB,eAAe,CAAC,IAAI,EAAE,MAAM,EAAE,MAAM,CAAC,EAAE,WAAW,GAAG,OAAO,CAAC,MAAM,CAAC,CAIzF"}

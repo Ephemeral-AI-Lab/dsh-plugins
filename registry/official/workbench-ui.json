@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "workbench-ui",
+  "source": "official",
+  "displayName": "Workbench UI",
+  "description": "The Web workbench frame: provides the workbench client service that other Web plugins (like Sidechat) register tabs into. Web-only; install it before plugins that depend on it.",
+  "descriptionZh": "Web 端工作台框架：提供 workbench client 服务，供 Sidechat 等插件注册标签页。仅 Web 端；需先于依赖它的插件安装。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/work-bench-ui",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/work-bench-ui/README.md"
+  },
+  "license": "MIT",
+  "category": "ui",
+  "status": "beta",
+  "surfaces": { "web": { "clientModule": true } },
+  "provides": {},
+  "install": {
+    "rows": [
+      {
+        "id": "workbench-ui",
+        "name": "dsh-workbench-ui",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/work-bench-ui" }
+      }
+    ]
+  },
+  "capabilities": [],
+  "verified": {
+    "at": "2026-09-04",
+    "packages": [{ "name": "dsh-workbench-ui", "version": "0.1.0" }]
+  }
+}
