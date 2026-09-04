@@ -3,7 +3,7 @@
 Status: proposed v1.
 
 This document is the normative design for the `dsh-sidechat` plugin under
-`dsh-plugins/sidechat`. The words MUST, MUST NOT, SHOULD, and SHOULD NOT define
+`dsh-plugins/plugins/sidechat`. The words MUST, MUST NOT, SHOULD, and SHOULD NOT define
 requirements and defaults.
 
 Sidechat is a temporary, user-operated conversation that reads an immutable
@@ -532,7 +532,7 @@ or full inherited conversation content.
 The implementation belongs in:
 
 ```text
-dsh-plugins/sidechat/
+dsh-plugins/plugins/sidechat/
 ├── README.md
 ├── SPEC.md
 ├── package.json

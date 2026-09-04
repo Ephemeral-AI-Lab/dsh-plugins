@@ -3,7 +3,7 @@
 Date: 2026-08-17 (Asia/Shanghai)
 
 Scope: external plugin at
-`C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock`, loaded by
+`C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock`, loaded by
 the unmodified DSH web host at
 `C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness`.
 

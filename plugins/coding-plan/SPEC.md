@@ -42,8 +42,7 @@ delegate work from Grok to Codex.
 ## 2. Goals
 
 - Keep every coding-plan provider under one repository workspace.
-- Use one `pnpm-lock.yaml` and one resolved pi-ai version for coding-plan
-  packages.
+- Use one resolved pi-ai version across the private coding-plan packages.
 - Align the DSH host's `llm-pi-ai` dependency to that same pi-ai version.
 - Share file-backed OAuth cache handling in `coding-plan/core`.
 - Keep Codex and Grok auth formats isolated behind thin provider adapters.
@@ -104,10 +103,8 @@ be the sole owner of that row.
 ## 5. Target layout
 
 ```text
-dsh-plugins/coding-plan/
+dsh-plugins/plugins/coding-plan/
 ├── package.json                 # private workspace root and combined DSH bundle
-├── pnpm-workspace.yaml
-├── pnpm-lock.yaml               # single lockfile for all coding-plan packages
 ├── README.md
 ├── SPEC.md
 ├── models.json                  # machine-readable model/effort offering table
@@ -148,7 +145,7 @@ is the only package that declares a DSH bundle patch.
 The profile installs one package:
 
 ```sh
-dsh plugin --profile web add ./coding-plan
+dsh plugin --profile web add ./plugins/coding-plan
 ```
 
 The root package depends on the `codex` and `grok` packages as ordinary local
@@ -290,9 +287,9 @@ would still leave the DSH host with a second runtime catalog.
 The dependency invariant is:
 
 ```text
-coding-plan/core       ┐
-coding-plan/codex      ├── @earendil-works/pi-ai = one pinned version
-coding-plan/grok       ┘
+plugins/coding-plan/core       ┐
+plugins/coding-plan/codex      ├── @earendil-works/pi-ai = one pinned version
+plugins/coding-plan/grok       ┘
 DSH llm-pi-ai          ─── same pinned version
 ```
 
@@ -409,8 +406,8 @@ token values remain Host-side.
 
 ### Workspace and dependency checks
 
-- `coding-plan` has one `pnpm-lock.yaml`.
-- `coding-plan/core`, `codex`, and `grok` resolve one pi-ai version.
+- `coding-plan/core`, `codex`, and `grok` each resolve the same pi-ai version
+  from their private package lockfiles.
 - DSH `llm-pi-ai` resolves that same pi-ai version.
 - No child package independently owns an installable DSH patch for
   `llm-pi-ai`.

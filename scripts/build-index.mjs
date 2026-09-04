@@ -101,9 +101,41 @@ function localReadmeFor (manifest) {
   return null
 }
 
+function localPackageInfoFor (manifest, row) {
+  if (row.github?.repo !== 'Ephemeral-AI-Lab/dsh-plugins' || !row.github.subdir) {
+    return emptyNpmInfo()
+  }
+  const packagePath = join(root, row.github.subdir, 'package.json')
+  if (!existsSync(packagePath)) return emptyNpmInfo()
+  const packageJson = JSON.parse(readFileSync(packagePath, 'utf8'))
+  const verifiedVersion = verifiedVersionFor(manifest, row.name)
+  return {
+    ...emptyNpmInfo(),
+    latestVersion: typeof packageJson.version === 'string' ? packageJson.version : null,
+    updateAvailable: verifiedVersion !== null && typeof packageJson.version === 'string' &&
+      packageJson.version !== verifiedVersion,
+    readme: localReadmeFor(manifest)
+  }
+}
+
 function plainExcerpt (readme) {
   if (!readme) return null
   return readme.slice(0, README_EXCERPT_CHARS)
+}
+
+function emptyNpmInfo () {
+  return {
+    latestVersion: null,
+    integrity: null,
+    publishedAt: null,
+    downloadsMonth: null,
+    readme: null,
+    updateAvailable: false
+  }
+}
+
+function verifiedVersionFor (manifest, name) {
+  return manifest.verified?.packages?.find(pkg => pkg.name === name)?.version ?? null
 }
 
 const records = loadManifests()
@@ -124,16 +156,21 @@ for (const { manifest, tier, path } of records) {
   let readme = null
   for (const row of manifest.install.rows) {
     if (row.npm) {
-      const info = npmInfo.get(row.name)
-      if (!info) throw new Error(`${manifest.id}: row ${row.name} has npm source but no registry data`)
-      packages[row.name] = info
+      const info = npmInfo.get(row.name) ?? emptyNpmInfo()
+      const verifiedVersion = verifiedVersionFor(manifest, row.name)
+      packages[row.name] = {
+        ...info,
+        updateAvailable: !offline && verifiedVersion !== null &&
+          info.latestVersion !== null && info.latestVersion !== verifiedVersion
+      }
       if (readme === null) readme = info.readme
     } else if (row.github) {
-      packages[row.name] = { latestVersion: null, integrity: null, publishedAt: null, downloadsMonth: null, readme: null }
-      if (readme === null) readme = localReadmeFor(manifest)
+      packages[row.name] = localPackageInfoFor(manifest, row)
+      if (readme === null) readme = packages[row.name].readme
     }
   }
   entry.npm = packages
+  entry.updateAvailable = Object.values(packages).some(pkg => pkg.updateAvailable === true)
   entry.readmeExcerpt = plainExcerpt(readme)
   entry.readme = readme
   entries.push(entry)

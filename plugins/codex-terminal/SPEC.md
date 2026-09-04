@@ -221,7 +221,7 @@ The plugin must be loadable from a compiled absolute module path in a Cordis con
 ~~~yaml
 - insert:
     - id: codex-terminal
-      name: '/absolute/path/to/dsh-plugins/codex-terminal/lib/index.js'
+      name: '/absolute/path/to/dsh-plugins/plugins/codex-terminal/lib/index.js'
 ~~~
 
 ## 5. Package layout

@@ -40,9 +40,9 @@
     "dsh-coding-plan-core": "link:../core"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
-    "@deepseek-ai/dsh-atomic-write": "link:../../../deepseek-harness/packages/util/atomic-write",
-    "@deepseek-ai/dsh-credentials": "link:../../../deepseek-harness/packages/credentials/credentials",
+    "@deepseek-ai/cordis": "link:../../../../deepseek-harness/vendor/cordis",
+    "@deepseek-ai/dsh-atomic-write": "link:../../../../deepseek-harness/packages/util/atomic-write",
+    "@deepseek-ai/dsh-credentials": "link:../../../../deepseek-harness/packages/credentials/credentials",
     "@types/node": "^22.20.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

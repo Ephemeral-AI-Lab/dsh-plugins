@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git",
-    "directory": "work-bench-ui"
+    "directory": "plugins/work-bench-ui"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -58,13 +58,13 @@
     "react": ">=18.2.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "link:../../deepseek-harness/vendor/cordis",
-    "@deepseek-ai/dsh-client-runtime": "link:../../deepseek-harness/packages/client/runtime",
-    "@deepseek-ai/dsh-client-ui-conversation": "link:../../deepseek-harness/packages/client/ui-conversation",
-    "@deepseek-ai/dsh-client-ui-layout": "link:../../deepseek-harness/packages/client/ui-layout",
-    "@deepseek-ai/dsh-client-ui-primitives": "link:../../deepseek-harness/packages/client/ui-primitives",
-    "@deepseek-ai/dsh-client-ui-slots": "link:../../deepseek-harness/packages/client/ui-slots",
-    "@deepseek-ai/dsh-session-log-export": "link:../../deepseek-harness/packages/session-query/session-log-export",
+    "@deepseek-ai/cordis": "link:../../../deepseek-harness/vendor/cordis",
+    "@deepseek-ai/dsh-client-runtime": "link:../../../deepseek-harness/packages/client/runtime",
+    "@deepseek-ai/dsh-client-ui-conversation": "link:../../../deepseek-harness/packages/client/ui-conversation",
+    "@deepseek-ai/dsh-client-ui-layout": "link:../../../deepseek-harness/packages/client/ui-layout",
+    "@deepseek-ai/dsh-client-ui-primitives": "link:../../../deepseek-harness/packages/client/ui-primitives",
+    "@deepseek-ai/dsh-client-ui-slots": "link:../../../deepseek-harness/packages/client/ui-slots",
+    "@deepseek-ai/dsh-session-log-export": "link:../../../deepseek-harness/packages/session-query/session-log-export",
     "@types/node": "^22.20.0",
     "@types/react": "^18.3.1",
     "@testing-library/react": "^16.3.0",

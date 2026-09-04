@@ -6,7 +6,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git",
-    "directory": "sessions"
+    "directory": "plugins/sessions"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -52,12 +52,12 @@
     "@deepseek-ai/dsh-tools": ">=0.1.0-rc.5"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-agent": "link:../../deepseek-harness/packages/core/agent",
-    "@deepseek-ai/dsh-agent-default-model": "link:../../deepseek-harness/packages/core/agent-default-model",
-    "@deepseek-ai/dsh-agent-presets": "link:../../deepseek-harness/packages/preset/agent-presets",
-    "@deepseek-ai/dsh-llm": "link:../../deepseek-harness/packages/llm/llm",
-    "@deepseek-ai/dsh-session": "link:../../deepseek-harness/packages/core/session",
-    "@deepseek-ai/dsh-workspace": "link:../../deepseek-harness/packages/workspace/workspace",
+    "@deepseek-ai/dsh-agent": "link:../../../deepseek-harness/packages/core/agent",
+    "@deepseek-ai/dsh-agent-default-model": "link:../../../deepseek-harness/packages/core/agent-default-model",
+    "@deepseek-ai/dsh-agent-presets": "link:../../../deepseek-harness/packages/preset/agent-presets",
+    "@deepseek-ai/dsh-llm": "link:../../../deepseek-harness/packages/llm/llm",
+    "@deepseek-ai/dsh-session": "link:../../../deepseek-harness/packages/core/session",
+    "@deepseek-ai/dsh-workspace": "link:../../../deepseek-harness/packages/workspace/workspace",
     "@types/node": "^22.20.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

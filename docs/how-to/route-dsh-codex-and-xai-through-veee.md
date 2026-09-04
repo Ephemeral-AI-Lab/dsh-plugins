@@ -130,7 +130,7 @@ export VEEE_HTTP_PROXY=http://127.0.0.1:NEW_PORT
 The local plugin is:
 
 ```text
-/Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/coding-plan/codex
+/Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/plugins/coding-plan/codex
 ```
 
 Configure Codex to keep its login in the file-backed credential store. Add to
@@ -147,7 +147,7 @@ codex login
 codex login status
 
 dsh plugin --profile web add \
-  /Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/coding-plan/codex
+  /Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/plugins/coding-plan/codex
 ```
 
 Start or restart the DSH Web host through the proxy-aware wrapper:

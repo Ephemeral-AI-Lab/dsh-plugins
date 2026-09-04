@@ -35,7 +35,7 @@ target profile:
 
 ~~~powershell
 pnpm build
-dsh plugin --profile web add C:\path\to\dsh-plugins\sessions
+dsh plugin --profile web add C:\path\to\dsh-plugins\plugins\sessions
 ~~~
 
 ## 3. Quick start

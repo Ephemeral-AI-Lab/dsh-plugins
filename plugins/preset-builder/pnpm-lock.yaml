@@ -13,20 +13,20 @@ importers:
         version: 4.0.1
     devDependencies:
       '@deepseek-ai/dsh-api-remotes':
-        specifier: link:../../deepseek-harness/packages/api/remotes
-        version: link:../../deepseek-harness/packages/api/remotes
+        specifier: link:../../../deepseek-harness/packages/api/remotes
+        version: link:../../../deepseek-harness/packages/api/remotes
       '@deepseek-ai/dsh-client-locale':
-        specifier: link:../../deepseek-harness/packages/client/locale
-        version: link:../../deepseek-harness/packages/client/locale
+        specifier: link:../../../deepseek-harness/packages/client/locale
+        version: link:../../../deepseek-harness/packages/client/locale
       '@deepseek-ai/dsh-client-runtime':
-        specifier: link:../../deepseek-harness/packages/client/runtime
-        version: link:../../deepseek-harness/packages/client/runtime
+        specifier: link:../../../deepseek-harness/packages/client/runtime
+        version: link:../../../deepseek-harness/packages/client/runtime
       '@deepseek-ai/dsh-client-ui-settings':
-        specifier: link:../../deepseek-harness/packages/client/ui-settings
-        version: link:../../deepseek-harness/packages/client/ui-settings
+        specifier: link:../../../deepseek-harness/packages/client/ui-settings
+        version: link:../../../deepseek-harness/packages/client/ui-settings
       '@deepseek-ai/dsh-client-ui-slots':
-        specifier: link:../../deepseek-harness/packages/client/ui-slots
-        version: link:../../deepseek-harness/packages/client/ui-slots
+        specifier: link:../../../deepseek-harness/packages/client/ui-slots
+        version: link:../../../deepseek-harness/packages/client/ui-slots
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

@@ -25,7 +25,7 @@ the `loop` monorepo path, then delegate the package change to the official DSH
 CLI. A direct fixed-source spec has this shape:
 
 ~~~powershell
-dsh plugin --profile web add "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git#<40-character-commit>&path:loop"
+dsh plugin --profile web add "git+https://github.com/Ephemeral-AI-Lab/dsh-plugins.git#<40-character-commit>&path:plugins/loop"
 ~~~
 
 The plugin is installed into the selected DSH profile. Restart DSH and create

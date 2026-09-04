@@ -18,7 +18,8 @@
     "category",
     "status",
     "surfaces",
-    "install"
+    "install",
+    "verified"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -168,7 +169,7 @@
               "version": { "type": "string" },
               "integrity": {
                 "type": "string",
-                "pattern": "^sha512-[a-z0-9+/=]+$"
+                "pattern": "^sha512-[A-Za-z0-9+/=]+$"
               }
             }
           }
@@ -176,6 +177,17 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": { "enum": ["deprecated", "removed"] }
+        }
+      },
+      "then": { "required": ["statusNote"] }
+    }
+  ],
   "definitions": {
     "installRow": {
       "type": "object",

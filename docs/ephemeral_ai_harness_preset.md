@@ -203,7 +203,7 @@ dsh plugin --profile web add dsh-codex-terminal@0.1.3
 For local development, the profile currently links the package checkout:
 
 ```text
-/Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/codex-terminal
+/Users/yifanxu/Ephemeral-AI-Lab/dsh-plugins/plugins/codex-terminal
 ```
 
 The package's bundle patch inserts a Host-level `codex-terminal` row. The Web profile override disables that global row so the user preset can mount exactly one agent-scoped instance.

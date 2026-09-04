@@ -18,8 +18,8 @@ its state.
 Install `dsh-workbench-ui` first, then this package:
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/dsh-plugins/work-bench-ui
-dsh plugin --profile web add /absolute/path/to/dsh-plugins/sidechat
+dsh plugin --profile web add /absolute/path/to/dsh-plugins/plugins/work-bench-ui
+dsh plugin --profile web add /absolute/path/to/dsh-plugins/plugins/sidechat
 ```
 
 Restart Web and refresh the browser after building client code.

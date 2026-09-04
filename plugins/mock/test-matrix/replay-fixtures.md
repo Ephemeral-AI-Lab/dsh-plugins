@@ -5,7 +5,7 @@ backend. The source tree below was inspected but not modified.
 
 ```text
 DSH source: C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness
-Plugin:     C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock
+Plugin:     C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock
 ```
 
 These are canonical `dsh-mock-script` bodies, not ACP `input.json` wrappers or

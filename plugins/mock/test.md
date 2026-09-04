@@ -2,7 +2,7 @@
 
 Status: test-plan authoring document for the multi-step mock/replay contract.
 The system under test is the external DSH plugin in
-C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock.
+C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock.
 
 This document specifies tests; it does not authorize changes to
 deepseek-harness or to any file other than this document. The implementation
@@ -699,7 +699,7 @@ portable fixture paths elsewhere.
 Run package checks from the plugin directory:
 
 ~~~powershell
-Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock
+Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock
 pnpm typecheck
 pnpm build
 pnpm test

@@ -11,7 +11,7 @@ through the real DSH agent loop and tool runtime.
 The implementation lives at:
 
 ```text
-C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock
+C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock
 ```
 
 No implementation step covered by this specification may modify the

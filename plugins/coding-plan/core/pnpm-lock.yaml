@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@deepseek-ai/dsh-atomic-write':
-        specifier: link:../../../deepseek-harness/packages/util/atomic-write
-        version: link:../../../deepseek-harness/packages/util/atomic-write
+        specifier: link:../../../../deepseek-harness/packages/util/atomic-write
+        version: link:../../../../deepseek-harness/packages/util/atomic-write
       '@earendil-works/pi-ai':
         specifier: ^0.82.1
         version: 0.82.1(ws@8.21.3)(zod@4.4.3)

@@ -276,7 +276,7 @@ are fixed and covered by tests.
 Required commands:
 
 ```powershell
-Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock
+Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock
 pnpm typecheck
 pnpm build
 pnpm test

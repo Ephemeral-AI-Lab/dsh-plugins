@@ -2,25 +2,29 @@
 /**
  * Verify that every marketplace install source actually installs.
  *
- * - npm rows: package exists on the registry, latest tarball ships
+ * - npm rows: package exists on the registry, requested tarball ships
  *   cordis.patch.yml and declares dsh.bundle.patch. Warns on install
  *   lifecycle scripts and native binaries (disclosure for review).
  * - github rows: scratch-installs the pnpm spec into a temp profile and
  *   checks the installed package declares dsh.bundle.patch. (Git sources
  *   install sources, not artifacts — this catches missing build output.)
  *
- * Usage: node scripts/verify-packages.mjs [--skip-install] [--only <id>] [--github-ref <ref>]
- * Needs pnpm on PATH for github checks (skip with --skip-install).
+ * Usage: node scripts/verify-packages.mjs [--offline] [--skip-install] [--only <id>] [--github-ref <ref>] [--github-repo <repo>]
+ * Needs network for npm checks and pnpm on PATH for github checks. Use
+ * --offline to skip both classes of remote verification; --skip-install only
+ * skips GitHub scratch installs.
  *
  * --github-ref substitutes rows pinned to "main" with another ref. CI uses it
  * on PR branches: the registry moves plugin directories, so "main" does not
  * contain the PR's tree until it merges.
+ * --github-repo substitutes the repository for rows pointing at the official
+ * monorepo. CI uses the PR head repository so fork PRs are checked correctly.
  */
 import { spawnSync } from 'node:child_process'
 import { gunzipSync } from 'node:zlib'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -28,11 +32,16 @@ const registryRoot = join(root, 'registry')
 const TIERS = ['official', 'dsh', 'community']
 
 const args = process.argv.slice(2)
+const offline = args.includes('--offline')
 const skipInstall = args.includes('--skip-install')
 const onlyFlag = args.indexOf('--only')
 const onlyId = onlyFlag !== -1 ? args[onlyFlag + 1] : null
 const githubRefFlag = args.indexOf('--github-ref')
 const githubRefOverride = githubRefFlag !== -1 ? args[githubRefFlag + 1] : null
+const githubRepoFlag = args.indexOf('--github-repo')
+const githubRepoOverride = githubRepoFlag !== -1 ? args[githubRepoFlag + 1] : null
+
+const OFFICIAL_REPO = 'Ephemeral-AI-Lab/dsh-plugins'
 
 const errors = []
 const warnings = []
@@ -68,8 +77,25 @@ function tarEntries (buffer) {
   return entries
 }
 
-async function verifyNpmRow (id, row) {
+function npmSelector (name, spec) {
+  if (typeof spec !== 'string' || (spec !== name && !spec.startsWith(`${name}@`))) {
+    return { error: `npm.spec ${JSON.stringify(spec)} does not target package ${name}` }
+  }
+  if (spec === name) return { selector: null }
+  const selector = spec.slice(name.length + 1)
+  if (selector.length === 0 || /[\\/\s]/.test(selector)) {
+    return { error: `npm.spec ${JSON.stringify(spec)} is not a supported name[@version|@tag] spec` }
+  }
+  return { selector }
+}
+
+async function verifyNpmRow (id, row, manifest) {
   const name = row.name
+  const parsed = npmSelector(name, row.npm?.spec)
+  if (parsed.error !== undefined) {
+    errors.push(`${id}: ${parsed.error}`)
+    return
+  }
   const packument = await fetchJson(`https://registry.npmjs.org/${encodeURIComponent(name)}`)
   if (packument.error === 404) {
     errors.push(`${id}: npm package ${name} not found (unpublished or typo)`)
@@ -80,58 +106,92 @@ async function verifyNpmRow (id, row) {
     errors.push(`${id}: npm package ${name} has no dist-tags.latest`)
     return
   }
-  const version = packument.versions?.[latest]
+  const selector = parsed.selector
+  const requestedVersion = selector === null
+    ? latest
+    : (packument['dist-tags']?.[selector] ?? selector)
+  const version = packument.versions?.[requestedVersion]
   const tarballUrl = version?.dist?.tarball
-  if (!tarballUrl) {
-    errors.push(`${id}: npm package ${name}@${latest} has no tarball URL`)
+  if (!version) {
+    errors.push(`${id}: npm package ${name}@${requestedVersion} does not exist`)
     return
   }
-  const spec = row.npm.spec
-  const specWithoutScope = spec.startsWith('@') ? spec.slice(1) : spec
-  const manifestVersion = specWithoutScope.includes('@') ? specWithoutScope.split('@').pop() : null
-  if (manifestVersion && manifestVersion !== latest) {
-    warnings.push(`${id}: ${name} pinned to ${manifestVersion} but registry latest is ${latest}`)
+  if (!tarballUrl) {
+    errors.push(`${id}: npm package ${name}@${requestedVersion} has no tarball URL`)
+    return
+  }
+  if (selector !== null && requestedVersion !== latest) {
+    warnings.push(`${id}: ${name} pinned to ${requestedVersion} but registry latest is ${latest}`)
   }
   const response = await fetch(tarballUrl)
   if (!response.ok) {
-    errors.push(`${id}: tarball download failed for ${name}@${latest}: HTTP ${response.status}`)
+    errors.push(`${id}: tarball download failed for ${name}@${requestedVersion}: HTTP ${response.status}`)
     return
   }
   const entries = tarEntries(Buffer.from(await response.arrayBuffer()))
   const names = entries.filter(e => e.regular).map(e => e.name)
   const has = (file) => names.includes(`package/${file}`)
   if (!has('package.json')) {
-    errors.push(`${id}: ${name}@${latest} tarball has no package.json`)
+    errors.push(`${id}: ${name}@${requestedVersion} tarball has no package.json`)
     return
   }
   const inner = JSON.parse(String.fromCharCode(...entries.find(e => e.name === 'package/package.json').data))
+  if (inner.name !== name) {
+    errors.push(`${id}: npm tarball declares package name ${JSON.stringify(inner.name)}, expected ${name}`)
+  }
+  const verified = manifest.verified?.packages?.find(pkg => pkg.name === name)
+  if (verified === undefined) {
+    errors.push(`${id}: no verified package record for ${name}`)
+  } else if (verified.version !== requestedVersion) {
+    warnings.push(`${id}: ${name}@${requestedVersion} differs from verified ${verified.version} (updateAvailable)`)
+  } else if (verified.integrity !== undefined && verified.integrity !== version.dist?.integrity) {
+    errors.push(`${id}: ${name}@${requestedVersion} integrity differs from verified metadata`)
+  }
   if (row.activation === 'profile-patch') {
     // Activated by an installer-inserted profile patch row; the tarball is not
     // expected to self-declare.
-    console.log(`ok: ${id} npm ${name}@${latest} (activation=profile-patch)`)
+    console.log(`ok: ${id} npm ${name}@${requestedVersion} (activation=profile-patch)`)
   } else {
-    if (inner.dsh?.bundle?.patch === undefined) {
-      errors.push(`${id}: ${name}@${latest} declares no dsh.bundle.patch — dsh would install it as a plain dependency`)
+    const patch = inner.dsh?.bundle?.patch
+    if (typeof patch !== 'string' || patch.length === 0) {
+      errors.push(`${id}: ${name}@${requestedVersion} declares no dsh.bundle.patch — dsh would install it as a plain dependency`)
+    } else {
+      const normalizedPatch = patch.replace(/^\.\/+/, '')
+      if (normalizedPatch.startsWith('../') || normalizedPatch.includes('/../') ||
+          !names.includes(`package/${normalizedPatch}`)) {
+        errors.push(`${id}: ${name}@${requestedVersion} dsh.bundle.patch ${JSON.stringify(patch)} is not in the tarball`)
+      }
     }
     if (!has('cordis.patch.yml')) {
-      errors.push(`${id}: ${name}@${latest} tarball ships no cordis.patch.yml`)
+      errors.push(`${id}: ${name}@${requestedVersion} tarball ships no cordis.patch.yml`)
     }
   }
   for (const script of ['preinstall', 'postinstall', 'prepare']) {
     if (inner.scripts?.[script] !== undefined) {
-      warnings.push(`${id}: ${name}@${latest} runs a ${script} script on install`)
+      warnings.push(`${id}: ${name}@${requestedVersion} runs a ${script} script on install`)
     }
   }
   if (names.some(n => n.endsWith('.node'))) {
-    warnings.push(`${id}: ${name}@${latest} ships native binaries`)
+    warnings.push(`${id}: ${name}@${requestedVersion} ships native binaries`)
   }
-  console.log(`ok: ${id} npm ${name}@${latest}`)
+  console.log(`ok: ${id} npm ${name}@${requestedVersion}`)
+}
+
+function githubRepo (row) {
+  return githubRepoOverride !== null && row.github.repo === OFFICIAL_REPO
+    ? githubRepoOverride
+    : row.github.repo
+}
+
+function githubRef (row) {
+  return githubRefOverride !== null && row.github.ref === 'main'
+    ? githubRefOverride
+    : row.github.ref
 }
 
 function githubSpec (row) {
-  const { repo, ref, subdir } = row.github
-  const effectiveRef = githubRefOverride !== null && ref === 'main' ? githubRefOverride : ref
-  return `github:${repo}#${effectiveRef}${subdir ? `&path:${subdir}` : ''}`
+  const { subdir } = row.github
+  return `github:${githubRepo(row)}#${githubRef(row)}${subdir ? `&path:${subdir}` : ''}`
 }
 
 function verifyGithubEntry (id, manifest) {
@@ -152,7 +212,7 @@ function verifyGithubEntry (id, manifest) {
     // the only way sibling packages satisfy each other's peer dependencies.
     const result = spawnSync('pnpm', ['add', ...specs], { cwd: dir, encoding: 'utf8', timeout: 240_000 })
     if (result.status !== 0) {
-      const tail = (result.stdout + result.stderr).split('\n').filter(Boolean).slice(-5).join(' | ')
+      const tail = `${result.stdout ?? ''}${result.stderr ?? ''}`.split('\n').filter(Boolean).slice(-5).join(' | ')
       errors.push(`${id}: github scratch install failed for ${specs.join(' ')}: ${tail}`)
       return
     }
@@ -162,17 +222,35 @@ function verifyGithubEntry (id, manifest) {
         errors.push(`${id}: github install produced no node_modules/${row.name}`)
         continue
       }
+      const packageDir = join(dir, 'node_modules', row.name)
       const installed = JSON.parse(readFileSync(installedPath, 'utf8'))
-      if (installed.dsh?.bundle?.patch === undefined) {
+      const verified = manifest.verified?.packages?.find(pkg => pkg.name === row.name)
+      if (verified === undefined) {
+        errors.push(`${id}: no verified package record for ${row.name}`)
+      } else if (verified.version !== installed.version) {
+        warnings.push(`${id}: ${row.name}@${installed.version} differs from verified ${verified.version} (updateAvailable)`)
+      }
+      const patch = installed.dsh?.bundle?.patch
+      if (typeof patch !== 'string' || patch.length === 0) {
         errors.push(`${id}: github-installed ${row.name}@${installed.version} declares no dsh.bundle.patch`)
         continue
       }
+      const packageRoot = resolve(packageDir)
+      const patchPath = resolve(packageDir, patch)
+      if (patchPath !== packageRoot && !patchPath.startsWith(`${packageRoot}${sep}`)) {
+        errors.push(`${id}: github-installed ${row.name}@${installed.version} has an unsafe dsh.bundle.patch path`)
+        continue
+      }
+      if (!existsSync(patchPath)) {
+        errors.push(`${id}: github-installed ${row.name}@${installed.version} ships no ${patch}`)
+        continue
+      }
       if ((installed.main !== undefined || installed.exports !== undefined) &&
-          !existsSync(join(dir, 'node_modules', row.name, 'lib'))) {
+          !existsSync(join(packageDir, 'lib'))) {
         errors.push(`${id}: github-installed ${row.name}@${installed.version} exposes lib but ships no lib/ (commit build output)`)
         continue
       }
-      console.log(`ok: ${id} github ${row.github.repo}#${row.github.ref}${row.github.subdir ? `&path:${row.github.subdir}` : ''} -> ${row.name}@${installed.version}`)
+      console.log(`ok: ${id} github ${githubRepo(row)}#${githubRef(row)}${row.github.subdir ? `&path:${row.github.subdir}` : ''} -> ${row.name}@${installed.version}`)
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -196,12 +274,16 @@ for (const manifest of records) {
   }
   const githubRows = []
   for (const row of manifest.install.rows) {
-    if (row.npm) await verifyNpmRow(manifest.id, row)
-    else if (row.github) githubRows.push(row)
+    if (row.npm) {
+      if (offline) console.log(`skip: ${manifest.id} npm ${row.name} (--offline)`)
+      else await verifyNpmRow(manifest.id, row, manifest)
+    }
+    if (row.github) githubRows.push(row)
   }
   if (githubRows.length > 0) {
-    if (skipInstall) {
-      for (const row of githubRows) console.log(`skip: ${manifest.id} github ${githubSpec(row)} (--skip-install)`)
+    if (offline || skipInstall) {
+      const reason = offline ? '--offline' : '--skip-install'
+      for (const row of githubRows) console.log(`skip: ${manifest.id} github ${githubSpec(row)} (${reason})`)
     } else {
       verifyGithubEntry(manifest.id, manifest)
     }

@@ -34,5 +34,5 @@ is disposed with the owning plugin fiber.
 Install it into the Web profile with:
 
 ```sh
-dsh plugin --profile web add ./work-bench-ui
+dsh plugin --profile web add ./plugins/work-bench-ui
 ```

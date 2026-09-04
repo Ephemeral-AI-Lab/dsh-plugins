@@ -178,7 +178,7 @@ describe('native DSH JSONL converter', () => {
   })
 
   it('reassembles interleaved packed and assistant chunks from the external fixture shape', () => {
-    const completeArguments = '{"cmd":"wsl bash -lc \\"cd /mnt/c/Users/yifan/code/Ephemeral-AI-Lab/dsh-plugins/mock && node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && echo TYPECHECK_OK\\"","workdir":"C:\\\\Users\\\\yifan\\\\code\\\\Ephemeral-AI-Lab\\\\dsh-plugins\\\\mock","yield_time_ms":60000}'
+    const completeArguments = '{"cmd":"wsl bash -lc \\"cd /mnt/c/Users/yifan/code/Ephemeral-AI-Lab/dsh-plugins/plugins/mock && node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && echo TYPECHECK_OK\\"","workdir":"C:\\\\Users\\\\yifan\\\\code\\\\Ephemeral-AI-Lab\\\\dsh-plugins\\\\plugins\\\\mock","yield_time_ms":60000}'
     const input = [
       record({ type: 'session', version: 0, id: 'session-1', createdAt: 0 }),
       record({
@@ -188,7 +188,7 @@ describe('native DSH JSONL converter', () => {
           step: 4,
           id: 'call-1',
           name: 'exec_command',
-          args: ['', '{', '"cmd": "w', 'sl bash -lc', ' \\\"cd', ' /mnt/c/Users', '/yifan/c', 'ode/Eph', 'emeral-AI-Lab', '/dsh-pl'],
+          args: ['', '{', '"cmd": "w', 'sl bash -lc', ' \\\"cd', ' /mnt/c/Users', '/yifan/c', 'ode/Eph', 'emeral-AI-Lab', '/dsh-plugins/pl'],
         },
       }),
       record({
@@ -216,7 +216,7 @@ describe('native DSH JSONL converter', () => {
           step: 4,
           id: 'call-1',
           name: 'exec_command',
-          args: ['-Lab\\\\dsh-pl', 'ugins\\\\mock"', ', "yield_time_ms": 600', '00}'],
+          args: ['-Lab\\\\dsh-plugins\\\\pl', 'ugins\\\\mock"', ', "yield_time_ms": 600', '00}'],
         },
       }),
       record({

@@ -7,9 +7,9 @@ Machine gates (CI runs these automatically on every registry PR):
 - [ ] ajv validates every manifest against
       `registry/schema/plugin-manifest.v1.json`.
 - [ ] `node scripts/verify-packages.mjs` passes: every npm row exists on the
-      registry and its latest tarball is a real dsh plugin (or the row is
+      registry and its requested tarball is a real dsh plugin (or the row is
       `activation: profile-patch`); every GitHub row scratch-installs and the
-      installed package declares `dsh.bundle.patch`.
+      installed package declares an existing `dsh.bundle.patch` file.
 - [ ] No new warnings without justification: install lifecycle scripts,
       native binaries, stale version pins.
 

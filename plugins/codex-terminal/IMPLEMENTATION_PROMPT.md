@@ -2,7 +2,7 @@
 
 You are implementing the DeepSeek Harness plugin located at:
 
-C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\codex-terminal
+C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\codex-terminal
 
 ## Mission
 
@@ -19,7 +19,7 @@ It must be TypeScript-first, Windows-first, compatible with macOS/Linux through 
 
 Read these files completely before editing:
 
-1. C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\codex-terminal\SPEC.md
+1. C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\codex-terminal\SPEC.md
 2. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\docs\architecture.md
 3. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\docs\cookbook\adding-a-tool.md
 4. C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness\packages\subprocess\subprocess\src\types.ts

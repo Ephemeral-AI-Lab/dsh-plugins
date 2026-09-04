@@ -298,8 +298,8 @@ UI 一定自动显示 low/medium/high
 
 当前 patch 位于：
 
-- [grok/cordis.patch.yml](../../coding-plan/grok/cordis.patch.yml)
-- [codex/cordis.patch.yml](../../coding-plan/codex/cordis.patch.yml)
+- [grok/cordis.patch.yml](../../plugins/coding-plan/grok/cordis.patch.yml)
+- [codex/cordis.patch.yml](../../plugins/coding-plan/codex/cordis.patch.yml)
 
 它不是修改 pi-ai 源码，而是增加一个 DSH explicit route：
 

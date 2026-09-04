@@ -30,7 +30,7 @@ One JSON file per listing, validated against
 | `displayName` | ✓ | shown in lists |
 | `description` / `descriptionZh` | ✓ | one-liners, English and Chinese |
 | `author` | ✓ | `{ name, url? }` |
-| `links` |  | `{ repo, docs, npm }` |
+| `links` | ✓ | `{ repo, docs, npm }` |
 | `license` | ✓ | SPDX string |
 | `category` | ✓ | `tools` `ui` `provider` `workflow` `testing` `integration` |
 | `status` | ✓ | `stable` `beta` `unstable` `deprecated` `removed`; `deprecated`/`removed` require `statusNote` |
@@ -122,6 +122,10 @@ and start a new session** after install or removal.
   npm enrichment (latest version, integrity, publish date, month downloads)
   and a README excerpt.
 - `dist/catalog.json` — the web catalog: the same entries plus full READMEs.
+
+When `--offline` is passed, npm enrichment is emitted as null metadata and the
+index is still generated. The normal online build records `updateAvailable`
+when the latest npm version differs from the manifest's reviewed version.
 
 Stable URLs: `raw.githubusercontent.com/Ephemeral-AI-Lab/dsh-plugins/main/dist/index.json`
 (primary) and the jsDelivr mirror. Mayfly caches locally and falls back to

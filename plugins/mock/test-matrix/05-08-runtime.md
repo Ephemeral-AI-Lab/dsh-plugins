@@ -1,6 +1,6 @@
 # Runtime Test Matrix: Areas 5–8
 
-Draft scope: the external `dsh-plugins/mock` package only. This matrix
+Draft scope: the external `dsh-plugins/plugins/mock` package only. This matrix
 covers area 5 (adapter stream contract), area 6 (real `AgentLoop`/
 `ToolRuntime` integration), area 7 (cancellation, followup, steer, and
 provider routing), and area 8 (background jobs, subagents, session isolation,

@@ -25,7 +25,7 @@
     "@earendil-works/pi-ai": ">=0.82.1"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-atomic-write": "link:../../../deepseek-harness/packages/util/atomic-write",
+    "@deepseek-ai/dsh-atomic-write": "link:../../../../deepseek-harness/packages/util/atomic-write",
     "@earendil-works/pi-ai": "^0.82.1",
     "@types/node": "^22.20.0",
     "typescript": "^6.0.3",

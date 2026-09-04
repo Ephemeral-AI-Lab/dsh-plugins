@@ -103,8 +103,9 @@ and generated `lib/` output as one package workflow.
 - `dist/` is generated. Never edit it by hand; the `index-publish` workflow
   owns it through an auto-merged PR.
 - Every registry change must pass `node scripts/validate-manifests.mjs` and
-  `node scripts/verify-packages.mjs` (the latter scratch-installs npm and
-  GitHub sources; run with `--skip-install` offline).
+  `node scripts/verify-packages.mjs` (the latter checks npm and scratch-installs
+  GitHub sources; run with `--offline` when network access is unavailable, or
+  `--skip-install` to skip only GitHub scratch installs).
 - Official plugins install from GitHub (`github:...#main&path:plugins/<name>`)
   because the `dsh-*` npm names are currently unpublished. Their `lib/` build
   output is committed on purpose — git installs fetch sources, so rebuild and
@@ -193,4 +194,3 @@ Before finishing:
 - Keep generated files only where the plugin's existing workflow expects them.
 - Report the plugin changed, commands run, reload/restart action, and any
   unresolved host-artifact or environment dependency.
-

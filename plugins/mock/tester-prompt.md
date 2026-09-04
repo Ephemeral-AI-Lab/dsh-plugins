@@ -11,7 +11,7 @@ fixture path, and relevant log/event IDs.
 ## Scope and constraints
 
 - Plugin path:
-  `C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock`
+  `C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock`
 - Host path:
   `C:\Users\yifan\code\Ephemeral-AI-Lab\deepseek-harness`
 - Do not modify files under the host checkout.
@@ -26,7 +26,7 @@ fixture path, and relevant log/event IDs.
 Run from the plugin directory:
 
 ```powershell
-Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\mock
+Set-Location C:\Users\yifan\code\Ephemeral-AI-Lab\dsh-plugins\plugins\mock
 pnpm typecheck
 pnpm test
 pnpm build

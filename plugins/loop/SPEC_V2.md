@@ -241,7 +241,7 @@ safe step boundary. The message is delivered with wakeup enabled.
 
 ## 7. `dsh-sessions` companion plugin
 
-The separate `dsh-sessions` plugin at `dsh-plugins/sessions` provides session discovery for
+The separate `dsh-sessions` plugin at `dsh-plugins/plugins/sessions` provides session discovery for
 the global panel and for selecting an existing `session_id`.
 
 It provides two read-only tools:

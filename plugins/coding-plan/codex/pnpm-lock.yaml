@@ -16,14 +16,14 @@ importers:
         version: link:../core
     devDependencies:
       '@deepseek-ai/cordis':
-        specifier: link:../../../deepseek-harness/vendor/cordis
-        version: link:../../../deepseek-harness/vendor/cordis
+        specifier: link:../../../../deepseek-harness/vendor/cordis
+        version: link:../../../../deepseek-harness/vendor/cordis
       '@deepseek-ai/dsh-atomic-write':
-        specifier: link:../../../deepseek-harness/packages/util/atomic-write
-        version: link:../../../deepseek-harness/packages/util/atomic-write
+        specifier: link:../../../../deepseek-harness/packages/util/atomic-write
+        version: link:../../../../deepseek-harness/packages/util/atomic-write
       '@deepseek-ai/dsh-credentials':
-        specifier: link:../../../deepseek-harness/packages/credentials/credentials
-        version: link:../../../deepseek-harness/packages/credentials/credentials
+        specifier: link:../../../../deepseek-harness/packages/credentials/credentials
+        version: link:../../../../deepseek-harness/packages/credentials/credentials
       '@types/node':
         specifier: ^22.20.0
         version: 22.20.1

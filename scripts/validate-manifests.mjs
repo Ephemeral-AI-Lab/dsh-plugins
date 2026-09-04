@@ -74,6 +74,12 @@ function checkRow (file, row) {
       fail(file, `install row ${row.name} npm must be an object`)
     } else if (typeof npm.spec !== 'string' || npm.spec.length === 0) {
       fail(file, `install row ${row.name} npm.spec must be a non-empty string`)
+    } else if (typeof row.name === 'string' &&
+               npm.spec !== row.name && !npm.spec.startsWith(`${row.name}@`)) {
+      fail(file, `install row ${row.name} npm.spec must target the row package`)
+    } else if (typeof row.name === 'string' &&
+               /[\\/\s]/.test(npm.spec.slice(row.name.length + (npm.spec === row.name ? 0 : 1)))) {
+      fail(file, `install row ${row.name} npm.spec must be a name[@version|@tag] spec`)
     }
   }
   if (hasGithub) {
@@ -123,14 +129,14 @@ function checkManifest (file, manifest, tier) {
     fail(file, 'author.url must be a string')
   }
 
-  if (manifest.links !== undefined) {
-    if (typeof manifest.links !== 'object' || manifest.links === null || Array.isArray(manifest.links)) {
-      fail(file, 'links must be an object')
-    } else {
-      for (const key of Object.keys(manifest.links)) {
-        if (!['repo', 'docs', 'npm'].includes(key)) fail(file, `links.${key} is not a known link kind`)
-        else if (typeof manifest.links[key] !== 'string') fail(file, `links.${key} must be a string`)
-      }
+  if (manifest.links === undefined) {
+    fail(file, 'links is required')
+  } else if (typeof manifest.links !== 'object' || manifest.links === null || Array.isArray(manifest.links)) {
+    fail(file, 'links must be an object')
+  } else {
+    for (const key of Object.keys(manifest.links)) {
+      if (!['repo', 'docs', 'npm'].includes(key)) fail(file, `links.${key} is not a known link kind`)
+      else if (typeof manifest.links[key] !== 'string') fail(file, `links.${key} must be a string`)
     }
   }
 
@@ -182,11 +188,21 @@ function checkManifest (file, manifest, tier) {
   if (!Array.isArray(rows) || rows.length === 0) {
     fail(file, 'install.rows must be a non-empty array')
   } else {
+    const rowIds = new Set()
+    const rowNames = new Set()
     for (const row of rows) {
       if (typeof row !== 'object' || row === null || Array.isArray(row)) {
         fail(file, 'install row must be an object')
       } else {
         checkRow(file, row)
+        if (typeof row.name === 'string') {
+          if (rowNames.has(row.name)) fail(file, `duplicate install row name "${row.name}"`)
+          rowNames.add(row.name)
+        }
+        if (typeof row.id === 'string') {
+          if (rowIds.has(row.id)) fail(file, `duplicate install row id "${row.id}"`)
+          rowIds.add(row.id)
+        }
       }
     }
   }
@@ -206,7 +222,7 @@ function checkManifest (file, manifest, tier) {
 
   const verified = manifest.verified
   if (verified === undefined) {
-    warnings.push(`${file}: no verified block (record one at review time)`)
+    fail(file, 'verified is required')
   } else if (typeof verified !== 'object' || verified === null || Array.isArray(verified)) {
     fail(file, 'verified must be an object')
   } else {
@@ -214,9 +230,15 @@ function checkManifest (file, manifest, tier) {
     if (!Array.isArray(verified.packages) || verified.packages.length === 0) {
       fail(file, 'verified.packages must be a non-empty array')
     } else {
+      const verifiedNames = new Set()
       for (const pkg of verified.packages) {
-        if (typeof pkg?.name !== 'string' || typeof pkg?.version !== 'string') {
+        if (typeof pkg?.name !== 'string' || pkg.name.length === 0 ||
+            typeof pkg?.version !== 'string' || pkg.version.length === 0) {
           fail(file, 'verified.packages entries need name and version')
+        }
+        if (typeof pkg?.name === 'string') {
+          if (verifiedNames.has(pkg.name)) fail(file, `duplicate verified package "${pkg.name}"`)
+          verifiedNames.add(pkg.name)
         }
         if (pkg?.integrity !== undefined && !/^sha512-[a-z0-9+/=]+$/i.test(pkg.integrity)) {
           fail(file, 'verified.packages integrity must be an sha512 value')
@@ -225,11 +247,17 @@ function checkManifest (file, manifest, tier) {
     }
   }
 
-  // Cross-check: every verified package name should appear in install rows.
+  // Cross-check: verified package records must cover exactly the install rows.
   const rowNames = new Set((rows ?? []).map(row => row?.name))
   for (const pkg of verified?.packages ?? []) {
     if (pkg?.name !== undefined && !rowNames.has(pkg.name)) {
-      warnings.push(`${file}: verified package "${pkg.name}" is not an install row name`)
+      fail(file, `verified package "${pkg.name}" is not an install row name`)
+    }
+  }
+  const verifiedNames = new Set((verified?.packages ?? []).map(pkg => pkg?.name))
+  for (const rowName of rowNames) {
+    if (typeof rowName === 'string' && !verifiedNames.has(rowName)) {
+      fail(file, `install row "${rowName}" has no verified package record`)
     }
   }
 }
