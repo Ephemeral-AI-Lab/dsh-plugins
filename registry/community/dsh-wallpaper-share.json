@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "dsh-wallpaper-share",
+  "source": "community",
+  "displayName": "Wallpaper Share",
+  "description": "Syncs the wallpaper currently applied in Wallpaper Engine to the DSH Web UI background over a local bridge. Adds preview/capture/full render modes, monitor lock, a wallpaper library panel for local and market content, focus lens with eye tracking, immersive mode and a Windows app launcher.",
+  "descriptionZh": "把 Wallpaper Engine 当前应用的壁纸经本地桥接同步为 DSH Web 界面背景：三档渲染模式（预览/捕获/完整）、显示器锁定、本地与市场壁纸库面板、专注透镜与眼动追踪、沉浸模式，以及 Windows 应用启动器。",
+  "author": {
+    "name": "YRN-playmaker",
+    "url": "https://github.com/YRN-playmaker"
+  },
+  "links": {
+    "repo": "https://github.com/YRN-playmaker/dsh-wallpaper_share",
+    "docs": "https://github.com/YRN-playmaker/dsh-wallpaper_share/blob/main/README.md",
+    "npm": "https://www.npmjs.com/package/dsh-wallpaper_share"
+  },
+  "license": "GPL-3.0",
+  "category": "ui",
+  "status": "beta",
+  "surfaces": {
+    "server": {},
+    "web": {
+      "clientModule": true
+    }
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "we-sync",
+        "name": "dsh-wallpaper_share",
+        "npm": {
+          "spec": "dsh-wallpaper_share"
+        },
+        "github": {
+          "repo": "YRN-playmaker/dsh-wallpaper_share",
+          "ref": "36ee1775be95445b5f2532902911e4b2fb33fea7",
+          "subdir": "."
+        }
+      }
+    ]
+  },
+  "capabilities": [
+    "shell",
+    "process-spawn",
+    "network",
+    "fs-write",
+    "credentials"
+  ],
+  "verified": {
+    "at": "2026-09-10",
+    "packages": [
+      {
+        "name": "dsh-wallpaper_share",
+        "version": "26.9.10"
+      }
+    ]
+  }
+}
