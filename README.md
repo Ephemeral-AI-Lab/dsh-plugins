@@ -58,6 +58,7 @@ Restart the profile and start a new session after installing. Entries with
 | [`preset-builder`](./registry/official/preset-builder.json) | official | web | Preset details page in dsh Web Settings |
 | [`workbench-ui`](./registry/official/workbench-ui.json) | official | web | The Web workbench frame other panels dock into |
 | [`sidechat`](./registry/official/sidechat.json) | official | server · web | Side-chat panel on the Web workbench (needs workbench-ui) |
+| [`herdr-agent-state`](./registry/official/herdr-agent-state.json) | official | server | Report pane agent state, session ref, and title/model/ctx metadata to Herdr's pane socket |
 | [`terminal`](./registry/dsh/terminal.json) | dsh | server | PTY terminal: `terminal_open/send/read/signal/close/list` |
 | [`lsp`](./registry/dsh/lsp.json) | dsh | server | Read-only `lsp` navigation tool |
 | [`mcp`](./registry/dsh/mcp.json) | dsh | server | MCP client: `mcp__server__tool` external tools |

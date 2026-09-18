@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "herdr-agent-state",
+  "source": "official",
+  "displayName": "Herdr Agent State",
+  "description": "Report a pane's agent state (working/blocked/idle, labeled with the current tool), session reference and log path, and session metadata (title, model, context-usage tokens, state labels) to Herdr via its pane socket.",
+  "descriptionZh": "向 Herdr 的 pane socket 上报窗格的 agent 状态（working/blocked/idle，工作中附带当前工具名）、会话引用与日志路径，以及会话展示元数据（标题、模型、上下文用量令牌、状态标签）。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/herdr-agent-state",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/herdr-agent-state/README.md"
+  },
+  "license": "MIT",
+  "category": "integration",
+  "status": "stable",
+  "surfaces": { "server": {} },
+  "install": {
+    "rows": [
+      {
+        "id": "herdr-agent-state",
+        "name": "herdr-agent-state",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/herdr-agent-state" }
+      }
+    ]
+  },
+  "capabilities": ["network"],
+  "verified": {
+    "at": "2026-09-18",
+    "packages": [{ "name": "herdr-agent-state", "version": "0.1.0" }]
+  }
+}
