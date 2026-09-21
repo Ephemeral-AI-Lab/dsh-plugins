@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-18T15:50:41.602Z",
+  "generatedAt": "2026-09-21T10:01:25.998Z",
   "counts": {
     "total": 15,
     "bySource": {
@@ -676,7 +676,7 @@
           "latestVersion": "0.0.1-rc.1",
           "integrity": "sha512-RTJmbXz9g4fTN5ebcd9Ra21Ca7UEMA9gxBnsXNcJy9eoDrOAb8DcrBkIlxRnAvluWLqWf9dyPGiUvLO4Oh9uTg==",
           "publishedAt": "2026-08-10T19:41:14.563Z",
-          "downloadsMonth": 634959,
+          "downloadsMonth": 790234,
           "readme": null,
           "updateAvailable": false
         }
@@ -740,7 +740,7 @@
           "latestVersion": "0.1.0-rc.8",
           "integrity": "sha512-VAXOqpE34SO2cQTTu+5VJLp77OvMOdnW0LMHGC6CDyqE7ZJMlv1bMPoAGDAuutIYSdhaSvhJB+iMw2xSr8D9qQ==",
           "publishedAt": "2026-08-19T15:42:20.456Z",
-          "downloadsMonth": 1046,
+          "downloadsMonth": 727,
           "readme": null,
           "updateAvailable": false
         }
@@ -804,7 +804,7 @@
           "latestVersion": "0.0.1-rc.3",
           "integrity": "sha512-l65X/u0lfphAHU3c6690fOG7w3PM5fGY9PK/mREiKQ7mvDDbosutkV/C6KqYgvONeCOat7VNHw4IxQRlXBHnqQ==",
           "publishedAt": "2026-08-12T20:35:16.524Z",
-          "downloadsMonth": 1703436,
+          "downloadsMonth": 1463235,
           "readme": null,
           "updateAvailable": false
         }
@@ -880,7 +880,7 @@
           "latestVersion": "0.0.1-rc.5",
           "integrity": "sha512-3f4EDc+BgtipyMhbMVhzSoNlLpgFWHJzhLmCsv/NooIXjacKMIehbjYSiOfLCRpGyCr1PFuKWc52BTGyXTHy5g==",
           "publishedAt": "2026-08-12T22:37:17.244Z",
-          "downloadsMonth": 7647,
+          "downloadsMonth": 7475,
           "readme": null,
           "updateAvailable": false
         },
@@ -888,7 +888,7 @@
           "latestVersion": "0.0.1-rc.1",
           "integrity": "sha512-tK8VebAYJO4rD/lsZ5tNZ7hmlXnfEcVWzhtPmoZCMzejCWhF9pRhrP+jmSvui4K9QZg097LRy0Tvzu8OQjx/JA==",
           "publishedAt": "2026-08-10T19:43:20.091Z",
-          "downloadsMonth": 7495,
+          "downloadsMonth": 7360,
           "readme": null,
           "updateAvailable": false
         }
@@ -949,7 +949,7 @@
           "latestVersion": "0.0.1-rc.1",
           "integrity": "sha512-YPsOvuWFmWl1Pai+9FrsDLNuWFuMXIEZHn9uXJFqDfo/dTyJRZuYFM+jbs5g9eGEKhHgqXibsgeCm4Px1tb4DQ==",
           "publishedAt": "2026-08-10T19:38:15.865Z",
-          "downloadsMonth": 1721756,
+          "downloadsMonth": 1499828,
           "readme": null,
           "updateAvailable": false
         }
@@ -1031,7 +1031,7 @@
           "latestVersion": "0.0.1-rc.3",
           "integrity": "sha512-O6SczKhyDzyJlnwjwLmBX3/rwoHjE+SNIm4AJ4qsLjDwlCZfrr+EMFT20LXobvGBUFanlDmKoOyZBOsyTrinUg==",
           "publishedAt": "2026-08-12T20:35:47.152Z",
-          "downloadsMonth": 1653224,
+          "downloadsMonth": 1427342,
           "readme": null,
           "updateAvailable": false
         },
@@ -1039,7 +1039,7 @@
           "latestVersion": "0.0.1-rc.5",
           "integrity": "sha512-c/BARJ3tWoaviyy/b/8JVk97KcRyue55wE1hsw1a59k3SNDDkFp1PhQhZqIBFjfmSHUqghZLpFSa7okaQuJPIA==",
           "publishedAt": "2026-08-12T22:38:18.942Z",
-          "downloadsMonth": 5857,
+          "downloadsMonth": 7261,
           "readme": null,
           "updateAvailable": false
         }
