@@ -102,7 +102,7 @@ export function apply(ctx: Context): void {
     if (lead === undefined) return
     if (handle?.closed === false) { handle.focus(); return }
     const openedLead = lead
-    handle = ctx.mayflyOverlays.open({ id: PANEL, title: t('Agent Team'), presentation: 'editor', capturing: true,
+    handle = ctx.mayflyOverlays.open({ id: PANEL, title: t('Agent Team'), presentation: 'overlay', capturing: true, width: '100%', maxHeight: '90%',
       scope: { kind: 'session', sessionId: lead.id },
       onEvent: { action: event => {
         if (selectedLead() !== openedLead) return { kind: 'cancelled' }
@@ -115,7 +115,7 @@ export function apply(ctx: Context): void {
         if (task === undefined) return { kind: 'failed', message: t('The task is no longer available') }
         taskId = task.id
         detail?.close()
-        detail = ctx.mayflyOverlays.open({ id: DETAIL, title: task.subject, presentation: 'editor', capturing: true,
+        detail = ctx.mayflyOverlays.open({ id: DETAIL, title: task.subject, presentation: 'overlay', capturing: true, width: '100%', maxHeight: '90%',
           scope: { kind: 'session', sessionId: openedLead.id },
           onEvent: { action: action => {
             if (selectedLead() !== openedLead) return { kind: 'cancelled' }
