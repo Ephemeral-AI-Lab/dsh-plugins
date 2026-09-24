@@ -1,0 +1,13 @@
+# Native state is shared infrastructure; model tools and TUI admit only Team Agents.
+# Installation does not replace any default preset or its delegation tools.
+- insert:
+    - id: agent-team
+      name: '@deepseek-ai/dsh-experimental-agent-team'
+      config:
+        maxMembers: 8
+        maxTasks: 256
+        maxPendingMessagesPerMember: 64
+        maxMessageBytes: 65536
+        disposalTimeoutMs: 5000
+    - id: mayfly-agent-team-tools
+      name: dsh-mayfly-agent-team

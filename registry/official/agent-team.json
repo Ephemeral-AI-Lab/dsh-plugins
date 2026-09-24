@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "agent-team",
+  "source": "official",
+  "displayName": "Agent Team",
+  "description": "Optional Team preset based on standard: native teammates, durable messages, shared tasks and Mayfly roster/task UI. Existing presets stay unchanged; restart and select team in a new session.",
+  "descriptionZh": "基于 standard 的独立 Team 预设：原生队友、持久消息、共享任务和 Mayfly 成员/任务界面。现有预设保持原样；重启后在新会话选择 team。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/mayfly-agent-team",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/mayfly-agent-team/README.md"
+  },
+  "license": "MIT",
+  "category": "workflow",
+  "status": "unstable",
+  "surfaces": { "server": {}, "tui": { "contributions": ["overlays", "status", "editorExtensions"] } },
+  "provides": {
+    "tools": ["spawn_teammate", "send_message", "list_agents", "wait_agent", "interrupt_agent", "team_task_create", "team_task_list", "team_task_get", "team_task_update"],
+    "commands": ["/team"]
+  },
+  "engines": { "dsh": "0.1.7-rc.1", "mayfly": "^0.1.0-alpha.6", "node": "^22.19.0 || >=24.0.0" },
+  "install": { "rows": [{ "id": "mayfly-agent-team", "name": "dsh-mayfly-agent-team", "activation": "bundle", "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/mayfly-agent-team" } }] },
+  "capabilities": ["session-write", "fs-read", "fs-write", "shell", "network"],
+  "verified": { "at": "2026-09-24", "packages": [{ "name": "dsh-mayfly-agent-team", "version": "0.1.0" }] }
+}

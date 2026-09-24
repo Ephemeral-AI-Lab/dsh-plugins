@@ -50,6 +50,7 @@ Restart the profile and start a new session after installing. Entries with
 
 | id | source | surfaces | what it adds |
 | --- | --- | --- | --- |
+| [`agent-team`](./registry/official/agent-team.json) | official | server · tui | Optional `team` preset, native teammates and Mayfly roster/task UI (Mayfly ≥ 0.1.0-alpha.6) |
 | [`codex-terminal`](./registry/official/codex-terminal.json) | official | server | Codex-style persistent shell: `exec_command` / `write_stdin` |
 | [`loop`](./registry/official/loop.json) | official | server · web | Recurring prompts & alarms: `loop_*` tools, `/loop`, Web panel |
 | [`mock`](./registry/official/mock.json) | official | server · web | Deterministic mock model turns: `/mock run` / `replay` (unstable) |
