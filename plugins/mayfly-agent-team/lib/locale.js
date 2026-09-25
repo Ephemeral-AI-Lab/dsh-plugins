@@ -34,7 +34,6 @@ const zh = {
     'Back to conversation': '回到对话',
     'Back to tasks': '返回任务列表',
     'Open owner conversation': '打开负责人会话',
-    'Open Team': '团队总览',
     'Reply': '回复',
     'Reply to resume': '回复并恢复',
     'Browse shared tasks and teammate conversations': '查看共享任务和队友会话',

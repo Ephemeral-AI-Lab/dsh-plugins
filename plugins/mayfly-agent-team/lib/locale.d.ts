@@ -35,7 +35,6 @@ export declare const catalog: {
         'Back to conversation': string;
         'Back to tasks': string;
         'Open owner conversation': string;
-        'Open Team': string;
         Reply: string;
         'Reply to resume': string;
         'Browse shared tasks and teammate conversations': string;

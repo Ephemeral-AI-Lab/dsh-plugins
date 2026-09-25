@@ -72,7 +72,6 @@ export function apply(ctx: Context): void {
       ? view.auxiliary : undefined
     editor ??= ctx.mayflyEditorExtensions.register({ id: 'agent-team.conversation', priority: 5, onEvent: { action: event => {
       if (event.kind !== 'activate' || selectedLead() !== lead) return { kind: 'cancelled' }
-      if (event.actionId === 'open-team') { open(); return { kind: 'completed' } }
       if (event.actionId === 'reply') {
         const selected = ctx.mayflyCurrentAgent.view()
         const target = selected.auxiliary
@@ -85,10 +84,7 @@ export function apply(ctx: Context): void {
     editor.set({
       ...(child === undefined ? {} : { before: ui.text(t('{name} · Lead: lead', { name: child.label }), { tone: 'accent' }) }),
       hint: t(child?.access === 'resumable' ? 'Browse history; only Send resumes this member.' : 'Close a view without stopping its member.'),
-      actions: [
-        { id: 'open-team', label: t('Open Team') },
-        ...(child === undefined ? [] : [{ id: 'reply', label: t(child.access === 'resumable' ? 'Reply to resume' : 'Reply') }]),
-      ],
+      actions: child === undefined ? [] : [{ id: 'reply', label: t(child.access === 'resumable' ? 'Reply to resume' : 'Reply') }],
     })
     if (handle?.closed === false) handle.set(node())
     if (detail?.closed === false) {
