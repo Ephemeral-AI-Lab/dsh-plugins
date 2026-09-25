@@ -23,12 +23,43 @@ export function apply(ctx) {
         const view = ctx.mayflyCurrentAgent.view();
         return view.displayed === 'auxiliary' ? view.auxiliary.sessionId : String(lead?.id ?? '');
     };
+    // The session-facts bridge follows the displayed Agent; while the board is
+    // open the Lead is displayed, so its children are the rostered members.
+    // Mount order is not guaranteed, so the subscription is retried per refresh.
+    let childFacts = new Map();
+    let offFacts;
+    let factsAttached = false;
+    const ensureFacts = () => {
+        if (factsAttached)
+            return;
+        const service = ctx.get('mayflySessionFacts');
+        if (service === undefined)
+            return;
+        // subscribeChildren delivers the current snapshot synchronously, so the
+        // flag must be set before subscribing to keep the re-entrant refresh out.
+        factsAttached = true;
+        offFacts = service.subscribeChildren(children => {
+            childFacts = new Map(children.map(child => [child.id, child]));
+            refresh();
+        });
+    };
     const activity = () => new Map((projection?.members ?? []).flatMap(member => {
         const agent = ctx.agents.get(member.id);
-        if (agent === undefined)
+        const facts = childFacts.get(member.id);
+        if (agent === undefined && facts === undefined)
             return [];
-        const model = ctx.sessionProjections.snapshot(agent.session, ['modelSelection']).values.modelSelection?.next?.model;
-        return [[member.id, { running: agent.status === 'running', ...(model === undefined ? {} : { model }) }]];
+        const model = facts?.model ?? (agent === undefined ? undefined : ctx.sessionProjections.snapshot(agent.session, ['modelSelection']).values.modelSelection?.next?.model);
+        return [[member.id, {
+                    loaded: agent !== undefined,
+                    ...(agent?.status === 'running' || facts?.phase === 'running' ? { running: true } : {}),
+                    ...(facts?.phase === 'waiting' ? { waiting: true } : {}),
+                    ...(model === undefined ? {} : { model }),
+                    ...(facts?.effort === undefined ? {} : { effort: facts.effort }),
+                    ...(facts?.activity === undefined ? {} : { activity: facts.activity }),
+                    ...(facts?.liveChars === undefined ? {} : { liveChars: facts.liveChars }),
+                    ...(facts === undefined || facts.tokens <= 0 ? {} : { tokens: facts.tokens }),
+                    ...(facts === undefined || facts.toolCount <= 0 ? {} : { toolCount: facts.toolCount }),
+                }]];
     }));
     const node = () => teamNode(projection, currentId(), activity(), t);
     const ownerOf = (task) => projection?.members.find(member => member.name === task.ownerName && member.phase === 'active');
@@ -44,6 +75,7 @@ export function apply(ctx) {
         return { kind: 'completed', dismiss: true };
     };
     const refresh = () => {
+        ensureFacts();
         const nextLead = selectedLead();
         if (nextLead !== lead) {
             handle?.close();
@@ -149,6 +181,7 @@ export function apply(ctx) {
         handle?.close();
         status?.dispose();
         editor?.dispose();
+        offFacts?.();
         for (const dispose of commands.values())
             dispose();
         commands.clear();

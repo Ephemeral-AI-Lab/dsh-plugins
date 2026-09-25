@@ -9,6 +9,7 @@ export declare const catalog: {
         Lead: string;
         Teammate: string;
         Running: string;
+        Waiting: string;
         Inactive: string;
         'Not loaded': string;
         Provisioning: string;
@@ -19,6 +20,8 @@ export declare const catalog: {
         'In progress': string;
         Completed: string;
         Unowned: string;
+        '{count} tools': string;
+        '{count} tokens': string;
         'Blocked by': string;
         'Write scopes overlap': string;
         'No shared tasks': string;

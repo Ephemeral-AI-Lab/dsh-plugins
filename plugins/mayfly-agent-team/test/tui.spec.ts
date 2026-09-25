@@ -36,7 +36,7 @@ async function action(entry: MayflyOverlayEntry, event: MayflyUiEvent) {
   prepared.publish()
   return prepared.reply
 }
-const select = (controlId: string, id: string): MayflyUiEvent => ({ kind: 'selection-accept', pagePath: [{ controlId: 'team-pages', itemId: controlId }], controlId, selectedIds: [id] })
+const select = (controlId: string, id: string): MayflyUiEvent => ({ kind: 'selection-accept', pagePath: [], controlId, selectedIds: [id] })
 
 it('keeps ordinary sessions clean and follows preset switches, locale and plugin disposal', async () => {
   const bench = await setup()
@@ -74,6 +74,11 @@ it('opens tasks and exact live/cold member views, without waking a browsed membe
   expect(JSON.stringify(bench.overlay().node)).toContain('Inspect the auth change')
   await bench.execute(bench.lead, 'team_task_update', { task_id: task.id, expected_revision: assigned.revision, action: 'edit', description: 'Updated native description' })
   expect(JSON.stringify(bench.overlay().node)).toContain('Updated native description')
+  bench.publishFacts([{ id: member.id, phase: 'running', tokens: 2048, toolCount: 3, activity: 'Using read', model: 'mock-x' }])
+  const board = JSON.stringify(bench.overlay().node)
+  expect(board).toContain('Using read')
+  expect(board).toContain('3 个工具')
+  expect(board).toContain('2k tokens')
   await action(bench.overlay(), select('tasks', task.id))
   expect(bench.ctx.mayflyCurrentAgent.current()).toBe(child)
   expect(bench.ctx.mayflyOverlays.list()).toHaveLength(0)

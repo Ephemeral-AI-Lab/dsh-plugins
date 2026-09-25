@@ -25,7 +25,11 @@ it('fits roster, empty and loading rows at 1–160 columns through the public re
   const identity = (text: string) => text
   const colors = new Proxy({ logoGradient: [identity] }, { get: (target, key) => key === 'logoGradient' ? target.logoGradient : identity }) as MayflySemanticColors
   const components = new MayflyComponentsService(ctx, { theme: { colors }, tui: { requestRender() {} } } as never)
-  const activity = new Map([['lead', { running: false }], ['reviewer', { running: true, model: long }]])
+  const activity = new Map([
+    ['lead', { loaded: true }],
+    ['reviewer', { loaded: true, running: true, model: long, effort: long, activity: long, liveChars: 1234, tokens: 2048, toolCount: 3 }],
+    ['cold', { loaded: false, tokens: 512, toolCount: 1, activity: long }],
+  ])
   const nodes = [teamNode(team, 'lead', activity, t), teamNode(undefined, '', activity, t), teamNode({ members: team.members.slice(0, 1), tasks: [] }, 'lead', activity, t)]
   try {
     for (const node of nodes) for (const width of [1, 2, 8, 20, 40, 80, 100, 160]) {

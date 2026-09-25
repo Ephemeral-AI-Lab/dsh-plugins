@@ -2,7 +2,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Group from '@deepseek-ai/cordis-plugin-group'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
@@ -57,6 +57,21 @@ export async function fixture() {
     await ctx.plugin(fork, { providerName: 'fork' })
     await ctx.plugin(TeamService, { maxMembers: 8 })
     ctx.llm.registerAdapter(['mock'], new Adapter())
+    const factsListeners = new Set<(children: readonly unknown[]) => void>()
+    let factsChildren: readonly unknown[] = []
+    class Facts extends Service {
+      constructor(context: Context) { super(context, 'mayflySessionFacts') }
+      subscribeChildren(listener: (children: readonly unknown[]) => void) {
+        factsListeners.add(listener)
+        listener(factsChildren)
+        return () => factsListeners.delete(listener)
+      }
+    }
+    new Facts(ctx)
+    const publishFacts = (children: readonly unknown[]) => {
+      factsChildren = children
+      for (const listener of factsListeners) listener(factsChildren)
+    }
     const fiber = await ctx.plugin(plugin)
     let sequence = 0
     const create = async (id: string, preset = 'standard', parent?: Agent) => (await ctx.agents.create({
@@ -70,6 +85,6 @@ export async function fixture() {
       if (result.isError) throw new Error(text)
       return JSON.parse(text)
     }
-    return { ctx, fiber, create, execute, async dispose() { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) } }
+    return { ctx, fiber, create, execute, publishFacts, async dispose() { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) } }
   } catch (error) { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); throw error }
 }

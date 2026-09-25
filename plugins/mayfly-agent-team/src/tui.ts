@@ -8,10 +8,11 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@ephemeral-ai/mayfly/app'
 import type {} from '@ephemeral-ai/mayfly/frontend'
+import type {} from '@ephemeral-ai/mayfly/transcript'
 import { ui, type MayflyEditorExtensionRegistration, type MayflyOverlayHandle, type MayflyStatusRegistration, type MayflyUiActionReply } from '@ephemeral-ai/mayfly-ui'
 import { catalog, NAMESPACE } from './locale.ts'
 import { teamMembership } from './membership.ts'
-import { teamNode, type MemberActivity } from './model.ts'
+import { teamNode, type MemberLive } from './model.ts'
 
 export const name = 'mayfly-agent-team-tui'
 export const inject = ['agents', 'agentTeams', 'agentPresets', 'commands', 'sessionProjections', 'mayflyCurrentAgent', 'mayflyLocale', 'mayflyOverlays', 'mayflyStatus', 'mayflyEditorExtensions']
@@ -35,11 +36,40 @@ export function apply(ctx: Context): void {
     const view = ctx.mayflyCurrentAgent.view()
     return view.displayed === 'auxiliary' ? view.auxiliary!.sessionId : String(lead?.id ?? '')
   }
-  const activity = () => new Map<string, MemberActivity>((projection?.members ?? []).flatMap(member => {
+  // The session-facts bridge follows the displayed Agent; while the board is
+  // open the Lead is displayed, so its children are the rostered members.
+  // Mount order is not guaranteed, so the subscription is retried per refresh.
+  let childFacts = new Map<string, { phase: 'waiting' | 'running' | 'completed' | 'failed', tokens: number, toolCount: number, liveChars?: number | undefined, activity?: string | undefined, model?: string | undefined, effort?: string | undefined }>()
+  let offFacts: (() => void) | undefined
+  let factsAttached = false
+  const ensureFacts = () => {
+    if (factsAttached) return
+    const service = ctx.get('mayflySessionFacts')
+    if (service === undefined) return
+    // subscribeChildren delivers the current snapshot synchronously, so the
+    // flag must be set before subscribing to keep the re-entrant refresh out.
+    factsAttached = true
+    offFacts = service.subscribeChildren(children => {
+      childFacts = new Map(children.map(child => [child.id, child]))
+      refresh()
+    })
+  }
+  const activity = () => new Map<string, MemberLive>((projection?.members ?? []).flatMap(member => {
     const agent = ctx.agents.get(member.id)
-    if (agent === undefined) return []
-    const model = ctx.sessionProjections.snapshot(agent.session, ['modelSelection']).values.modelSelection?.next?.model
-    return [[member.id, { running: agent.status === 'running', ...(model === undefined ? {} : { model }) }] as const]
+    const facts = childFacts.get(member.id)
+    if (agent === undefined && facts === undefined) return []
+    const model = facts?.model ?? (agent === undefined ? undefined : ctx.sessionProjections.snapshot(agent.session, ['modelSelection']).values.modelSelection?.next?.model)
+    return [[member.id, {
+      loaded: agent !== undefined,
+      ...(agent?.status === 'running' || facts?.phase === 'running' ? { running: true } : {}),
+      ...(facts?.phase === 'waiting' ? { waiting: true } : {}),
+      ...(model === undefined ? {} : { model }),
+      ...(facts?.effort === undefined ? {} : { effort: facts.effort }),
+      ...(facts?.activity === undefined ? {} : { activity: facts.activity }),
+      ...(facts?.liveChars === undefined ? {} : { liveChars: facts.liveChars }),
+      ...(facts === undefined || facts.tokens <= 0 ? {} : { tokens: facts.tokens }),
+      ...(facts === undefined || facts.toolCount <= 0 ? {} : { toolCount: facts.toolCount }),
+    }] as const]
   }))
   const node = () => teamNode(projection, currentId(), activity(), t)
   const ownerOf = (task: TeamTaskView) =>
@@ -52,6 +82,7 @@ export function apply(ctx: Context): void {
     return { kind: 'completed', dismiss: true }
   }
   const refresh = () => {
+    ensureFacts()
     const nextLead = selectedLead()
     if (nextLead !== lead) { handle?.close(); lead = nextLead }
     projection = lead === undefined ? undefined : ctx.sessionProjections.snapshot(lead.session, ['agentTeam']).values.agentTeam
@@ -128,7 +159,7 @@ export function apply(ctx: Context): void {
   ctx.on('agent/status', ({ agent }) => { if (projection?.members.some(member => member.id === agent.id)) refresh() })
   ctx.on('agent-preset/selected', () => { syncCommands(); refresh() })
   ctx.effect(() => () => {
-    handle?.close(); status?.dispose(); editor?.dispose()
+    handle?.close(); status?.dispose(); editor?.dispose(); offFacts?.()
     for (const dispose of commands.values()) dispose()
     commands.clear()
   })
