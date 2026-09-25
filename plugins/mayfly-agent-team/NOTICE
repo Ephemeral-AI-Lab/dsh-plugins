@@ -1,0 +1,7 @@
+The native Team tool schemas, policy and direct service calls in src/tools.ts
+are adapted from packages/experimental/tool-agent-team/src/index.ts in
+deepseek-ai/deepseek-harness, tag dsh-v0.1.7-rc.1, licensed under MIT.
+
+Team roster, mailbox, task graph, persistence and authorization continue to be
+provided by @deepseek-ai/dsh-experimental-agent-team. The Mayfly plugin owns
+preset admission, registrations and terminal presentation only.

@@ -1,0 +1,166 @@
+/** Team-only commands, status and conversation actions. @module dsh-mayfly-agent-team/tui */
+import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
+import { createScope, scopeOf } from '@deepseek-ai/dsh-scope'
+import type { TeamMemberProjection, TeamProjection, TeamTaskView } from '@deepseek-ai/dsh-experimental-agent-team/client'
+import type {} from '@deepseek-ai/dsh-commands'
+import type {} from '@deepseek-ai/dsh-session-projection'
+import type {} from '@deepseek-ai/dsh-api-session-controller/types'
+import type {} from '@ephemeral-ai/mayfly/app'
+import type {} from '@ephemeral-ai/mayfly/frontend'
+import type {} from '@ephemeral-ai/mayfly/transcript'
+import { ui, type MayflyEditorExtensionRegistration, type MayflyOverlayHandle, type MayflyStatusRegistration, type MayflyUiActionReply } from '@ephemeral-ai/mayfly-ui'
+import { catalog, NAMESPACE } from './locale.ts'
+import { teamMembership } from './membership.ts'
+import { teamNode, type MemberLive } from './model.ts'
+
+export const name = 'mayfly-agent-team-tui'
+export const inject = ['agents', 'agentTeams', 'agentPresets', 'commands', 'sessionProjections', 'mayflyCurrentAgent', 'mayflyLocale', 'mayflyOverlays', 'mayflyStatus', 'mayflyEditorExtensions']
+const PANEL = 'agent-team.board'
+
+export function apply(ctx: Context): void {
+  ctx.effect(() => ctx.mayflyLocale.register(NAMESPACE, catalog))
+  const t = ctx.mayflyLocale.bind(NAMESPACE)
+  const commands = new Map<Agent, () => void>()
+  let handle: MayflyOverlayHandle | undefined
+  let lead: Agent | undefined
+  let projection: TeamProjection | undefined
+  let status: MayflyStatusRegistration | undefined
+  let editor: MayflyEditorExtensionRegistration | undefined
+
+  const selectedLead = () => {
+    const primary = ctx.mayflyCurrentAgent.primary()
+    return primary === null ? undefined : teamMembership(ctx, primary)?.root
+  }
+  const currentId = () => {
+    const view = ctx.mayflyCurrentAgent.view()
+    return view.displayed === 'auxiliary' ? view.auxiliary!.sessionId : String(lead?.id ?? '')
+  }
+  // The session-facts bridge follows the displayed Agent; while the board is
+  // open the Lead is displayed, so its children are the rostered members.
+  // Mount order is not guaranteed, so the subscription is retried per refresh.
+  let childFacts = new Map<string, { phase: 'waiting' | 'running' | 'completed' | 'failed', tokens: number, toolCount: number, liveChars?: number | undefined, activity?: string | undefined, model?: string | undefined, effort?: string | undefined }>()
+  let offFacts: (() => void) | undefined
+  let factsAttached = false
+  const ensureFacts = () => {
+    if (factsAttached) return
+    const service = ctx.get('mayflySessionFacts')
+    if (service === undefined) return
+    // subscribeChildren delivers the current snapshot synchronously, so the
+    // flag must be set before subscribing to keep the re-entrant refresh out.
+    factsAttached = true
+    offFacts = service.subscribeChildren(children => {
+      childFacts = new Map(children.map(child => [child.id, child]))
+      refresh()
+    })
+  }
+  const activity = () => new Map<string, MemberLive>((projection?.members ?? []).flatMap(member => {
+    const agent = ctx.agents.get(member.id)
+    const facts = childFacts.get(member.id)
+    if (agent === undefined && facts === undefined) return []
+    const model = facts?.model ?? (agent === undefined ? undefined : ctx.sessionProjections.snapshot(agent.session, ['modelSelection']).values.modelSelection?.next?.model)
+    return [[member.id, {
+      loaded: agent !== undefined,
+      ...(agent?.status === 'running' || facts?.phase === 'running' ? { running: true } : {}),
+      ...(facts?.phase === 'waiting' ? { waiting: true } : {}),
+      ...(model === undefined ? {} : { model }),
+      ...(facts?.effort === undefined ? {} : { effort: facts.effort }),
+      ...(facts?.activity === undefined ? {} : { activity: facts.activity }),
+      ...(facts?.liveChars === undefined ? {} : { liveChars: facts.liveChars }),
+      ...(facts === undefined || facts.tokens <= 0 ? {} : { tokens: facts.tokens }),
+      ...(facts === undefined || facts.toolCount <= 0 ? {} : { toolCount: facts.toolCount }),
+    }] as const]
+  }))
+  const node = () => teamNode(projection, currentId(), activity(), t)
+  const ownerOf = (task: TeamTaskView) =>
+    projection?.members.find(member => member.name === task.ownerName && member.phase === 'active')
+  const openMember = (member: TeamMemberProjection | undefined): MayflyUiActionReply => {
+    if (lead === undefined || selectedLead() !== lead) return { kind: 'cancelled' }
+    if (member === undefined || member.phase !== 'active') return { kind: 'failed', message: t('The member is no longer available') }
+    if (member.id === lead.id) ctx.mayflyCurrentAgent.closeAuxiliary()
+    else ctx.mayflyCurrentAgent.openAuxiliary({ kind: 'subagent', sessionId: member.id, parentSessionId: lead.id, label: member.name, mode: 'continuable' })
+    return { kind: 'completed', dismiss: true }
+  }
+  const refresh = () => {
+    ensureFacts()
+    const nextLead = selectedLead()
+    if (nextLead !== lead) { handle?.close(); lead = nextLead }
+    projection = lead === undefined ? undefined : ctx.sessionProjections.snapshot(lead.session, ['agentTeam']).values.agentTeam
+    if (lead === undefined) {
+      status?.dispose(); status = undefined
+      editor?.dispose(); editor = undefined
+      return
+    }
+    status ??= ctx.mayflyStatus.register({ id: 'agent-team.status', priority: 2, overflow: 'hide' }, null)
+    status.set(projection === undefined ? null : ui.text(t('Team {members} · {tasks} tasks', { members: projection.members.length, tasks: projection.tasks.filter(task => task.status !== 'completed').length })))
+    const view = ctx.mayflyCurrentAgent.view()
+    const child = view.displayed === 'auxiliary' && view.auxiliary?.kind === 'subagent' && projection?.members.some(member => member.id === view.auxiliary?.sessionId)
+      ? view.auxiliary : undefined
+    editor ??= ctx.mayflyEditorExtensions.register({ id: 'agent-team.conversation', priority: 5, onEvent: { action: event => {
+      if (event.kind !== 'activate' || selectedLead() !== lead) return { kind: 'cancelled' }
+      if (event.actionId === 'reply') {
+        const selected = ctx.mayflyCurrentAgent.view()
+        const target = selected.auxiliary
+        if (selected.displayed !== 'auxiliary' || target?.kind !== 'subagent' || target.mode !== 'continuable'
+          || !projection?.members.some(member => member.id === target.sessionId && member.phase === 'active')) return { kind: 'cancelled' }
+        ctx.emit('mayfly/request-subagent-reply', target)
+      }
+      return { kind: 'completed' }
+    } } }, {})
+    editor.set({
+      ...(child === undefined ? {} : { before: ui.text(t('{name} · Lead: lead', { name: child.label }), { tone: 'accent' }) }),
+      hint: t(child?.access === 'resumable' ? 'Browse history; only Send resumes this member.' : 'Close a view without stopping its member.'),
+      actions: child === undefined ? [] : [{ id: 'reply', label: t(child.access === 'resumable' ? 'Reply to resume' : 'Reply') }],
+    })
+    if (handle?.closed === false) handle.set(node())
+  }
+  function open(): void {
+    refresh()
+    if (lead === undefined) return
+    if (handle?.closed === false) { handle.focus(); return }
+    const openedLead = lead
+    handle = ctx.mayflyOverlays.open({ id: PANEL, title: t('Agent Team'), presentation: 'editor', capturing: true,
+      scope: { kind: 'session', sessionId: lead.id },
+      onEvent: { action: event => {
+        if (selectedLead() !== openedLead) return { kind: 'cancelled' }
+        if (event.kind !== 'selection-accept') return { kind: 'completed' }
+        refresh()
+        const selected = event.selectedIds[0]
+        if (event.controlId === 'members') return openMember(projection?.members.find(member => member.id === selected))
+        if (event.controlId !== 'tasks') return { kind: 'cancelled' }
+        const task = projection?.tasks.find(task => task.id === selected)
+        if (task === undefined) return { kind: 'failed', message: t('The task is no longer available') }
+        const owner = ownerOf(task)
+        if (owner === undefined) return { kind: 'failed', message: t('The task has no active owner') }
+        return openMember(owner)
+      } },
+    }, node())
+  }
+  const syncCommands = () => {
+    for (const [agent, dispose] of commands) if (teamMembership(ctx, agent) === undefined) { dispose(); commands.delete(agent) }
+    for (const agent of ctx.agents.list()) if (!commands.has(agent) && teamMembership(ctx, agent) !== undefined) {
+      const scope = createScope(ctx, scopeOf(agent.ctx)!)
+      const unregister = scope.ctx.commands.register({ name: 'team', description: t('Browse shared tasks and teammate conversations'), handler: invocation => {
+        if (invocation.agent !== ctx.mayflyCurrentAgent.current() || teamMembership(ctx, invocation.agent)?.root !== selectedLead()) return { kind: 'error', text: t('The selected Team changed') }
+        open()
+        return { kind: 'success' }
+      } })
+      commands.set(agent, () => { unregister(); void scope.dispose() })
+    }
+  }
+  syncCommands()
+  ctx.effect(() => ctx.mayflyCurrentAgent.subscribeView(() => { handle?.close(); refresh() }))
+  ctx.effect(() => ctx.sessionProjections.onChanged((session, key) => {
+    if (session === lead?.session && key === 'agentTeam' || key === 'modelSelection' && projection?.members.some(member => member.id === session.id)) refresh()
+  }))
+  ctx.effect(() => ctx.mayflyLocale.subscribe(refresh))
+  ctx.on('agent/created', () => { syncCommands(); refresh() })
+  ctx.on('agent/disposed', () => { syncCommands(); refresh() })
+  ctx.on('agent/status', ({ agent }) => { if (projection?.members.some(member => member.id === agent.id)) refresh() })
+  ctx.on('agent-preset/selected', () => { syncCommands(); refresh() })
+  ctx.effect(() => () => {
+    handle?.close(); status?.dispose(); editor?.dispose(); offFacts?.()
+    for (const dispose of commands.values()) dispose()
+    commands.clear()
+  })
+}

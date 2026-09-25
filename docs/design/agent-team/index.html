@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Agent Team · Mayfly TUI 演示稿</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="page-header">
+    <a class="brand" href="#team"><span class="brand-mark">m</span> mayfly <span class="brand-divider">/</span> design room</a>
+    <span class="version"><span></span> 交互演示稿 · v1</span>
+  </header>
+  <main>
+    <div class="intro">
+      <div><p class="eyebrow">OPTIONAL BY DESIGN</p><h1>把团队协作，留给需要它的会话。</h1><p class="lede">市场安装 → 新会话选择 Agent Team → 明确委派。日常使用继续留在默认预设。</p></div>
+      <a class="spec-link" href="README.md" target="_blank" rel="noopener">查看设计说明 ↗</a>
+    </div>
+    <nav class="scenes" aria-label="演示场景">
+      <button data-scene="market"><small>01</small> 插件市场</button>
+      <button data-scene="preset"><small>02</small> 选择预设</button>
+      <button data-scene="team" class="active"><small>03</small> 团队总览</button>
+      <button data-scene="task"><small>04</small> 任务详情</button>
+      <button data-scene="chat"><small>05</small> 队友会话</button>
+    </nav>
+    <div class="workspace">
+      <section class="stage" aria-label="可操作的终端演示">
+        <div class="stage-toolbar">
+          <span id="scene-title">团队总览</span>
+          <div class="width-switch" role="group" aria-label="终端列数">
+            <button data-width="100" class="active">100 列</button><button data-width="80">80 列</button><button data-width="40">40 列</button>
+          </div>
+        </div>
+        <div class="terminal-space">
+          <div class="terminal-shell" id="terminal-shell">
+            <div class="terminal-title"><span class="terminal-dots"><i></i><i></i><i></i></span><span>mayfly — ~/workspace/mayfly</span><span id="dimensions">100 × 32</span></div>
+            <div id="terminal" class="terminal" tabindex="0" aria-label="Mayfly 终端交互演示"></div>
+          </div>
+        </div>
+        <div class="stage-footer"><span><i class="demo-dot"></i> 示例数据，所有操作仅在演示内生效</span><button id="reset">重置演示 ↺</button></div>
+      </section>
+      <aside class="review-panel">
+        <p class="eyebrow">DESIGN NOTES</p><h2 id="note-title">总览先看人，再看任务</h2>
+        <p id="note-copy"></p><ol id="note-points"></ol>
+        <div class="state-block"><label for="demo-state">切换场景状态</label><select id="demo-state"></select></div>
+        <div class="keyboard-note"><span>试着操作</span><p id="try-copy"></p></div>
+        <div class="review-note"><span>待你调整</span><p>布局、信息密度、快捷键和回复方式均可修改。这一版用于定稿，尚未接入运行时。</p></div>
+      </aside>
+    </div>
+    <div class="design-contract">
+      <div><span>01 / 分发</span><strong>一个市场插件</strong><p>Agent Team 的适配与界面放在 dsh-plugins。</p></div>
+      <div><span>02 / 启用</span><strong>一个独立预设</strong><p>基于默认 standard；安装后由你主动选择。</p></div>
+      <div><span>03 / 协作</span><strong>一个原生团队</strong><p>保留 Harness 的成员、消息与任务语义。</p></div>
+    </div>
+    <footer class="page-footer">MAYFLY · AGENT TEAM <span>方向键选择 · Enter 打开 · Esc 返回 · 鼠标也可点击</span></footer>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

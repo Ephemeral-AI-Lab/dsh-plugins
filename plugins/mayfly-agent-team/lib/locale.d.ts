@@ -1,0 +1,50 @@
+/** Team-owned English and Chinese labels. @module dsh-mayfly-agent-team/locale */
+export declare const NAMESPACE = "mayfly-agent-team";
+export declare const catalog: {
+    zh: {
+        'Agent Team': string;
+        Members: string;
+        'Shared tasks': string;
+        'Current chat': string;
+        Lead: string;
+        Teammate: string;
+        Running: string;
+        Waiting: string;
+        Inactive: string;
+        'Not loaded': string;
+        Provisioning: string;
+        Failed: string;
+        Pending: string;
+        Ready: string;
+        Blocked: string;
+        'In progress': string;
+        Completed: string;
+        Unowned: string;
+        '{count} tools': string;
+        '{count} tokens': string;
+        'Blocked by': string;
+        'Write scopes overlap': string;
+        'No shared tasks': string;
+        'Create and update tasks through the conversation.': string;
+        'No teammates yet': string;
+        'Ask the Lead explicitly to use Agent Team and delegate work.': string;
+        'Loading Team\u2026': string;
+        '{members} members \u00B7 {tasks} unfinished tasks': string;
+        'Team {members} \u00B7 {tasks} tasks': string;
+        'Back to conversation': string;
+        Reply: string;
+        'Reply to resume': string;
+        'Browse shared tasks and teammate conversations': string;
+        'The selected Team changed': string;
+        'Team is unavailable for this preset': string;
+        'The member is no longer available': string;
+        'The task is no longer available': string;
+        'The task has no active owner': string;
+        'Browse history; only Send resumes this member.': string;
+        'Close a view without stopping its member.': string;
+        '{name} \u00B7 Lead: lead': string;
+    };
+    en: {
+        [k: string]: string;
+    };
+};
