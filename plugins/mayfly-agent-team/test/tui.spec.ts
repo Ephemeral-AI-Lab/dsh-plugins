@@ -71,11 +71,10 @@ it('opens tasks and exact live/cold member views, without waking a browsed membe
   const task = await bench.execute(bench.lead, 'team_task_create', { subject: 'Review scopes', description: 'Inspect the auth change', write_scopes: ['src/auth'] })
   const assigned = await bench.execute(bench.lead, 'team_task_update', { task_id: task.id, expected_revision: task.revision, action: 'reassign', owner: 'reviewer' })
   await bench.run()
-  await action(bench.overlay(), select('tasks', task.id))
-  expect(JSON.stringify(bench.overlay('agent-team.task').node)).toContain('Inspect the auth change')
+  expect(JSON.stringify(bench.overlay().node)).toContain('Inspect the auth change')
   await bench.execute(bench.lead, 'team_task_update', { task_id: task.id, expected_revision: assigned.revision, action: 'edit', description: 'Updated native description' })
-  expect(JSON.stringify(bench.overlay('agent-team.task').node)).toContain('Updated native description')
-  await action(bench.overlay('agent-team.task'), { kind: 'activate', pagePath: [], controlId: 'task-actions', actionId: 'open-owner' })
+  expect(JSON.stringify(bench.overlay().node)).toContain('Updated native description')
+  await action(bench.overlay(), select('tasks', task.id))
   expect(bench.ctx.mayflyCurrentAgent.current()).toBe(child)
   expect(bench.ctx.mayflyOverlays.list()).toHaveLength(0)
   const replies: unknown[] = []
@@ -96,7 +95,7 @@ it('opens tasks and exact live/cold member views, without waking a browsed membe
   expect(bench.ctx.mayflyEditorExtensions.list()).toHaveLength(0)
 })
 
-it('rejects stale targets and closes task details with their parent', async () => {
+it('rejects stale targets and unowned tasks, and closes the board cleanly', async () => {
   const bench = await setup()
   bench.ctx.mayflyCurrentAgent.select(bench.lead)
   const task = await bench.execute(bench.lead, 'team_task_create', { subject: 'Read', description: 'Read only' })
@@ -104,7 +103,7 @@ it('rejects stale targets and closes task details with their parent', async () =
   const entry = bench.overlay()
   expect(await action(entry, select('members', 'missing'))).toMatchObject({ kind: 'failed' })
   expect(await action(entry, select('tasks', 'missing'))).toMatchObject({ kind: 'failed' })
-  await action(entry, select('tasks', task.id))
+  expect(await action(entry, select('tasks', task.id))).toMatchObject({ kind: 'failed' })
   bench.ctx.mayflyOverlays.close('agent-team.board')
   expect(bench.ctx.mayflyOverlays.list()).toHaveLength(0)
   await bench.run()

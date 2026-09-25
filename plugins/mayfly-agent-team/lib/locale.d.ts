@@ -19,12 +19,8 @@ export declare const catalog: {
         'In progress': string;
         Completed: string;
         Unowned: string;
-        Owner: string;
-        Status: string;
         'Blocked by': string;
-        'Write scopes': string;
         'Write scopes overlap': string;
-        'Write scopes are advisory; they do not lock files.': string;
         'No shared tasks': string;
         'Create and update tasks through the conversation.': string;
         'No teammates yet': string;
@@ -33,8 +29,6 @@ export declare const catalog: {
         '{members} members \u00B7 {tasks} unfinished tasks': string;
         'Team {members} \u00B7 {tasks} tasks': string;
         'Back to conversation': string;
-        'Back to tasks': string;
-        'Open owner conversation': string;
         Reply: string;
         'Reply to resume': string;
         'Browse shared tasks and teammate conversations': string;
@@ -42,6 +36,7 @@ export declare const catalog: {
         'Team is unavailable for this preset': string;
         'The member is no longer available': string;
         'The task is no longer available': string;
+        'The task has no active owner': string;
         'Browse history; only Send resumes this member.': string;
         'Close a view without stopping its member.': string;
         '{name} \u00B7 Lead: lead': string;

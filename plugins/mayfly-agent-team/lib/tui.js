@@ -2,18 +2,15 @@ import { createScope, scopeOf } from '@deepseek-ai/dsh-scope';
 import { ui } from '@ephemeral-ai/mayfly-ui';
 import { catalog, NAMESPACE } from "./locale.js";
 import { teamMembership } from "./membership.js";
-import { taskNode, teamNode } from "./model.js";
+import { teamNode } from "./model.js";
 export const name = 'mayfly-agent-team-tui';
 export const inject = ['agents', 'agentTeams', 'agentPresets', 'commands', 'sessionProjections', 'mayflyCurrentAgent', 'mayflyLocale', 'mayflyOverlays', 'mayflyStatus', 'mayflyEditorExtensions'];
 const PANEL = 'agent-team.board';
-const DETAIL = 'agent-team.task';
 export function apply(ctx) {
     ctx.effect(() => ctx.mayflyLocale.register(NAMESPACE, catalog));
     const t = ctx.mayflyLocale.bind(NAMESPACE);
     const commands = new Map();
     let handle;
-    let detail;
-    let taskId;
     let lead;
     let projection;
     let status;
@@ -34,10 +31,7 @@ export function apply(ctx) {
         return [[member.id, { running: agent.status === 'running', ...(model === undefined ? {} : { model }) }]];
     }));
     const node = () => teamNode(projection, currentId(), activity(), t);
-    const owner = () => {
-        const task = projection?.tasks.find(task => task.id === taskId);
-        return projection?.members.find(member => member.name === task?.ownerName && member.phase === 'active');
-    };
+    const ownerOf = (task) => projection?.members.find(member => member.name === task.ownerName && member.phase === 'active');
     const openMember = (member) => {
         if (lead === undefined || selectedLead() !== lead)
             return { kind: 'cancelled' };
@@ -53,7 +47,6 @@ export function apply(ctx) {
         const nextLead = selectedLead();
         if (nextLead !== lead) {
             handle?.close();
-            detail?.close();
             lead = nextLead;
         }
         projection = lead === undefined ? undefined : ctx.sessionProjections.snapshot(lead.session, ['agentTeam']).values.agentTeam;
@@ -89,13 +82,6 @@ export function apply(ctx) {
         });
         if (handle?.closed === false)
             handle.set(node());
-        if (detail?.closed === false) {
-            const task = projection?.tasks.find(task => task.id === taskId);
-            if (task === undefined)
-                detail.close();
-            else
-                detail.set(taskNode(task, owner() !== undefined, t));
-        }
     };
     function open() {
         refresh();
@@ -122,18 +108,10 @@ export function apply(ctx) {
                     const task = projection?.tasks.find(task => task.id === selected);
                     if (task === undefined)
                         return { kind: 'failed', message: t('The task is no longer available') };
-                    taskId = task.id;
-                    detail?.close();
-                    detail = ctx.mayflyOverlays.open({ id: DETAIL, title: task.subject, presentation: 'editor', capturing: true,
-                        scope: { kind: 'session', sessionId: openedLead.id },
-                        onEvent: { action: action => {
-                                if (selectedLead() !== openedLead)
-                                    return { kind: 'cancelled' };
-                                refresh();
-                                return action.kind === 'activate' && action.actionId === 'open-owner' ? openMember(owner()) : { kind: 'completed' };
-                            } },
-                    }, taskNode(task, owner() !== undefined, t));
-                    return { kind: 'completed' };
+                    const owner = ownerOf(task);
+                    if (owner === undefined)
+                        return { kind: 'failed', message: t('The task has no active owner') };
+                    return openMember(owner);
                 } },
         }, node());
     }
@@ -156,14 +134,12 @@ export function apply(ctx) {
             }
     };
     syncCommands();
-    ctx.effect(() => ctx.mayflyCurrentAgent.subscribeView(() => { handle?.close(); detail?.close(); refresh(); }));
+    ctx.effect(() => ctx.mayflyCurrentAgent.subscribeView(() => { handle?.close(); refresh(); }));
     ctx.effect(() => ctx.sessionProjections.onChanged((session, key) => {
         if (session === lead?.session && key === 'agentTeam' || key === 'modelSelection' && projection?.members.some(member => member.id === session.id))
             refresh();
     }));
     ctx.effect(() => ctx.mayflyLocale.subscribe(refresh));
-    ctx.effect(() => ctx.mayflyOverlays.subscribe(delta => { if (delta.kind === 'remove' && delta.id === PANEL)
-        detail?.close(); }));
     ctx.on('agent/created', () => { syncCommands(); refresh(); });
     ctx.on('agent/disposed', () => { syncCommands(); refresh(); });
     ctx.on('agent/status', ({ agent }) => { if (projection?.members.some(member => member.id === agent.id))
@@ -171,7 +147,6 @@ export function apply(ctx) {
     ctx.on('agent-preset/selected', () => { syncCommands(); refresh(); });
     ctx.effect(() => () => {
         handle?.close();
-        detail?.close();
         status?.dispose();
         editor?.dispose();
         for (const dispose of commands.values())

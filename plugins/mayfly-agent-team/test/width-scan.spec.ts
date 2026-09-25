@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import { compileMayflyUiNode, MayflyComponentsService, visibleWidth, type MayflySemanticColors } from '@ephemeral-ai/mayfly/core'
 import type { TeamProjection, TeamTaskView } from '@deepseek-ai/dsh-experimental-agent-team/client'
-import { teamNode, taskNode } from '../src/model.ts'
+import { teamNode } from '../src/model.ts'
 
 const long = '认证失败 👨‍👩‍👧‍👦 é ' + 'unbroken'.repeat(25)
 const t = (key: string, values?: Readonly<Record<string, string | number>>) => key.replace(/\{([^}]+)\}/g, (_, name) => String(values?.[name] ?? name))
@@ -20,13 +20,13 @@ const team: TeamProjection = {
   tasks: [task('ready', 'pending', true), task('blocked', 'pending', false), task('running', 'in_progress', false), task('done', 'completed', false)],
 }
 
-it('fits roster, empty, loading and task detail rows at 1–160 columns through the public renderer', async () => {
+it('fits roster, empty and loading rows at 1–160 columns through the public renderer', async () => {
   const ctx = new Context()
   const identity = (text: string) => text
   const colors = new Proxy({ logoGradient: [identity] }, { get: (target, key) => key === 'logoGradient' ? target.logoGradient : identity }) as MayflySemanticColors
   const components = new MayflyComponentsService(ctx, { theme: { colors }, tui: { requestRender() {} } } as never)
   const activity = new Map([['lead', { running: false }], ['reviewer', { running: true, model: long }]])
-  const nodes = [teamNode(team, 'lead', activity, t), teamNode(undefined, '', activity, t), teamNode({ members: team.members.slice(0, 1), tasks: [] }, 'lead', activity, t), ...team.tasks.map(task => taskNode(task, true, t))]
+  const nodes = [teamNode(team, 'lead', activity, t), teamNode(undefined, '', activity, t), teamNode({ members: team.members.slice(0, 1), tasks: [] }, 'lead', activity, t)]
   try {
     for (const node of nodes) for (const width of [1, 2, 8, 20, 40, 80, 100, 160]) {
       const result = compileMayflyUiNode(node, { components, colors, getViewport: () => ({ columns: width, rows: 30 }), screenMode: 'alternate', emit() {} })

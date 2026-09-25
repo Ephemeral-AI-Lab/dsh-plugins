@@ -8,4 +8,3 @@ export interface MemberActivity {
 }
 export declare function taskState(task: TeamTaskView, t: MayflyTranslate): string;
 export declare function teamNode(team: TeamProjection | undefined, current: string, activity: ReadonlyMap<string, MemberActivity>, t: MayflyTranslate): MayflyUiNode;
-export declare function taskNode(task: TeamTaskView, ownerAvailable: boolean, t: MayflyTranslate): MayflyUiNode;

@@ -18,7 +18,7 @@ export function teamNode(team, current, activity, t) {
         }) });
     const tasks = ui.list({ id: 'tasks', role: 'browse', filterable: true, selectedIds: [], items: team.tasks.map(task => ({
             id: task.id, label: `${task.id} · ${task.subject}`, badge: taskState(task, t),
-            detail: [task.ownerName ?? t('Unowned'), task.blockedBy.length ? `${t('Blocked by')}: ${task.blockedBy.join(', ')}` : '', task.writeScopeWarnings.length ? t('Write scopes overlap') : ''].filter(Boolean).join(' · '),
+            detail: [task.description.replace(/\s+/gu, ' '), task.ownerName ?? t('Unowned'), task.blockedBy.length ? `${t('Blocked by')}: ${task.blockedBy.join(', ')}` : '', task.writeScopeWarnings.length ? t('Write scopes overlap') : ''].filter(Boolean).join(' · '),
             searchText: `${task.id} ${task.subject} ${task.description} ${task.ownerName ?? ''}`,
         })), empty: ui.empty({ title: t('No shared tasks'), description: t('Create and update tasks through the conversation.') }) });
     const warnings = team.tasks.filter(task => task.writeScopeWarnings.length > 0);
@@ -33,24 +33,5 @@ export function teamNode(team, current, activity, t) {
                 ui.child(tasks, { tab: { controlId: 'team-pages', itemId: 'tasks' }, tabWhen: NARROW, basis: 0, grow: 2, minSize: 0 }),
             ], { gap: 1 }),
             ui.actions({ id: 'team-actions', items: [{ id: 'close', label: t('Back to conversation'), dismiss: true }] }),
-        ], { gap: 1 }) });
-}
-export function taskNode(task, ownerAvailable, t) {
-    return ui.surface({ title: `${task.id} · ${task.subject}`, chrome: 'overlay', child: ui.stack.column([
-            ui.fields([
-                { label: t('Status'), value: [{ text: taskState(task, t) }] },
-                { label: t('Owner'), value: [{ text: task.ownerName ?? t('Unowned') }] },
-                { label: t('Blocked by'), value: [{ text: task.blockedBy.join(', ') || '—' }] },
-            ]),
-            ui.scroll(ui.stack.column([
-                ui.text(task.description),
-                ui.fields([{ label: t('Write scopes'), value: [{ text: task.writeScopes.join(', ') || '—' }] }]),
-                ...task.writeScopeWarnings.map(warning => ui.text(warning, { tone: 'warning' })),
-                ui.text(t('Write scopes are advisory; they do not lock files.'), { tone: 'muted' }),
-            ], { gap: 1 }), { id: 'task-description', scrollbar: true }),
-            ui.actions({ id: 'task-actions', items: [
-                    { id: 'open-owner', label: t('Open owner conversation'), disabled: !ownerAvailable },
-                    { id: 'close', label: t('Back to tasks'), dismiss: true },
-                ] }),
         ], { gap: 1 }) });
 }
