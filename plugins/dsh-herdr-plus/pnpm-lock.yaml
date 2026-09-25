@@ -23,6 +23,9 @@ importers:
       '@deepseek-ai/dsh-session-title':
         specifier: link:../../../deepseek-harness/packages/session/session-title
         version: link:../../../deepseek-harness/packages/session/session-title
+      '@deepseek-ai/dsh-skill':
+        specifier: link:../../../deepseek-harness/packages/skill/skill
+        version: link:../../../deepseek-harness/packages/skill/skill
       '@deepseek-ai/dsh-tools':
         specifier: link:../../../deepseek-harness/packages/core/tools
         version: link:../../../deepseek-harness/packages/core/tools

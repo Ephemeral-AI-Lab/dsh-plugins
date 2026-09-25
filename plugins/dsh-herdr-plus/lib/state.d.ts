@@ -3,7 +3,7 @@
  * session display facts (title, model, context), and the small formatting
  * helpers they share.
  *
- * @module herdr-agent-state/state
+ * @module dsh-herdr-plus/state
  */
 /**
  * Compact token count like the dsh TUI's status bar: `988`, `3.4k`, `12k`,

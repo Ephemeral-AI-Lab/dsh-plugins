@@ -1,33 +1,42 @@
 /**
- * Herdr agent-state reporter for any dsh frontend.
+ * Herdr integration for any dsh frontend: pane state reporter plus optional
+ * orchestration surface.
  *
  * A Cordis function plugin that, when loaded inside a Herdr pane, reports the
  * pane's semantic state (working / blocked / idle, labeled with the current
  * tool while working), session reference and log path, and session display
  * facts — title, model, and context usage as pane metadata — to Herdr's pane
- * socket. It depends only on documented dsh extension points — agent lifecycle
- * events, the approval / user-question / tool-dispatch waterfalls, and the
- * session-log event feed — so it works in TUI, web, and headless profiles
- * alike. Outside a Herdr pane it is a strict no-op.
+ * socket. When the profile mounts the skills service it can also contribute
+ * Herdr's own `SKILL.md` (preferring `herdr --skill` so the body matches the
+ * installed binary) plus a sibling-session addendum, and when it mounts the
+ * tools service it can register `herdr_agent_*` orchestration tools. It
+ * depends only on documented dsh extension points — agent lifecycle events,
+ * the approval / user-question / tool-dispatch waterfalls, and the session-log
+ * event feed — so it works in TUI, web, and headless profiles alike. Outside
+ * a Herdr pane it is a strict no-op.
  *
- * @module herdr-agent-state
+ * @module dsh-herdr-plus
  */
 import z from '@deepseek-ai/schemastery';
+import { makeHerdrSkillProvider } from './skill.js';
 import { AgentStateModel, SessionFactsModel, stateLabelsPayload, sumUsageTokens } from './state.js';
 import { HerdrReporter, herdrEnabled } from './transport.js';
-export const name = 'herdr-agent-state';
+export const name = 'dsh-herdr-plus';
 /** The plugin consumes no injected services; it reads the environment and events only. */
 export const inject = [];
 /** Schemastery configuration for the plugin. */
 export const Config = z.object({
-    agent: z.string().default('dsh'),
-    source: z.string().default('herdr:dsh-agent-state'),
+    agent: z.string().default('mayfly'),
+    source: z.string().default('herdr:dsh-herdr-plus'),
     transport: z.union([z.const('socket'), z.const('cli')]).default('socket'),
     reportSession: z.boolean().default(true),
     title: z.union([z.const('session'), z.const('none')]).default('session'),
     message: z.union([z.const('tool'), z.const('none')]).default('tool'),
     workingMessage: z.union([z.const('tool'), z.const('none')]).default('tool'),
     tokens: z.union([z.const('auto'), z.const('none')]).default('auto'),
+    tools: z.union([z.const('auto'), z.const('none')]).default('auto'),
+    skill: z.union([z.const('auto'), z.const('bundled'), z.const('none')]).default('auto'),
+    launchCommand: z.string().default('mayfly'),
     stateLabels: z.object({
         idle: z.string().default(''),
         working: z.string().default(''),
@@ -74,11 +83,29 @@ export function apply(ctx, config) {
     if (!config.enabled)
         return;
     if (config.transport !== 'socket') {
-        throw new Error(`herdr-agent-state: transport "${String(config.transport)}" is not implemented; use 'socket'`);
+        throw new Error(`dsh-herdr-plus: transport "${String(config.transport)}" is not implemented; use 'socket'`);
     }
     const env = process.env;
     if (!herdrEnabled(env))
         return;
+    const skills = ctx.get('skills');
+    if (config.skill !== 'none' && skills !== undefined) {
+        const mode = config.skill;
+        ctx.effect(() => skills.registerProvider(() => makeHerdrSkillProvider({ env, mode })), 'dsh-herdr-plus: unregister the herdr skill provider');
+    }
+    const tools = ctx.get('tools');
+    if (config.tools === 'auto' && tools !== undefined) {
+        // Dynamic import keeps the reporter loadable in profiles where the
+        // dsh-tools package is absent from the install tree entirely. `alive`
+        // skips registration if the plugin unloaded while the module resolved.
+        let alive = true;
+        ctx.effect(() => () => { alive = false; }, 'dsh-herdr-plus: track unload during tools import');
+        void import('./tools.js').then(({ registerHerdrTools }) => {
+            if (!alive)
+                return;
+            ctx.effect(() => registerHerdrTools(tools, env, { launchCommand: config.launchCommand }), 'dsh-herdr-plus: unregister herdr orchestration tools');
+        }, () => ctx.logger.warn('dsh-herdr-plus: herdr_agent_* tools disabled (tools module unavailable)'));
+    }
     const reporter = new HerdrReporter({
         source: config.source,
         agent: config.agent,
@@ -204,7 +231,7 @@ export function apply(ctx, config) {
             ...(stateLabels !== undefined ? { state_labels: stateLabels } : {}),
         });
     });
-    ctx.effect(() => () => reporter.release(), 'herdr-agent-state: release pane lifecycle authority on unload');
+    ctx.effect(() => () => reporter.release(), 'dsh-herdr-plus: release pane lifecycle authority on unload');
     process.once('beforeExit', () => reporter.release());
 }
 //# sourceMappingURL=index.js.map

@@ -120,7 +120,7 @@ describe('HerdrReporter', () => {
   it('publishes state with seq and session ref, coalescing bursts to the latest', async () => {
     await startServer()
     const reporter = new HerdrReporter({
-      source: 'herdr:dsh-agent-state',
+      source: 'herdr:dsh-herdr-plus',
       agent: 'dsh',
       reportSession: true,
       reportTitle: false,
@@ -140,7 +140,7 @@ describe('HerdrReporter', () => {
     const last = states[states.length - 1]!
     expect(last.params).toMatchObject({
       pane_id: 'p1',
-      source: 'herdr:dsh-agent-state',
+      source: 'herdr:dsh-herdr-plus',
       agent: 'dsh',
       state: 'idle',
       agent_session_id: 'sess-123',

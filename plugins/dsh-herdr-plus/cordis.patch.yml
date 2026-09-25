@@ -1,0 +1,13 @@
+# The dsh-herdr-plus bundle patch: insert the Herdr integration plugin into
+# the profile's layer stack. Because package.json declares `dsh.bundle.patch`,
+# `dsh plugin add` joins this bundle into the profile's `dsh.profile.bundles`
+# and activates the row automatically — no manual `cordis.patch.yml` edit
+# needed. Override a value by patching the same row id from the profile layer
+# (last write wins per row).
+- insert:
+    - id: dsh-herdr-plus
+      name: 'dsh-herdr-plus'
+      config:
+        # Herdr agent label for the pane. Set a frontend's own name (e.g.
+        # `blue`) by overriding this row's `config` in the profile patch.
+        agent: mayfly

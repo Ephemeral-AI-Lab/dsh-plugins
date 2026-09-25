@@ -1,16 +1,21 @@
 /**
- * Herdr agent-state reporter for any dsh frontend.
+ * Herdr integration for any dsh frontend: pane state reporter plus optional
+ * orchestration surface.
  *
  * A Cordis function plugin that, when loaded inside a Herdr pane, reports the
  * pane's semantic state (working / blocked / idle, labeled with the current
  * tool while working), session reference and log path, and session display
  * facts — title, model, and context usage as pane metadata — to Herdr's pane
- * socket. It depends only on documented dsh extension points — agent lifecycle
- * events, the approval / user-question / tool-dispatch waterfalls, and the
- * session-log event feed — so it works in TUI, web, and headless profiles
- * alike. Outside a Herdr pane it is a strict no-op.
+ * socket. When the profile mounts the skills service it can also contribute
+ * Herdr's own `SKILL.md` (preferring `herdr --skill` so the body matches the
+ * installed binary) plus a sibling-session addendum, and when it mounts the
+ * tools service it can register `herdr_agent_*` orchestration tools. It
+ * depends only on documented dsh extension points — agent lifecycle events,
+ * the approval / user-question / tool-dispatch waterfalls, and the session-log
+ * event feed — so it works in TUI, web, and headless profiles alike. Outside
+ * a Herdr pane it is a strict no-op.
  *
- * @module herdr-agent-state
+ * @module dsh-herdr-plus
  */
 import z from '@deepseek-ai/schemastery';
 import type { Context } from '@deepseek-ai/cordis';
@@ -30,7 +35,7 @@ declare module '@deepseek-ai/cordis' {
         }, next: () => Promise<AskUserQuestionAnswer>): Promise<AskUserQuestionAnswer>;
     }
 }
-export declare const name = "herdr-agent-state";
+export declare const name = "dsh-herdr-plus";
 /** The plugin consumes no injected services; it reads the environment and events only. */
 export declare const inject: string[];
 /** Display text per Herdr state; non-blank entries become pane state labels. */
@@ -81,6 +86,24 @@ export interface Config {
      * (e.g. `{ working: 工作中, blocked: 等待确认 }`). All-blank disables them.
      */
     stateLabels: StateLabels;
+    /**
+     * `auto` registers the `herdr_agent_*` orchestration tools when the profile
+     * mounts the tools service; `none` keeps the plugin report-only.
+     */
+    tools: 'auto' | 'none';
+    /**
+     * `auto` contributes the `herdr` skill when the profile mounts the skills
+     * service, preferring the installed binary's `herdr --skill` output;
+     * `bundled` serves only the vendored copy (no subprocess); `none`
+     * contributes nothing.
+     */
+    skill: 'auto' | 'bundled' | 'none';
+    /**
+     * Command line `herdr_agent_spawn` runs in the sibling pane; the task is
+     * appended as one shell-quoted argv word (e.g. `mayfly`, or
+     * `dsh --profile mayfly`).
+     */
+    launchCommand: string;
     /** Kill-switch for coexisting with another reporter in the same tree. */
     enabled: boolean;
 }
