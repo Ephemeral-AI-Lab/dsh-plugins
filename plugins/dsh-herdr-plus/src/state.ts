@@ -3,7 +3,7 @@
  * session display facts (title, model, context), and the small formatting
  * helpers they share.
  *
- * @module herdr-agent-state/state
+ * @module dsh-herdr-plus/state
  */
 
 /**

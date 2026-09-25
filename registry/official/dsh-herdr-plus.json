@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "dsh-herdr-plus",
+  "source": "official",
+  "displayName": "Herdr Plus",
+  "description": "Report pane agent state, session ref, and title/model/ctx metadata to Herdr's pane socket; contributes the `herdr` skill and `herdr_agent_*` tools so an agent in a Herdr pane can launch and coordinate sibling dsh/Mayfly sessions.",
+  "descriptionZh": "向 Herdr 的 pane socket 上报窗格 agent 状态、会话引用与标题/模型/上下文用量元数据；贡献 `herdr` 技能与 `herdr_agent_*` 工具，使窗格内的 agent 能启动并协调兄弟 dsh/Mayfly 会话。",
+  "author": { "name": "Ephemeral AI Lab", "url": "https://github.com/Ephemeral-AI-Lab" },
+  "links": {
+    "repo": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/tree/main/plugins/dsh-herdr-plus",
+    "docs": "https://github.com/Ephemeral-AI-Lab/dsh-plugins/blob/main/plugins/dsh-herdr-plus/README.md"
+  },
+  "license": "MIT",
+  "category": "integration",
+  "status": "stable",
+  "surfaces": { "server": {} },
+  "install": {
+    "rows": [
+      {
+        "id": "dsh-herdr-plus",
+        "name": "dsh-herdr-plus",
+        "github": { "repo": "Ephemeral-AI-Lab/dsh-plugins", "ref": "main", "subdir": "plugins/dsh-herdr-plus" }
+      }
+    ]
+  },
+  "capabilities": ["network", "process"],
+  "verified": {
+    "at": "2026-09-18",
+    "packages": [{ "name": "dsh-herdr-plus", "version": "0.1.0" }]
+  }
+}

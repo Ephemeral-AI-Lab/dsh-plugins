@@ -9,7 +9,7 @@
  * the host process (Herdr being absent must not disturb the dsh frontend).
  *
  * Only `node:net` is used.
- * @module herdr-agent-state/transport
+ * @module dsh-herdr-plus/transport
  */
 import net from 'node:net';
 /** True when the process runs inside a Herdr pane that can receive reports. */
