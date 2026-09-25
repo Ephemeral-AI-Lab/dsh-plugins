@@ -94,3 +94,5 @@ minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-user-approval@0.1.7-rc.1'
   - '@deepseek-ai/dsh-user-questions@0.1.7-rc.1'
   - '@deepseek-ai/dsh-workflow@0.1.7-rc.1'
+  - '@ephemeral-ai/mayfly-ui@0.1.0-alpha.6'
+  - '@ephemeral-ai/mayfly@0.1.0-alpha.6'

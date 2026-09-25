@@ -140,5 +140,17 @@
           - id: tool-plugin-manager
             name: '@deepseek-ai/dsh-plugin-manager/tools'
             disabled: true
+          # Schedule is preset-scoped: mounting the row inside this composition
+          # scopes its agent/created listener to this preset's Agents, so the
+          # schedule_* tools and reminder runtime exist only for standard
+          # sessions. Other presets carry no row and stay clean.
+          - id: schedule
+            name: '@deepseek-ai/dsh-schedule'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+            config:
+              # Throttle durable clock injections to one per five minutes per
+              # session; the timestamp falls back to the process zone.
+              refreshIntervalMs: 300000
         name: Agent Team
         description: Standard coding tools with opt-in teammates and a shared task board

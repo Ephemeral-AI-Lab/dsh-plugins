@@ -113,7 +113,7 @@ export function apply(ctx) {
             return;
         }
         const openedLead = lead;
-        handle = ctx.mayflyOverlays.open({ id: PANEL, title: t('Agent Team'), presentation: 'overlay', capturing: true, width: '100%', maxHeight: '90%',
+        handle = ctx.mayflyOverlays.open({ id: PANEL, title: t('Agent Team'), presentation: 'editor', capturing: true,
             scope: { kind: 'session', sessionId: lead.id },
             onEvent: { action: event => {
                     if (selectedLead() !== openedLead)
@@ -131,7 +131,7 @@ export function apply(ctx) {
                         return { kind: 'failed', message: t('The task is no longer available') };
                     taskId = task.id;
                     detail?.close();
-                    detail = ctx.mayflyOverlays.open({ id: DETAIL, title: task.subject, presentation: 'overlay', capturing: true, width: '100%', maxHeight: '90%',
+                    detail = ctx.mayflyOverlays.open({ id: DETAIL, title: task.subject, presentation: 'editor', capturing: true,
                         scope: { kind: 'session', sessionId: openedLead.id },
                         onEvent: { action: action => {
                                 if (selectedLead() !== openedLead)
