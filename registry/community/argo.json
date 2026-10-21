@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "argo",
+  "source": "community",
+  "displayName": "Argo",
+  "description": "Agent search across 260+ multilingual sources with evidence scoring, a wide_research orchestrator, and native search/fetch tools plus a web_search seam for DeepSeek Harness.",
+  "descriptionZh": "面向 agent 的多语言搜索：260+ 来源、证据评分、wide_research 编排，为 DeepSeek Harness 提供原生搜索/抓取工具与 web_search seam。",
+  "author": {
+    "name": "taxueseek",
+    "url": "https://github.com/taxueseek"
+  },
+  "links": {
+    "repo": "https://github.com/taxueseek/argo",
+    "docs": "https://github.com/taxueseek/argo/blob/main/README.md",
+    "npm": "https://www.npmjs.com/package/@taxueseek/argo-dsh"
+  },
+  "license": "Apache-2.0",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": {
+    "server": {},
+    "web": { "clientModule": true }
+  },
+  "provides": {
+    "tools": ["argo_search", "argo_fetch", "argo_recompute", "wide_research"]
+  },
+  "install": {
+    "rows": [
+      {
+        "name": "@taxueseek/argo-dsh",
+        "npm": { "spec": "@taxueseek/argo-dsh" }
+      }
+    ]
+  },
+  "engines": { "node": ">=18" },
+  "capabilities": ["shell", "network", "credentials", "fs-read"],
+  "verified": {
+    "at": "2026-10-21",
+    "packages": [
+      {
+        "name": "@taxueseek/argo-dsh",
+        "version": "2.9.7",
+        "integrity": "sha512-wbdSu42Cdm+PjGlK72bbEidVQm92o0WCO2ZxcRpAEP76PKuoFXhFZ3rYLKUyWJZoj6S4VVLsgl09DcYieenhRQ=="
+      }
+    ]
+  }
+}
