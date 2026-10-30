@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "dsh-opencode-provider",
+  "source": "community",
+  "displayName": "OpenCode Provider",
+  "description": "Connects DeepSeek Harness to OpenCode Console, OpenCode Zen, and OpenCode Go model routes.",
+  "descriptionZh": "将 DeepSeek Harness 连接到 OpenCode Console、OpenCode Zen 和 OpenCode Go 模型路由。",
+  "author": {
+    "name": "GooDAnDReaDY",
+    "url": "https://github.com/GooDAnDReaDY"
+  },
+  "links": {
+    "repo": "https://github.com/GooDAnDReaDY/dsh-opencode-provider",
+    "docs": "https://github.com/GooDAnDReaDY/dsh-opencode-provider#readme",
+    "npm": "https://www.npmjs.com/package/@goodandready/dsh-opencode-provider"
+  },
+  "license": "MIT",
+  "category": "provider",
+  "status": "stable",
+  "surfaces": {
+    "server": {},
+    "web": {
+      "clientModule": true
+    }
+  },
+  "install": {
+    "rows": [
+      {
+        "id": "dsh-opencode-provider",
+        "name": "@goodandready/dsh-opencode-provider",
+        "npm": {
+          "spec": "@goodandready/dsh-opencode-provider@0.5.14"
+        }
+      }
+    ]
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": "0.2.0-rc.2 || 0.2.1-rc.2"
+  },
+  "capabilities": [
+    "network",
+    "credentials",
+    "fs-write"
+  ],
+  "verified": {
+    "at": "2026-10-30",
+    "packages": [
+      {
+        "name": "@goodandready/dsh-opencode-provider",
+        "version": "0.5.14"
+      }
+    ]
+  }
+}
