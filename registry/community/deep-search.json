@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "deep-search",
+  "source": "community",
+  "displayName": "Deep Search",
+  "description": "Multi-channel deep search for the agent: deep_search fans queries out to web, Exa, Tavily, GitHub, MolaSearch and any MCP search server, merges by reciprocal-rank fusion with rate-limit back-off and caching; deep_verify checks cited pages lexically. Can also register as the ctx.web search provider.",
+  "descriptionZh": "为 Agent 提供多渠道深度搜索：deep_search 并行查询 web、Exa、Tavily、GitHub、MolaSearch 及任意 MCP 搜索服务，按倒数排名融合，带限速退避与缓存；deep_verify 对引用页面做词法核验。也可注册为 ctx.web 搜索提供方。",
+  "author": { "name": "Mola-maker", "url": "https://github.com/Mola-maker" },
+  "links": {
+    "repo": "https://github.com/Mola-maker/dsh-kit/tree/main/packages/deep-search",
+    "docs": "https://github.com/Mola-maker/dsh-kit/blob/main/packages/deep-search/README.md"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": { "server": {} },
+  "provides": { "tools": ["deep_search", "deep_verify"] },
+  "install": {
+    "rows": [
+      {
+        "id": "deep-search",
+        "name": "@molamaker/dsh-deep-search",
+        "npm": { "spec": "@molamaker/dsh-deep-search" }
+      }
+    ]
+  },
+  "engines": { "dsh": "^0.2.1-rc.5", "node": "^22.19.0 || >=24.0.0" },
+  "capabilities": ["network", "credentials", "process-spawn"],
+  "verified": {
+    "at": "2026-11-04",
+    "packages": [{ "name": "@molamaker/dsh-deep-search", "version": "0.2.0" }]
+  }
+}
