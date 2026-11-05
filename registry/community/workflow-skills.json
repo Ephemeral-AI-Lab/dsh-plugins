@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "workflow-skills",
+  "source": "community",
+  "displayName": "Workflow Skills",
+  "description": "Seven engineering-workflow skills for every preset in a profile: eval-first, deep-research, parallel-dispatch, ship-pr, plugin-intake, token-thrift and desktop-operator. Plain markdown registered at runtime; no network, no files, no child processes.",
+  "descriptionZh": "为 profile 内所有预设提供七个工程工作流技能：eval-first、deep-research、parallel-dispatch、ship-pr、plugin-intake、token-thrift、desktop-operator。运行时注册的纯 markdown，不联网、不写文件、不启动子进程。",
+  "author": { "name": "Mola-maker", "url": "https://github.com/Mola-maker" },
+  "links": {
+    "repo": "https://github.com/Mola-maker/dsh-kit/tree/main/packages/workflow-skills",
+    "docs": "https://github.com/Mola-maker/dsh-kit/blob/main/packages/workflow-skills/README.md"
+  },
+  "license": "MIT",
+  "category": "workflow",
+  "status": "beta",
+  "surfaces": { "server": {} },
+  "provides": {},
+  "install": {
+    "rows": [
+      {
+        "id": "workflow-skills",
+        "name": "dsh-workflow-skills",
+        "npm": { "spec": "dsh-workflow-skills" }
+      }
+    ]
+  },
+  "engines": { "dsh": "^0.2.1-rc.5", "node": "^22.19.0 || >=24.0.0" },
+  "capabilities": [],
+  "verified": {
+    "at": "2026-11-04",
+    "packages": [{ "name": "dsh-workflow-skills", "version": "0.1.1" }]
+  }
+}
