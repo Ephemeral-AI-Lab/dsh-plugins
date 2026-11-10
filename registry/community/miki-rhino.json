@@ -10,7 +10,7 @@
     "url": "https://github.com/mikidaren"
   },
   "links": {
-    "docs": "https://github.com/mikidaren/Miki-Rhino/blob/6b9d0f12e0ec04bcaf1ee059b49222b760e4d769/integrations/rhino-desktop/README.md",
+    "docs": "https://github.com/mikidaren/Miki-Rhino/blob/79b7e8eb62316a2ff3b5190962efb4b8bf9ef514/integrations/rhino-desktop/README.md",
     "repo": "https://github.com/mikidaren/Miki-Rhino"
   },
   "license": "MIT",
@@ -32,7 +32,7 @@
         "id": "miki-rhino-dsh",
         "github": {
           "repo": "mikidaren/Miki-Rhino",
-          "ref": "6b9d0f12e0ec04bcaf1ee059b49222b760e4d769",
+          "ref": "79b7e8eb62316a2ff3b5190962efb4b8bf9ef514",
           "subdir": "integrations/rhino-desktop"
         },
         "activation": "bundle"
