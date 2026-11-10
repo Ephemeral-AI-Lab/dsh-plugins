@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "miki-rhino",
+  "source": "community",
+  "displayName": "Miki-Rhino",
+  "description": "Inspect selection, viewport and a bounded object inventory in a locally running Rhino 9 document.",
+  "descriptionZh": "从同机 Rhino 9 文档只读获取选中对象、视口和有限数量的对象清单。",
+  "author": {
+    "name": "mikidaren",
+    "url": "https://github.com/mikidaren"
+  },
+  "links": {
+    "docs": "https://github.com/mikidaren/Miki-Rhino/blob/79b7e8eb62316a2ff3b5190962efb4b8bf9ef514/integrations/rhino-desktop/README.md",
+    "repo": "https://github.com/mikidaren/Miki-Rhino"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": {
+    "server": {}
+  },
+  "provides": {
+    "tools": [
+      "miki_rhino_context",
+      "miki_rhino_objects"
+    ]
+  },
+  "install": {
+    "rows": [
+      {
+        "name": "miki-rhino-dsh",
+        "id": "miki-rhino-dsh",
+        "github": {
+          "repo": "mikidaren/Miki-Rhino",
+          "ref": "79b7e8eb62316a2ff3b5190962efb4b8bf9ef514",
+          "subdir": "integrations/rhino-desktop"
+        },
+        "activation": "bundle"
+      }
+    ]
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "capabilities": [
+    "network"
+  ],
+  "verified": {
+    "at": "2026-11-11",
+    "packages": [
+      {
+        "name": "miki-rhino-dsh",
+        "version": "0.2.0"
+      }
+    ]
+  }
+}
