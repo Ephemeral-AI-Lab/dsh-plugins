@@ -20,17 +20,17 @@
     "rows": [{
       "id": "ego-lite-official",
       "name": "@cyrusxc5/better-ego-browser",
-      "npm": { "spec": "@cyrusxc5/better-ego-browser@0.3.3" }
+      "npm": { "spec": "@cyrusxc5/better-ego-browser@0.3.6" }
     }]
   },
   "engines": { "node": ">=22", "dsh": ">=0.2.0-rc.1" },
   "capabilities": ["network", "local-process-execution", "fs-read", "fs-write", "signed-in-browser-access"],
   "verified": {
-    "at": "2026-11-10",
+    "at": "2026-11-13",
     "packages": [{
       "name": "@cyrusxc5/better-ego-browser",
-      "version": "0.3.3",
-      "integrity": "sha512-mNk+4v9zo3ToVsjKCHFh+iGOehSF1VHO4iihFv8dozx9jUYnQakI2N7h+1sDKdcw4txnj2VITs8hXnyw4CYLQQ=="
+      "version": "0.3.6",
+      "integrity": "sha512-4tNYrc5YtgJmOxVwx/CeoMMu+hAtJg0c6FBpLiqSxQw27/Taf3NX/1iKnG7mQAOO2LlGmJcM8XrwXFczos0GyA=="
     }]
   }
 }
