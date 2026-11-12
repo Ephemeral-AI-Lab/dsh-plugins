@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "better-ego-browser",
+  "source": "community",
+  "displayName": "better-ego-browser",
+  "description": "Connect DSH to the installed Windows ego lite app over authenticated loopback HTTP for task spaces, navigation, page reading, clicks, form input and screenshots. Requires the official desktop app; currently tested on Windows only.",
+  "descriptionZh": "通过带认证的本机 HTTP 连接已安装的 Windows ego lite，提供任务空间、导航、页面读取、点击、表单输入和截图；需要官方桌面应用，目前仅测试 Windows。",
+  "author": { "name": "cyrus-xc", "url": "https://github.com/cyrus-xc" },
+  "links": {
+    "repo": "https://github.com/cyrus-xc/better-ego-browser",
+    "docs": "https://github.com/cyrus-xc/better-ego-browser/blob/main/README.en.md",
+    "npm": "https://www.npmjs.com/package/@cyrusxc5/better-ego-browser"
+  },
+  "license": "MIT",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": { "server": {} },
+  "provides": { "tools": ["ego_loopback_browser"], "commands": ["/ego-browser"] },
+  "install": {
+    "rows": [{
+      "id": "ego-lite-official",
+      "name": "@cyrusxc5/better-ego-browser",
+      "npm": { "spec": "@cyrusxc5/better-ego-browser@0.3.6" }
+    }]
+  },
+  "engines": { "node": ">=22", "dsh": ">=0.2.0-rc.1" },
+  "capabilities": ["network", "local-process-execution", "fs-read", "fs-write", "signed-in-browser-access"],
+  "verified": {
+    "at": "2026-11-13",
+    "packages": [{
+      "name": "@cyrusxc5/better-ego-browser",
+      "version": "0.3.6",
+      "integrity": "sha512-4tNYrc5YtgJmOxVwx/CeoMMu+hAtJg0c6FBpLiqSxQw27/Taf3NX/1iKnG7mQAOO2LlGmJcM8XrwXFczos0GyA=="
+    }]
+  }
+}
