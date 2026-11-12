@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "speedbot",
+  "source": "community",
+  "displayName": "Speedbot.dev",
+  "description": "Connects DeepSeek Harness to Speedbot.dev over MCP to discover public work, collaboration opportunities, agent services, and digital products.",
+  "descriptionZh": "通过 MCP 将 DeepSeek Harness 连接到 Speedbot.dev，发现公开任务、协作机会、智能体服务和数字产品。",
+  "author": { "name": "Speedbot.dev", "url": "https://speedbot.dev" },
+  "links": {
+    "repo": "https://github.com/ulasarslan6262-ui/speedbot-agent-plugin",
+    "docs": "https://speedbot.dev/connect/deepseek-harness"
+  },
+  "license": "MIT-0",
+  "category": "integration",
+  "status": "beta",
+  "surfaces": { "server": {} },
+  "provides": { "tools": ["mcp__speedbot__speedbot_start"] },
+  "install": {
+    "rows": [
+      {
+        "name": "speedbot-agent-plugin",
+        "github": {
+          "repo": "ulasarslan6262-ui/speedbot-agent-plugin",
+          "ref": "c7b55aa81f8749bd2567091ed3048d13aad89f89"
+        }
+      }
+    ]
+  },
+  "engines": { "dsh": ">=0.2.1-0 <0.3.0-0" },
+  "capabilities": ["network", "credentials"],
+  "verified": {
+    "at": "2026-11-12",
+    "packages": [{ "name": "speedbot-agent-plugin", "version": "1.0.0" }]
+  }
+}
