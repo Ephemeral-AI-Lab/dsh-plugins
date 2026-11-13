@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "dsh-suggestion-chips",
+  "source": "community",
+  "displayName": "Suggestion Chips",
+  "description": "Clickable suggestion chips under every reply: registers suggest_actions tool with stance sorting, Level 0 deterministic extraction fallback, high-risk draft gate, adoption indicator, and opensNewSession handoff.",
+  "descriptionZh": "每条回复下方显示可点击建议按钮：注册 suggest_actions 工具并支持立场排序、L0 确定性文本兜底、高危操作草稿门禁、已采纳标记与新会话交接。",
+  "author": {
+    "name": "taxueseek",
+    "url": "https://github.com/taxueseek"
+  },
+  "links": {
+    "repo": "https://github.com/taxueseek/dsh-suggestion-chips",
+    "docs": "https://github.com/taxueseek/dsh-suggestion-chips#readme",
+    "npm": "https://www.npmjs.com/package/dsh-suggestion-chips"
+  },
+  "license": "MIT",
+  "category": "ui",
+  "status": "beta",
+  "surfaces": {
+    "server": {},
+    "web": { "clientModule": true }
+  },
+  "provides": {
+    "tools": ["suggest_actions"]
+  },
+  "install": {
+    "rows": [
+      {
+        "name": "dsh-suggestion-chips",
+        "npm": { "spec": "dsh-suggestion-chips" }
+      }
+    ]
+  },
+  "engines": { "node": ">=20" },
+  "verified": {
+    "at": "2026-11-13",
+    "packages": [
+      {
+        "name": "dsh-suggestion-chips",
+        "version": "0.2.5",
+        "integrity": "sha512-CBrpwOJk78Qg8jUCoqxaciZ4l6rEz/ervDYqYNx7XODc9NmTL6IE79L76bvSUTrgpBgu71y4AHndKbgT5xzh2A=="
+      }
+    ]
+  }
+}
