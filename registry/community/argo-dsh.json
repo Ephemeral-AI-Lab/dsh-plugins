@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "argo-dsh",
+  "source": "community",
+  "displayName": "Argo Search",
+  "description": "Unified agent search and evidence verification: wide_research orchestration tool plus native argo_search/argo_fetch, host web_search/web_fetch seam wiring to Argo's engine chain, and a settings UI (providers, tools, API keys, research); full MCP surface is opt-in.",
+  "descriptionZh": "统一搜索与取证工具箱：wide_research 编排工具与原生 argo_search/argo_fetch，接管宿主 web_search/web_fetch seam 走 Argo 引擎链，自带设置页（接入/工具/API 密钥/研究）；MCP 全量工具面按需开启。",
+  "author": {
+    "name": "taxueseek",
+    "url": "https://github.com/taxueseek"
+  },
+  "links": {
+    "repo": "https://github.com/taxueseek/argo",
+    "docs": "https://github.com/taxueseek/argo#readme",
+    "npm": "https://www.npmjs.com/package/@taxueseek/argo-dsh"
+  },
+  "license": "Apache-2.0",
+  "category": "tools",
+  "status": "beta",
+  "surfaces": {
+    "server": {},
+    "web": { "clientModule": true }
+  },
+  "provides": {
+    "tools": ["argo_search", "argo_fetch", "wide_research"]
+  },
+  "install": {
+    "rows": [
+      {
+        "name": "@taxueseek/argo-dsh",
+        "npm": { "spec": "@taxueseek/argo-dsh" }
+      }
+    ]
+  },
+  "engines": {
+    "dsh": "^0.2.0-rc.1 || ^0.2.1 || ^0.2.2-0",
+    "node": ">=18"
+  },
+  "capabilities": ["shell", "network", "credentials"],
+  "verified": {
+    "at": "2026-11-21",
+    "packages": [
+      {
+        "name": "@taxueseek/argo-dsh",
+        "version": "2.16.0",
+        "integrity": "sha512-Pyd880AHgfpXTXZviGM8AMIjRE2m0WfhEoqADlHHB5xdO7h1PfcLgMuFlU6ZBdh9GHtpHeKsDeGoMmHSrntKSg=="
+      }
+    ]
+  }
+}
